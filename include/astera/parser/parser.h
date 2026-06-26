@@ -47,6 +47,7 @@ struct ASTERA_EXPORT ParseResult {
     core::FileInfo file;
     TSTree* tree = nullptr;
     std::string source;
+    std::vector<core::Symbol> symbols;
 };
 
 // Parse a batch of files in parallel (Phase 2: TBB parallel_for).

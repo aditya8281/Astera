@@ -87,10 +87,19 @@ bool GitIgnoreMatcher::is_ignored(
         if (p.dir_only && !is_directory) continue;
 
         if (p.pattern.find('/') == std::string::npos) {
-            // Pattern without slash applies to leaf name
-            auto leaf = relative_path.filename().generic_string();
-            if (match_glob(p.pattern, leaf)) {
-                ignored = !p.negate;
+            // Pattern without a slash
+            if (p.dir_only) {
+                // Directory-only — match against first path component
+                auto first = path_str.substr(0, path_str.find('/'));
+                if (match_glob(p.pattern, first)) {
+                    ignored = !p.negate;
+                }
+            } else {
+                // Leaf-name match
+                auto leaf = relative_path.filename().generic_string();
+                if (match_glob(p.pattern, leaf)) {
+                    ignored = !p.negate;
+                }
             }
         } else {
             // Pattern with slash matches against full relative path
@@ -140,10 +149,28 @@ core::Result<std::vector<core::FileInfo>> FileWalker::walk(
         return core::Errc::InvalidPath;
     }
 
-    for (const auto& entry :
-         std::filesystem::recursive_directory_iterator(root,
-             std::filesystem::directory_options::skip_permission_denied))
+    for (auto it = std::filesystem::recursive_directory_iterator(
+             root, std::filesystem::directory_options::skip_permission_denied);
+         it != std::filesystem::recursive_directory_iterator(); ++it)
     {
+        const auto& entry = *it;
+
+        // Skip directories matching exclude patterns (e.g. node_modules, vcpkg)
+        if (entry.is_directory()) {
+            auto dirname = entry.path().filename().string();
+            for (const auto& pattern : config_.exclude_patterns) {
+                if (dirname == pattern) {
+                    it.disable_recursion_pending();
+                    break;
+                }
+            }
+            // Also skip .hidden directories
+            if (!dirname.empty() && dirname[0] == '.') {
+                it.disable_recursion_pending();
+            }
+            continue;
+        }
+
         if (!entry.is_regular_file()) continue;
 
         auto rel_path = std::filesystem::relative(entry.path(), root);
@@ -155,7 +182,7 @@ core::Result<std::vector<core::FileInfo>> FileWalker::walk(
         // Gitignore check
         if (gitignore.is_ignored(rel_path, false)) continue;
 
-        // Skip hidden files and common non-source dirs
+        // Skip hidden files
         auto leaf = rel_path.filename().string();
         if (!leaf.empty() && leaf[0] == '.') continue;
 

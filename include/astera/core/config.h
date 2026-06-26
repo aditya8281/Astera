@@ -17,7 +17,7 @@ struct ASTERA_EXPORT LanguageConfig {
 struct ASTERA_EXPORT DiscoveryConfig {
     std::vector<std::string> exclude_patterns = {
         "node_modules", "__pycache__", ".git", ".svn",
-        "target", "build", "dist", ".astera"
+        "target", "build", "dist", ".astera", "vcpkg"
     };
     size_t max_file_size = 10 * 1024 * 1024; // 10MB
 };

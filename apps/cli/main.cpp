@@ -1,6 +1,7 @@
 #include <iostream>
 #include <cstdlib>
 #include <filesystem>
+#include <fstream>
 #include <vector>
 
 #include <fmt/format.h>
@@ -13,6 +14,8 @@
 #include "astera/core/error.h"
 #include "astera/discovery/walker.h"
 #include "astera/discovery/classifier.h"
+#include "astera/parser/parser.h"
+#include "astera/parser/extractor.h"
 #include "astera/storage/database.h"
 
 namespace fs = std::filesystem;
@@ -61,14 +64,24 @@ int cmd_index(const fs::path& path) {
         }
     }
 
-    // Filter to supported languages for Phase 1
-    std::vector<FileInfo> supported;
+    // Filter to known-language files
+    std::vector<FileInfo> known;
     for (const auto& f : files) {
         if (f.language != "unknown") {
-            supported.push_back(f);
+            known.push_back(f);
         }
     }
-    fmt::print("Supported language files: {}\n", supported.size());
+    fmt::print("Known-language files: {}\n", known.size());
+
+    // Phase 1: only parse TS/JS and Python
+    std::vector<FileInfo> parseable;
+    for (const auto& f : known) {
+        if (f.language == "typescript" || f.language == "javascript" ||
+            f.language == "tsx" || f.language == "python") {
+            parseable.push_back(f);
+        }
+    }
+    fmt::print("Parseable files (TS/JS/Python): {}\n", parseable.size());
 
     // Open database
     auto astera_dir = path / ".astera";
@@ -92,16 +105,74 @@ int cmd_index(const fs::path& path) {
         return 1;
     }
 
-    // Insert files
-    for (const auto& f : supported) {
+    // Insert files into DB and capture their IDs
+    for (auto& f : parseable) {
+        // Compute line count from file
+        auto full_path = fs::absolute(f.repo_root) / f.relative_path;
+        std::ifstream count_ifs(full_path);
+        if (count_ifs) {
+            int64_t lines = 0;
+            std::string line;
+            while (std::getline(count_ifs, line)) ++lines;
+            f.line_count = lines;
+        }
+
         auto id_result = db.insert_file(f);
         if (!id_result) {
-            fmt::print(stderr, "Failed to insert file {}: {}\n",
+            fmt::print(stderr, "  Failed to insert file {}: {}\n",
                        f.relative_path, id_result.error().message());
+            continue;
         }
+        if (id_result) f.id = id_result.value();
     }
 
-    fmt::print("Indexing complete.\n");
+    // Parse, extract symbols, store in DB
+    int64_t total_symbols = 0;
+    int64_t parsed_count = 0;
+    astera::parser::Parser parser;
+
+    for (const auto& f : parseable) {
+        if (f.id == 0) continue;
+
+        // Read source
+        auto read_path = fs::absolute(f.repo_root) / f.relative_path;
+        std::ifstream ifs(read_path);
+        if (!ifs) {
+            fmt::print(stderr, "  Failed to open {}\n", f.relative_path);
+            continue;
+        }
+        std::string source(std::istreambuf_iterator<char>(ifs), {});
+
+        // Parse
+        auto tree = parser.parse_string(source, f.language);
+        if (!tree) {
+            fmt::print(stderr, "  Failed to parse {}\n", f.relative_path);
+            continue;
+        }
+
+        // Extract symbols
+        auto extractor = astera::parser::Extractor::for_language(f.language);
+        if (!extractor) continue;
+
+        auto symbols = extractor->extract(tree, source, f.id);
+        fmt::print("  {}: {} symbols\n", f.relative_path, symbols.size());
+
+        // Store symbols in database
+        if (!symbols.empty()) {
+            auto ids = db.insert_nodes(symbols);
+            if (!ids) {
+                fmt::print(stderr, "  Failed to insert symbols for {}: {}\n",
+                           f.relative_path, ids.error().message());
+            } else {
+                total_symbols += static_cast<int64_t>(symbols.size());
+            }
+        }
+
+        ++parsed_count;
+    }
+
+    fmt::print("Indexing complete: {} files, {} symbols.\n",
+               parsed_count, total_symbols);
     return 0;
 }
 

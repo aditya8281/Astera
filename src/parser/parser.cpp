@@ -1,4 +1,5 @@
 #include "astera/parser/parser.h"
+#include "astera/parser/extractor.h"
 #include <tree_sitter/api.h>
 #include <cstring>
 #include <fstream>
@@ -84,8 +85,15 @@ core::Result<std::vector<ParseResult>> BatchParser::parse_all(
 
         ParseResult pr;
         pr.file = file;
+        // Run symbol extraction (before moving source)
+        auto extractor = Extractor::for_language(file.language);
+        if (extractor) {
+            pr.symbols = extractor->extract(tree, source, file.id);
+        }
+
         pr.tree = tree;
         pr.source = std::move(source);
+
         results.push_back(std::move(pr));
     }
 

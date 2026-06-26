@@ -6,6 +6,7 @@ add_library(astera STATIC
     discovery/walker.cpp
     discovery/classifier.cpp
     parser/parser.cpp
+    parser/extractor.cpp
     storage/database.cpp
 )
 

@@ -15,7 +15,8 @@ add_executable(test_storage test_storage.cpp)
 target_link_libraries(test_storage PRIVATE astera GTest::gmock_main)
 gtest_discover_tests(test_storage)
 
-# -- Test: parser (Phase 1.2) --
-# add_executable(test_parser test_parser.cpp)
-# target_link_libraries(test_parser PRIVATE astera GTest::gmock_main)
-# gtest_discover_tests(test_parser)
+# -- Test: parser --
+add_executable(test_parser test_parser.cpp)
+target_compile_definitions(test_parser PRIVATE TEST_SOURCE_DIR="${CMAKE_SOURCE_DIR}")
+target_link_libraries(test_parser PRIVATE astera GTest::gmock_main)
+gtest_discover_tests(test_parser)
