@@ -2,19 +2,21 @@
 
 ## Current Status
 
-**Phase 1.1 (Foundation)**: 6/7 items complete — core types, discovery, storage, parser (4 languages), CLI all built and tested. CI yml is the only remaining item.
+**Phase 1.1 (Foundation)**: 6/7 items complete — core types, discovery, storage, parser, CLI all built and tested. CI yml is the only remaining item.
 
-**Phase 1.2 (Parser Depth)**: 4/6 items complete — Python, Rust, and Go extractors built; containment edges implemented (fix applied, awaiting test verification). Call graph extraction and resolver are next.
+**Phase 1.2 (Parser Depth)**: 5/6 items complete — call graph extraction done, 5 languages supported (TS/JS, Python, Rust, Go). Resolver is the remaining item.
 
-Last build: all 44 tests pass — 6 core + 8 discovery + 21 parser + 9 storage.
+**Phase 1.3 (API Server)**: Axum HTTP server complete — 7 endpoints, CORS, 7 integration tests.
 
-| Crate | Lines | Status |
+Last build: 57 tests pass — 6 core + 8 discovery + 27 parser + 9 storage + 7 API.
+
+| Crate | Tests | Status |
 |---|---|---|
-| astera-core | ~353 | ✅ Tested |
-| astera-discovery | ~295 | ✅ Tested |
-| astera-parser | ~444 | ✅ 18/21 pass, 3 pending verification |
-| astera-storage | ~420 | ✅ Tested, 10 tests pass |
-| astera-cli | ~330 | 🏗️ Built, edge mapping pending |
+| astera-core | 6 | ✅ |
+| astera-discovery | 8 | ✅ |
+| astera-parser | 27 | ✅ 4 languages, call graph, containment |
+| astera-storage | 9 | ✅ FTS5+LIKE fallback |
+| astera-cli | 0 | ✅ Builds, edge mapping implemented |
 
 ## Prerequisites
 

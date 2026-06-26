@@ -27,7 +27,7 @@
 - [x] Python extractor (functions, classes, imports, module vars)
 - [x] Rust extractor (functions, structs, enums, traits, impl blocks)
 - [x] Containment edges (file→symbol, class→method)
-- [ ] Call graph extraction (Calls edges)
+- [x] Call graph extraction (Calls edges)
 - [x] Go extractor (functions, structs, interfaces, packages)
 - [ ] `astera-resolver`: basic scope chain + import resolution
 

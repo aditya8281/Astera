@@ -3,7 +3,7 @@ use std::time::Instant;
 
 use clap::{Parser, Subcommand};
 
-use astera_core::{AsteraConfig, IndexReport};
+use astera_core::IndexReport;
 use astera_discovery::FileWalker;
 use astera_parser::{parse, Extractor, ParseOutput};
 use astera_storage::Database;
@@ -175,7 +175,7 @@ fn index_command(path: &str) -> Result<(), anyhow::Error> {
     let mut indexed_files = 0u64;
 
     for result in parse_results.iter().flatten() {
-        let (_, _file_id, output) = result;
+        let (_, file_id, output) = result;
 
         // Assign file_id to nodes
         for node in &output.nodes {
@@ -200,7 +200,7 @@ fn index_command(path: &str) -> Result<(), anyhow::Error> {
                 let tgt = e.target_node_id as usize;
                 if src < node_ids.len() && tgt < node_ids.len() {
                     let mut edge = astera_core::Edge::new(node_ids[src], node_ids[tgt], e.kind.clone());
-                    edge.file_id = Some(file_id);
+                    edge.file_id = Some(*file_id);
                     Some(edge)
                 } else {
                     None
@@ -339,8 +339,21 @@ async fn main() -> Result<(), anyhow::Error> {
             }
         },
         Commands::Serve { port } => {
-            println!("API server not yet implemented. Coming in Phase 1.3.");
-            println!("Port: {}", port);
+            let root = find_astera_root(Path::new("."));
+            let root = match root {
+                Some(r) => r,
+                None => {
+                    println!("No .astera directory found in current or parent directories.");
+                    return Ok(());
+                }
+            };
+            let db_path = root.join(".astera").join("index.db");
+            if !db_path.exists() {
+                println!("No index database found at: {}", db_path.display());
+                println!("Run 'astera index' first.");
+                return Ok(());
+            }
+            astera_api::serve(&db_path, port).await?;
         }
     }
 
