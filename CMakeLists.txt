@@ -44,6 +44,9 @@ find_package(fmt CONFIG REQUIRED)
 find_package(spdlog CONFIG REQUIRED)
 find_package(CLI11 CONFIG REQUIRED)
 
+# Fetch tree-sitter language grammars (TS, JS, Python)
+include(cmake/FetchGrammars.cmake)
+
 # Drogon (optional for Phase 1.4, but find early)
 find_package(drogon CONFIG QUIET)
 if(NOT drogon_FOUND)

@@ -25,6 +25,13 @@ target_link_libraries(astera
         spdlog::spdlog
 )
 
+# Link tree-sitter language grammars (downloaded via FetchContent)
+foreach(grammar javascript typescript tsx python)
+    if(TARGET tsg-${grammar})
+        target_link_libraries(astera PRIVATE tsg-${grammar})
+    endif()
+endforeach()
+
 # Compiler warnings
 include(${CMAKE_SOURCE_DIR}/cmake/CompilerWarnings.cmake)
 set_project_warnings(astera)
