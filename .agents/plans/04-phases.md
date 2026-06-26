@@ -13,22 +13,22 @@
 **Objective**: Rust workspace, core types, discovery, storage
 
 - [x] Rust workspace with crate structure
-- [ ] `astera-core`: NodeKind, EdgeKind, SourceSpan, FileInfo, Node, Edge types
-- [ ] `astera-discovery`: filesystem walker via `ignore` crate, gitignore, language classifier
-- [ ] `astera-storage`: SQLite schema via `rusqlite`, CRUD, FTS5, transaction helpers
-- [ ] `astera-parser`: tree-sitter integration, TS/JS extractor (functions, classes, imports, variables)
-- [ ] `astera-cli`: `clap`-based CLI with `init`, `index`, `query` subcommands
+- [x] `astera-core`: NodeKind, EdgeKind, SourceSpan, FileInfo, Node, Edge types
+- [x] `astera-discovery`: filesystem walker via `ignore` crate, gitignore, language classifier
+- [x] `astera-storage`: SQLite schema via `rusqlite`, CRUD, FTS5, transaction helpers
+- [x] `astera-parser`: tree-sitter integration, TS/JS extractor (functions, classes, imports, variables)
+- [x] `astera-cli`: `clap`-based CLI with `init`, `index`, `query` subcommands
 - [ ] CI pipeline: `cargo build`, `cargo test`, `cargo clippy`, `cargo fmt`
 
 ### Phase 1.2: Parser Depth + Python
 
 **Objective**: Full symbol extraction for TS/JS and Python, call graph
 
-- [ ] Python extractor (functions, classes, imports, module vars)
-- [ ] Rust extractor (functions, structs, enums, traits, impl blocks)
-- [ ] Containment edges (file→symbol, class→method)
+- [x] Python extractor (functions, classes, imports, module vars)
+- [x] Rust extractor (functions, structs, enums, traits, impl blocks)
+- [x] Containment edges (file→symbol, class→method)
 - [ ] Call graph extraction (Calls edges)
-- [ ] Go extractor (functions, structs, interfaces, packages)
+- [x] Go extractor (functions, structs, interfaces, packages)
 - [ ] `astera-resolver`: basic scope chain + import resolution
 
 ### Phase 1.3: API Server

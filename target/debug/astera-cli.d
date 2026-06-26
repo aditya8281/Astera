@@ -1,0 +1,1 @@
+/home/adi/Desktop/Astera/target/debug/astera-cli: /home/adi/Desktop/Astera/crates/astera-cli/src/main.rs /home/adi/Desktop/Astera/crates/astera-core/src/lib.rs /home/adi/Desktop/Astera/crates/astera-discovery/src/lib.rs /home/adi/Desktop/Astera/crates/astera-parser/src/lib.rs /home/adi/Desktop/Astera/crates/astera-storage/src/lib.rs

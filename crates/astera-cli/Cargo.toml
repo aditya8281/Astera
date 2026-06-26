@@ -1,0 +1,19 @@
+[package]
+name = "astera-cli"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+astera-core = { path = "../astera-core" }
+astera-discovery = { path = "../astera-discovery" }
+astera-parser = { path = "../astera-parser" }
+astera-storage = { path = "../astera-storage" }
+clap = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+tracing = { workspace = true }
+tracing-subscriber = { workspace = true }
+anyhow = { workspace = true }
+chrono = { workspace = true }
+rayon = { workspace = true }
+tokio = { version = "1", features = ["rt-multi-thread", "macros"] }

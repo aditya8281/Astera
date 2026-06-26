@@ -1,0 +1,353 @@
+use serde::{Deserialize, Serialize};
+use std::fmt;
+
+/// Span of source code (1-indexed lines and columns)
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct SourceSpan {
+    pub start_line: u32,
+    pub start_col: u32,
+    pub end_line: u32,
+    pub end_col: u32,
+}
+
+impl SourceSpan {
+    pub fn contains(&self, line: u32, col: u32) -> bool {
+        // Zero-length span (empty range) contains nothing
+        if self.start_line == self.end_line && self.start_col == self.end_col {
+            return false;
+        }
+        (line > self.start_line || (line == self.start_line && col >= self.start_col))
+            && (line < self.end_line || (line == self.end_line && col <= self.end_col))
+    }
+}
+
+/// File information discovered during walk
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct FileInfo {
+    pub id: Option<i64>,
+    pub repo_root: String,
+    pub relative_path: String,
+    pub language: String,
+    pub hash: String,
+    pub size: u64,
+    pub line_count: u64,
+    pub indexed_at: Option<String>,
+    pub last_modified: String,
+}
+
+/// Node kind in the Code Property Graph
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Hash)]
+pub enum NodeKind {
+    File,
+    Module,
+    Function,
+    Class,
+    Method,
+    Interface,
+    Enum,
+    Variable,
+    Field,
+    Parameter,
+    TypeAlias,
+    Import,
+    Macro,
+    Anonymous,
+}
+
+impl NodeKind {
+    pub fn as_str(&self) -> &'static str {
+        match self {
+            NodeKind::File => "File",
+            NodeKind::Module => "Module",
+            NodeKind::Function => "Function",
+            NodeKind::Class => "Class",
+            NodeKind::Method => "Method",
+            NodeKind::Interface => "Interface",
+            NodeKind::Enum => "Enum",
+            NodeKind::Variable => "Variable",
+            NodeKind::Field => "Field",
+            NodeKind::Parameter => "Parameter",
+            NodeKind::TypeAlias => "TypeAlias",
+            NodeKind::Import => "Import",
+            NodeKind::Macro => "Macro",
+            NodeKind::Anonymous => "Anonymous",
+        }
+    }
+
+    pub fn from_str(s: &str) -> Option<Self> {
+        match s {
+            "File" => Some(NodeKind::File),
+            "Module" => Some(NodeKind::Module),
+            "Function" => Some(NodeKind::Function),
+            "Class" => Some(NodeKind::Class),
+            "Method" => Some(NodeKind::Method),
+            "Interface" => Some(NodeKind::Interface),
+            "Enum" => Some(NodeKind::Enum),
+            "Variable" => Some(NodeKind::Variable),
+            "Field" => Some(NodeKind::Field),
+            "Parameter" => Some(NodeKind::Parameter),
+            "TypeAlias" => Some(NodeKind::TypeAlias),
+            "Import" => Some(NodeKind::Import),
+            "Macro" => Some(NodeKind::Macro),
+            "Anonymous" => Some(NodeKind::Anonymous),
+            _ => None,
+        }
+    }
+}
+
+impl fmt::Display for NodeKind {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", self.as_str())
+    }
+}
+
+/// Edge kind in the Code Property Graph
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Hash)]
+pub enum EdgeKind {
+    Contains,
+    Calls,
+    References,
+    Defines,
+    Inherits,
+    Implements,
+    Overrides,
+    Imports,
+    Exports,
+    DependsOn,
+    Declares,
+    Next,
+}
+
+impl EdgeKind {
+    pub fn as_str(&self) -> &'static str {
+        match self {
+            EdgeKind::Contains => "Contains",
+            EdgeKind::Calls => "Calls",
+            EdgeKind::References => "References",
+            EdgeKind::Defines => "Defines",
+            EdgeKind::Inherits => "Inherits",
+            EdgeKind::Implements => "Implements",
+            EdgeKind::Overrides => "Overrides",
+            EdgeKind::Imports => "Imports",
+            EdgeKind::Exports => "Exports",
+            EdgeKind::DependsOn => "DependsOn",
+            EdgeKind::Declares => "Declares",
+            EdgeKind::Next => "Next",
+        }
+    }
+
+    pub fn from_str(s: &str) -> Option<Self> {
+        match s {
+            "Contains" => Some(EdgeKind::Contains),
+            "Calls" => Some(EdgeKind::Calls),
+            "References" => Some(EdgeKind::References),
+            "Defines" => Some(EdgeKind::Defines),
+            "Inherits" => Some(EdgeKind::Inherits),
+            "Implements" => Some(EdgeKind::Implements),
+            "Overrides" => Some(EdgeKind::Overrides),
+            "Imports" => Some(EdgeKind::Imports),
+            "Exports" => Some(EdgeKind::Exports),
+            "DependsOn" => Some(EdgeKind::DependsOn),
+            "Declares" => Some(EdgeKind::Declares),
+            "Next" => Some(EdgeKind::Next),
+            _ => None,
+        }
+    }
+}
+
+impl fmt::Display for EdgeKind {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", self.as_str())
+    }
+}
+
+/// A symbol node in the CPG
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct Node {
+    pub id: Option<i64>,
+    pub kind: NodeKind,
+    pub name: String,
+    pub file_id: i64,
+    pub span: SourceSpan,
+    pub doc_comment: Option<String>,
+    pub properties: serde_json::Value,
+}
+
+impl Node {
+    pub fn new(kind: NodeKind, name: &str, file_id: i64, span: SourceSpan) -> Self {
+        Node {
+            id: None,
+            kind,
+            name: name.to_string(),
+            file_id,
+            span,
+            doc_comment: None,
+            properties: serde_json::Value::Object(Default::default()),
+        }
+    }
+
+    pub fn with_properties(mut self, props: serde_json::Value) -> Self {
+        self.properties = props;
+        self
+    }
+
+    pub fn with_doc_comment(mut self, doc: Option<String>) -> Self {
+        self.doc_comment = doc;
+        self
+    }
+}
+
+/// An edge in the CPG
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct Edge {
+    pub id: Option<i64>,
+    pub source_node_id: i64,
+    pub target_node_id: i64,
+    pub kind: EdgeKind,
+    pub file_id: Option<i64>,
+    pub properties: serde_json::Value,
+}
+
+impl Edge {
+    pub fn new(source: i64, target: i64, kind: EdgeKind) -> Self {
+        Edge {
+            id: None,
+            source_node_id: source,
+            target_node_id: target,
+            kind,
+            file_id: None,
+            properties: serde_json::Value::Object(Default::default()),
+        }
+    }
+}
+
+/// Result of parsing a single file
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ParseResult {
+    pub file_id: i64,
+    pub file_path: String,
+    pub language: String,
+    pub nodes: Vec<Node>,
+    pub edges: Vec<Edge>,
+}
+
+/// Report from a successful index operation
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct IndexReport {
+    pub repo_root: String,
+    pub total_files: u64,
+    pub known_language_files: u64,
+    pub indexed_files: u64,
+    pub total_symbols: u64,
+    pub total_edges: u64,
+    pub elapsed_ms: u64,
+}
+
+/// Config for Astera
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct AsteraConfig {
+    pub repo_root: String,
+    pub exclude_patterns: Vec<String>,
+    pub languages: Vec<String>,
+    pub db_path: Option<String>,
+}
+
+impl Default for AsteraConfig {
+    fn default() -> Self {
+        AsteraConfig {
+            repo_root: ".".to_string(),
+            exclude_patterns: vec![
+                ".git".into(),
+                "node_modules".into(),
+                "target".into(),
+                "build".into(),
+                "dist".into(),
+                ".astera".into(),
+            ],
+            languages: vec!["typescript".into(), "javascript".into(), "python".into()],
+            db_path: None,
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_node_kind_roundtrip() {
+        for kind in &[
+            NodeKind::File,
+            NodeKind::Function,
+            NodeKind::Class,
+            NodeKind::Method,
+            NodeKind::Interface,
+            NodeKind::Enum,
+            NodeKind::Variable,
+            NodeKind::Import,
+        ] {
+            assert_eq!(NodeKind::from_str(kind.as_str()), Some(kind.clone()));
+        }
+    }
+
+    #[test]
+    fn test_edge_kind_roundtrip() {
+        for kind in &[
+            EdgeKind::Contains,
+            EdgeKind::Calls,
+            EdgeKind::References,
+            EdgeKind::Defines,
+            EdgeKind::Imports,
+            EdgeKind::DependsOn,
+        ] {
+            assert_eq!(EdgeKind::from_str(kind.as_str()), Some(kind.clone()));
+        }
+    }
+
+    #[test]
+    fn test_span_contains() {
+        let span = SourceSpan {
+            start_line: 1,
+            start_col: 1,
+            end_line: 10,
+            end_col: 1,
+        };
+        assert!(span.contains(5, 10));
+        assert!(!span.contains(11, 1));
+        assert!(!span.contains(0, 1));
+    }
+
+    #[test]
+    fn test_span_zero_guard() {
+        let span = SourceSpan {
+            start_line: 5,
+            start_col: 3,
+            end_line: 5,
+            end_col: 3,
+        };
+        assert!(!span.contains(5, 3)); // zero-length span contains nothing
+    }
+
+    #[test]
+    fn test_node_builder() {
+        let span = SourceSpan {
+            start_line: 1,
+            start_col: 1,
+            end_line: 5,
+            end_col: 1,
+        };
+        let node = Node::new(NodeKind::Function, "hello", 1, span)
+            .with_properties(serde_json::json!({"return_type": "void"}));
+        assert_eq!(node.name, "hello");
+        assert_eq!(node.kind, NodeKind::Function);
+        assert_eq!(node.file_id, 1);
+        assert_eq!(node.properties["return_type"], "void");
+    }
+
+    #[test]
+    fn test_default_config() {
+        let config = AsteraConfig::default();
+        assert!(config.exclude_patterns.contains(&".git".to_string()));
+        assert!(config.languages.contains(&"typescript".to_string()));
+    }
+}

@@ -1,0 +1,17 @@
+[package]
+name = "astera-parser"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+astera-core = { path = "../astera-core" }
+serde = { workspace = true }
+serde_json = { workspace = true }
+tracing = { workspace = true }
+anyhow = { workspace = true }
+tree-sitter = "0.24"
+tree-sitter-typescript = "0.23"
+tree-sitter-javascript = "0.23"
+tree-sitter-python = "0.23"
+tree-sitter-rust = "0.23"
+tree-sitter-go = "0.23"

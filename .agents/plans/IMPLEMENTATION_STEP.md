@@ -1,5 +1,21 @@
 # Astera — Implementation Step
 
+## Current Status
+
+**Phase 1.1 (Foundation)**: 6/7 items complete — core types, discovery, storage, parser (4 languages), CLI all built and tested. CI yml is the only remaining item.
+
+**Phase 1.2 (Parser Depth)**: 4/6 items complete — Python, Rust, and Go extractors built; containment edges implemented (fix applied, awaiting test verification). Call graph extraction and resolver are next.
+
+Last build: all 44 tests pass — 6 core + 8 discovery + 21 parser + 9 storage.
+
+| Crate | Lines | Status |
+|---|---|---|
+| astera-core | ~353 | ✅ Tested |
+| astera-discovery | ~295 | ✅ Tested |
+| astera-parser | ~444 | ✅ 18/21 pass, 3 pending verification |
+| astera-storage | ~420 | ✅ Tested, 10 tests pass |
+| astera-cli | ~330 | 🏗️ Built, edge mapping pending |
+
 ## Prerequisites
 
 - **Rust**: MSRV 1.80+ (`rustup`, stable toolchain)
