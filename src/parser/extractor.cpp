@@ -30,29 +30,59 @@ std::string PythonExtractor::node_text(TSNode node, std::string_view source) {
 // ============================================================
 
 std::vector<core::Symbol> TypeScriptExtractor::extract(
-    TSTree* tree, std::string_view source, int64_t file_id) const
+    TSTree* tree, std::string_view source, int64_t file_id,
+    std::vector<core::Edge>* out_edges) const
 {
     std::vector<core::Symbol> symbols;
     if (!tree) return symbols;
     TSNode root = ts_tree_root_node(tree);
-    extract_node(root, source, file_id, symbols);
+    extract_node(root, source, file_id, symbols, out_edges, SIZE_MAX);
     return symbols;
 }
 
 void TypeScriptExtractor::extract_node(
     TSNode node, std::string_view source, int64_t file_id,
-    std::vector<core::Symbol>& out) const
+    std::vector<core::Symbol>& out,
+    std::vector<core::Edge>* out_edges,
+    size_t parent_idx) const
 {
     // Try to extract a symbol at this node
     auto sym = try_extract(node, source, file_id);
-    if (sym) out.push_back(std::move(*sym));
+    size_t my_idx = SIZE_MAX;
+    if (sym) {
+        my_idx = out.size();
+        out.push_back(std::move(*sym));
 
-    // Recurse into children
+        // If we have a parent and both are container+child, emit Contains edge
+        if (out_edges && parent_idx < my_idx) {
+            auto parent_kind = out[parent_idx].kind;
+            auto child_kind = out[my_idx].kind;
+            bool is_containment = false;
+            if (parent_kind == core::NodeKind::Class &&
+                child_kind == core::NodeKind::Method) {
+                is_containment = true;
+            } else if (parent_kind == core::NodeKind::Function &&
+                       child_kind == core::NodeKind::Function) {
+                is_containment = true;
+            }
+            if (is_containment) {
+                core::Edge e;
+                e.source_node_id = static_cast<int64_t>(parent_idx);
+                e.target_node_id = static_cast<int64_t>(my_idx);
+                e.kind = core::EdgeKind::Contains;
+                e.file_id = file_id;
+                out_edges->push_back(std::move(e));
+            }
+        }
+    }
+
+    // Recurse into children (pass self as parent if we extracted a symbol)
+    size_t next_parent = (my_idx < SIZE_MAX) ? my_idx : parent_idx;
     uint32_t count = ts_node_named_child_count(node);
     for (uint32_t i = 0; i < count; ++i) {
         TSNode child = ts_node_named_child(node, i);
         if (ts_node_is_null(child)) continue;
-        extract_node(child, source, file_id, out);
+        extract_node(child, source, file_id, out, out_edges, next_parent);
     }
 }
 
@@ -163,27 +193,62 @@ std::optional<core::Symbol> TypeScriptExtractor::try_extract(
 // ============================================================
 
 std::vector<core::Symbol> PythonExtractor::extract(
-    TSTree* tree, std::string_view source, int64_t file_id) const
+    TSTree* tree, std::string_view source, int64_t file_id,
+    std::vector<core::Edge>* out_edges) const
 {
     std::vector<core::Symbol> symbols;
     if (!tree) return symbols;
     TSNode root = ts_tree_root_node(tree);
-    extract_node(root, source, file_id, symbols);
+    extract_node(root, source, file_id, symbols, out_edges, SIZE_MAX);
     return symbols;
 }
 
 void PythonExtractor::extract_node(
     TSNode node, std::string_view source, int64_t file_id,
-    std::vector<core::Symbol>& out) const
+    std::vector<core::Symbol>& out,
+    std::vector<core::Edge>* out_edges,
+    size_t parent_idx) const
 {
     auto sym = try_extract(node, source, file_id);
-    if (sym) out.push_back(std::move(*sym));
+    size_t my_idx = SIZE_MAX;
+    if (sym) {
+        my_idx = out.size();
+        out.push_back(std::move(*sym));
 
+        if (out_edges && parent_idx < my_idx) {
+            auto parent_kind = out[parent_idx].kind;
+            auto child_kind = out[my_idx].kind;
+            bool is_containment = false;
+            if (parent_kind == core::NodeKind::Class &&
+                child_kind == core::NodeKind::Function) {
+                // Python class methods are Function nodes, not Method
+                is_containment = true;
+            } else if (parent_kind == core::NodeKind::Function &&
+                       child_kind == core::NodeKind::Function) {
+                // Nested functions (def inside def)
+                is_containment = true;
+            } else if (parent_kind == core::NodeKind::Class &&
+                       child_kind == core::NodeKind::Class) {
+                // Nested class
+                is_containment = true;
+            }
+            if (is_containment) {
+                core::Edge e;
+                e.source_node_id = static_cast<int64_t>(parent_idx);
+                e.target_node_id = static_cast<int64_t>(my_idx);
+                e.kind = core::EdgeKind::Contains;
+                e.file_id = file_id;
+                out_edges->push_back(std::move(e));
+            }
+        }
+    }
+
+    size_t next_parent = (my_idx < SIZE_MAX) ? my_idx : parent_idx;
     uint32_t count = ts_node_named_child_count(node);
     for (uint32_t i = 0; i < count; ++i) {
         TSNode child = ts_node_named_child(node, i);
         if (ts_node_is_null(child)) continue;
-        extract_node(child, source, file_id, out);
+        extract_node(child, source, file_id, out, out_edges, next_parent);
     }
 }
 

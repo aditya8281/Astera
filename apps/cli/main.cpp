@@ -150,12 +150,14 @@ int cmd_index(const fs::path& path) {
             continue;
         }
 
-        // Extract symbols
+        // Extract symbols (with candidate edges using symbol vector indices)
+        std::vector<Edge> candidate_edges;
         auto extractor = astera::parser::Extractor::for_language(f.language);
         if (!extractor) continue;
 
-        auto symbols = extractor->extract(tree, source, f.id);
-        fmt::print("  {}: {} symbols\n", f.relative_path, symbols.size());
+        auto symbols = extractor->extract(tree, source, f.id, &candidate_edges);
+        fmt::print("  {}: {} symbols, {} edges\n",
+                   f.relative_path, symbols.size(), candidate_edges.size());
 
         // Store symbols in database
         if (!symbols.empty()) {
@@ -165,6 +167,24 @@ int cmd_index(const fs::path& path) {
                            f.relative_path, ids.error().message());
             } else {
                 total_symbols += static_cast<int64_t>(symbols.size());
+
+                // Resolve edge vector indices to DB IDs and store
+                if (!candidate_edges.empty()) {
+                    std::vector<Edge> resolved;
+                    resolved.reserve(candidate_edges.size());
+                    auto& db_ids = ids.value();
+                    for (const auto& ce : candidate_edges) {
+                        Edge e = ce;
+                        if (ce.source_node_id >= 0 &&
+                            static_cast<size_t>(ce.source_node_id) < db_ids.size())
+                            e.source_node_id = db_ids[static_cast<size_t>(ce.source_node_id)];
+                        if (ce.target_node_id >= 0 &&
+                            static_cast<size_t>(ce.target_node_id) < db_ids.size())
+                            e.target_node_id = db_ids[static_cast<size_t>(ce.target_node_id)];
+                        resolved.push_back(std::move(e));
+                    }
+                    db.insert_edges(resolved);
+                }
             }
         }
 

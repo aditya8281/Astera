@@ -88,7 +88,7 @@ core::Result<std::vector<ParseResult>> BatchParser::parse_all(
         // Run symbol extraction (before moving source)
         auto extractor = Extractor::for_language(file.language);
         if (extractor) {
-            pr.symbols = extractor->extract(tree, source, file.id);
+            pr.symbols = extractor->extract(tree, source, file.id, &pr.edges);
         }
 
         pr.tree = tree;

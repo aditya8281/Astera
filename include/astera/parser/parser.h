@@ -48,6 +48,7 @@ struct ASTERA_EXPORT ParseResult {
     TSTree* tree = nullptr;
     std::string source;
     std::vector<core::Symbol> symbols;
+    std::vector<core::Edge> edges; // unresolved (symbol vector indices as IDs)
 };
 
 // Parse a batch of files in parallel (Phase 2: TBB parallel_for).

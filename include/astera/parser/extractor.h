@@ -19,9 +19,11 @@ public:
     /// @param tree  The parsed tree-sitter tree (must not be null)
     /// @param source  The source code (needed to extract node text)
     /// @param file_id  Database file_id to assign to all symbols
+    /// @param out_edges  Optional output for edges (symbol vector indices as IDs)
     /// @return Vector of extracted symbols
     virtual std::vector<core::Symbol> extract(
-        TSTree* tree, std::string_view source, int64_t file_id) const = 0;
+        TSTree* tree, std::string_view source, int64_t file_id,
+        std::vector<core::Edge>* out_edges = nullptr) const = 0;
 
     /// Factory: create the appropriate extractor for a language.
     static std::unique_ptr<Extractor> for_language(std::string_view language);
@@ -31,11 +33,14 @@ public:
 class TypeScriptExtractor : public Extractor {
 public:
     std::vector<core::Symbol> extract(
-        TSTree* tree, std::string_view source, int64_t file_id) const override;
+        TSTree* tree, std::string_view source, int64_t file_id,
+        std::vector<core::Edge>* out_edges = nullptr) const override;
 
 private:
     void extract_node(TSNode node, std::string_view source, int64_t file_id,
-                      std::vector<core::Symbol>& out) const;
+                      std::vector<core::Symbol>& out,
+                      std::vector<core::Edge>* out_edges,
+                      size_t parent_idx) const;
     std::optional<core::Symbol> try_extract(
         TSNode node, std::string_view source, int64_t file_id) const;
 
@@ -47,11 +52,14 @@ private:
 class PythonExtractor : public Extractor {
 public:
     std::vector<core::Symbol> extract(
-        TSTree* tree, std::string_view source, int64_t file_id) const override;
+        TSTree* tree, std::string_view source, int64_t file_id,
+        std::vector<core::Edge>* out_edges = nullptr) const override;
 
 private:
     void extract_node(TSNode node, std::string_view source, int64_t file_id,
-                      std::vector<core::Symbol>& out) const;
+                      std::vector<core::Symbol>& out,
+                      std::vector<core::Edge>* out_edges,
+                      size_t parent_idx) const;
     std::optional<core::Symbol> try_extract(
         TSNode node, std::string_view source, int64_t file_id) const;
 
