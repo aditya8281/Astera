@@ -1,17 +1,17 @@
-# Astera — Analysis Pipeline
+# Astera — Analysis Pipeline (Rust)
 
 ## Overview
 
-The analysis pipeline transforms raw source files into a structured Code Property Graph. It runs in 8 sequential stages, with stages 2-3 parallelized per file.
+The analysis pipeline transforms raw source files into a structured Code Property Graph. It runs in 8 sequential stages, with stages 2-3 parallelized per file via rayon.
 
 ```
 Source Files
     │
     ▼
-[1. Discovery]  ─── Walk filesystem, classify, filter
+[1. Discovery]  ─── Walk filesystem, classify, filter (ignore crate)
     │
     ▼
-[2. Parsing]  ─── Tree-sitter CST (TBB parallel_for)
+[2. Parsing]  ─── Tree-sitter CST (rayon parallel iter)
     │
     ▼
 [3. Extraction]  ─── Symbol + reference extraction (parallel per file)
@@ -26,10 +26,10 @@ Source Files
 [6. Relationship Extraction]  ─── Calls, inherits, contains, depends
     │
     ▼
-[7. Analysis]  ─── Metrics, complexity, coupling, cycles
+[7. Analysis]  ─── Metrics, complexity, coupling, cycles (Phase 2)
     │
     ▼
-[8. Storage]  ─── SQLite persistent store
+[8. Storage]  ─── SQLite persistent store via rusqlite
     │
     ▼
 Code Property Graph (queryable)
@@ -40,171 +40,130 @@ Code Property Graph (queryable)
 ### Stage 1: Discovery
 
 **Input**: Filesystem root path  
-**Output**: `std::vector<FileInfo>`  
-**Module**: `discovery`
+**Output**: `Vec<DiscoveredFile>`  
+**Crate**: `astera-discovery`
 
 ```
-1. Walk path recursively with std::filesystem::recursive_directory_iterator
-2. Custom .gitignore parser (pattern file with glob rules):
-   - Lines starting with # are comments
-   - Lines starting with ! are negations
-   - ** double-star glob patterns
-   - Trailing / matches directories only
+1. Walk path with `ignore::WalkBuilder` (ripgrep's .gitignore engine)
+2. Respects .gitignore, .asteraignore, custom exclude patterns
 3. For each file:
-   a. Determine language from extension (.ts/tsx → TypeScript, .py → Python, etc.)
+   a. Determine language from extension (.ts → TypeScript, .py → Python, etc.)
    b. Compute SHA-256 hash of content (for change detection)
    c. Record size, modification time
    d. Skip if hash matches existing index entry (fast path)
-4. Filter: skip binaries, node_modules, __pycache__, .git, .astera
-5. Use .asteraignore for additional exclusions
-6. Return sorted vector of FileInfo
+4. Filter: skip hidden files, node_modules, target, .git, .astera
+5. Return sorted Vec<DiscoveredFile>
 ```
 
 Language detection:
 
-| Extension | Language |
-|---|---|
-| .ts, .tsx | TypeScript |
-| .js, .jsx, .mjs, .cjs | JavaScript |
-| .py | Python |
-| .rs | Rust (Phase 2) |
-| .go | Go (Phase 2) |
-| .c, .h | C (Phase 3) |
-| .cpp, .hpp, .cc | C++ (Phase 3) |
-| .java | Java (Phase 3) |
+| Extension | Language | Phase |
+|---|---|---|
+| .ts, .tsx | TypeScript | 1 |
+| .js, .jsx, .mjs, .cjs | JavaScript | 1 |
+| .py | Python | 1 |
+| .rs | Rust | 1 |
+| .go | Go | 2 |
+| .c, .h | C | 3 |
+| .cpp, .hpp, .cc | C++ | 3 |
+| .java | Java | 3 |
 
 ### Stage 2: Parsing
 
-**Input**: `std::vector<FileInfo>`  
-**Output**: `std::vector<ParseResult>`  
-**Module**: `parser`
+**Input**: `Vec<DiscoveredFile>`  
+**Output**: `Vec<ParsedFile>`  
+**Crate**: `astera-parser`
 
-Tree-sitter C API called directly — no bindings layer:
+Tree-sitter via Rust crate — no C API wrappers needed:
 
-```cpp
-struct Parser {
-    Parser() : parser_(ts_parser_new()) {}
-    ~Parser() { ts_parser_delete(parser_); }
-
-    // Non-copyable, movable
-    Parser(Parser&& other) noexcept : parser_(std::exchange(other.parser_, nullptr)) {}
-
-    std::optional<CSTResult> parse(const std::string& source,
-                                    const std::string& language) {
-        TSLanguage* lang = get_language(language);
-        if (!lang) return std::nullopt;
-
-        ts_parser_set_language(parser_, lang);
-        TSTree* tree = ts_parser_parse_string(
-            parser_, nullptr, source.data(), source.size());
-
-        if (!tree) return std::nullopt;
-
-        CSTResult result;
-        result.root = ts_tree_root_node(tree);
-        result.tree = tree;  // Owned, deleted in destructor
-        return result;
-    }
-
-private:
-    TSParser* parser_;
-};
+```rust
+fn parse_file(source: &[u8], language: &str) -> Result<CSTResult> {
+    let mut parser = Parser::new();
+    let lang = get_language(language)?;
+    parser.set_language(&lang)?;
+    let tree = parser.parse(source, None)
+        .ok_or(anyhow!("Parse failed"))?;
+    Ok(CSTResult {
+        root: tree.root_node(),
+        tree,   // owned, dropped when done
+    })
+}
 ```
 
-Parsing runs in parallel via oneTBB:
+Parsing runs in parallel via rayon:
 
-```cpp
-tbb::parallel_for(size_t(0), files.size(), [&](size_t i) {
-    auto content = read_file(files[i].path);
-    auto cst = parser.parse(content, files[i].language);
-    if (cst) {
-        results[i] = extractor.extract(*cst, content, files[i]);
-    }
-});
+```rust
+files.par_iter().map(|file| {
+    let cst = parse_file(&file.bytes, &file.language)?;
+    let (symbols, edges) = extractor.extract(cst.root, &file.bytes, file.file_id);
+    Ok(ParsedFile { file, symbols, edges })
+}).collect::<Result<Vec<_>>>()
 ```
 
 ### Stage 3: Symbol & Reference Extraction
 
-**Input**: `std::vector<CSTResult>`  
-**Output**: `std::vector<FileAnalysis>`  
-**Module**: `parser` — language-specific extractors
+**Input**: `Vec<CSTResult>`  
+**Output**: `Vec<(Symbol, Edge)>` per file  
+**Crate**: `astera-parser` — language-specific extractors
 
-```cpp
-struct Extractor {
-    virtual ~Extractor() = default;
-    virtual std::string language() const = 0;
-    virtual std::vector<Symbol> extract_symbols(TSNode root,
-                                                  const std::string& source) = 0;
-    virtual std::vector<Reference> extract_references(TSNode root,
-                                                        const std::string& source) = 0;
-    virtual std::vector<Import> extract_imports(TSNode root,
-                                                  const std::string& source) = 0;
-};
-
-// One impl per language
-class TypeScriptExtractor : public Extractor { ... };
-class PythonExtractor : public Extractor { ... };
+```rust
+pub trait Extract: Send + Sync {
+    fn extract(&self, root: Node, source: &[u8], file_id: i64)
+        -> (Vec<Node>, Vec<Edge>);
+}
 ```
 
-CST walking uses tree-sitter query API for pattern matching:
+CST walking uses tree-sitter's node type + named child iteration:
 
-```cpp
-std::vector<Symbol> TypeScriptExtractor::extract_symbols(
-    TSNode root, const std::string& source) {
-
-    // Use tree-sitter query for pattern matching
-    uint32_t error_offset;
-    TSQueryError error_type;
-    TSQuery* query = ts_query_new(
-        tree_sitter_typescript(),
-        "(function_declaration name: (identifier) @name) @func",
-        strlen("..."),
-        &error_offset, &error_type);
-
-    TSQueryCursor* cursor = ts_query_cursor_new();
-    ts_query_cursor_exec(cursor, query, root);
-
-    std::vector<Symbol> symbols;
-    TSQueryMatch match;
-    while (ts_query_cursor_next_match(cursor, &match)) {
-        // Extract symbol from captured nodes
-        Symbol sym;
-        sym.name = node_text(match.captures[0].node, source);
-        sym.kind = NodeKind::Function;
-        // ... fill span, etc.
-        symbols.push_back(std::move(sym));
+```rust
+impl TypeScriptExtractor {
+    fn extract_functions(&self, root: Node, source: &[u8], file_id: i64) -> Vec<Node> {
+        let mut symbols = Vec::new();
+        let mut cursor = root.walk();
+        for child in root.children(&mut cursor) {
+            if child.kind() == "function_declaration" {
+                let name_node = child.child_by_field_name("name");
+                let name = name_node.and_then(|n| n.utf8_text(source).ok())
+                    .unwrap_or("anonymous");
+                symbols.push(Node::new(
+                    NodeKind::Function, name, file_id,
+                    SourceSpan {
+                        start_line: child.start_position().row as u32 + 1,
+                        start_col: child.start_position().column as u32 + 1,
+                        end_line: child.end_position().row as u32 + 1,
+                        end_col: child.end_position().column as u32 + 1,
+                    },
+                ));
+            }
+        }
+        symbols
     }
-
-    ts_query_cursor_delete(cursor);
-    ts_query_delete(query);
-    return symbols;
 }
 ```
 
 ### Stage 4: Import Resolution
 
-**Input**: `std::vector<FileAnalysis>`  
-**Output**: `std::vector<ResolvedImport>`  
-**Module**: `resolver`
+**Input**: `Vec<ParsedFile>`  
+**Output**: `Vec<ResolvedImport>`  
+**Crate**: `astera-resolver`
 
-Language-specific import resolution — same strategies as Rust version:
+Language-specific import resolution:
 
 | Language | Resolution |
 |---|---|
 | TypeScript | Node.js resolution: tsconfig paths, node_modules, relative |
 | JavaScript | Node.js resolution: package.json exports, relative |
 | Python | sys.path-like: relative, module path, __init__.py |
-| Rust (P2) | mod.rs/lib.rs, Cargo.toml |
-| Go (P2) | GOPATH, module path |
+| Rust | mod.rs/lib.rs, Cargo.toml externs |
+| Go | GOPATH, module path |
 
 ### Stage 5: Reference Resolution
 
-**Input**: `FileAnalysis` + `ResolvedImport`  
-**Output**: `std::vector<ResolvedRef>`  
-**Module**: `resolver`
+**Input**: `ParsedFile` + `ResolvedImport`  
+**Output**: `Vec<ResolvedRef>`  
+**Crate**: `astera-resolver`
 
 Heuristic scope chain resolution:
-
 1. **Lexical scoping** — walk up scope tree (innermost → function → module → global)
 2. **Module scope** — search symbols in the file/namespace
 3. **Import scope** — search symbols reachable via imports
@@ -212,40 +171,19 @@ Heuristic scope chain resolution:
 
 ### Stage 6: Relationship Extraction
 
-**Input**: `FileAnalysis` + `ResolvedImport` + `ResolvedRef`  
+**Input**: `ParsedFile` + `ResolvedImport` + `ResolvedRef`  
 **Output**: `GraphFragment` (nodes + edges)  
-**Module**: `graph` — `builder.cpp`
+**Crate**: `astera-graph`
 
-Graph built using flat arrays:
-
-```cpp
-struct Graph {
-    std::vector<Node> nodes;
-    std::vector<Edge> edges;
-    std::vector<std::vector<size_t>> adjacency_out;
-    std::vector<std::vector<size_t>> adjacency_in;
-};
-
-GraphFragment build_graph(const FileAnalysis& analysis,
-                          const std::vector<ResolvedRef>& refs) {
-    GraphFragment g;
-    for (const auto& sym : analysis.symbols) {
-        g.nodes.push_back(Node{...});
-    }
-    for (const auto& ref : refs) {
-        if (ref.resolved) {
-            g.edges.push_back(Edge{ref.source_id, ref.target_id, EdgeKind::References});
-        }
-    }
-    return g;
+```rust
+pub struct GraphBuilder {
+    nodes: Vec<Node>,
+    edges: Vec<Edge>,
+    file_map: HashMap<String, usize>,
 }
 ```
 
-### Stage 7: Analysis
-
-**Input**: `GraphFragment`  
-**Output**: `Metrics`  
-**Module**: `metrics`
+### Stage 7: Analysis (Phase 2)
 
 | Metric | Scope | Formula |
 |---|---|---|
@@ -258,41 +196,25 @@ GraphFragment build_graph(const FileAnalysis& analysis,
 
 ### Stage 8: Storage
 
-**Input**: Graph + metrics from prior stages  
+**Input**: Graph + extracted data  
 **Output**: Persisted SQLite  
-**Module**: `storage`
+**Crate**: `astera-storage`
 
-```cpp
-void Database::store_index(const std::vector<FileInfo>& files,
-                            const Graph& graph,
-                            const Metrics& metrics,
-                            const std::string& repo_root) {
-    auto tx = begin_transaction();
-
-    for (const auto& f : files) {
-        insert_file(f);
-    }
-    // Batch inserts with prepared statements
-    for (const auto& node : graph.nodes) {
-        insert_node(node);
-    }
-    for (const auto& edge : graph.edges) {
-        insert_edge(edge);
-    }
-    store_metrics(metrics);
-
-    tx.commit();
+```rust
+fn store_index(db: &Database, files: &[FileInfo], nodes: &[Node], edges: &[Edge]) -> Result<()> {
+    let tx = db.transaction()?;
+    for file in files { tx.insert_file(file)?; }
+    for node in nodes { tx.insert_node(node)?; }
+    for edge in edges { tx.insert_edge(edge)?; }
+    tx.commit()?;
+    Ok(())
 }
 ```
 
-Transactions are atomic. WAL mode allows concurrent reads during indexing.
-
 ## Incremental Updates (Phase 2)
 
-Notifications via efsw (cross-platform file watcher):
-
 ```
-FileSystemEvent (create, modify, delete)
+File change → notify crate
     │
     ▼
 Debounce (500ms) — coalesce batch edits
@@ -303,27 +225,23 @@ For each changed file:
     2. If unchanged: skip
     3. If changed:
        a. Re-parse, extract new symbols
-       b. Diff against old symbol set
-       c. DELETE FROM edges WHERE file_id = ?
-       d. DELETE FROM nodes WHERE file_id = ?
-       e. INSERT new nodes + edges
-       f. Re-resolve cross-file references
-       g. Recompute affected metrics
-    4. If deleted:
-       a. DELETE FROM files WHERE relative_path = ?
-       b. (Cascade deletes nodes and edges)
+       b. DELETE old edges/nodes for file_id
+       c. INSERT new nodes + edges
+       d. Re-resolve cross-file references
+       e. Recompute affected metrics
+    4. If deleted: DELETE FROM files WHERE relative_path = ? (cascade)
     │
     ▼
 Notify WebSocket clients of delta
 ```
 
-Phase 1 simplification: full re-index on change. Incremental in Phase 2.
+Phase 1: full re-index on change. Incremental in Phase 2.
 
 ## Performance Targets
 
 | Metric | Target |
 |---|---|
-| Parsing throughput | ≥100K LOC/second (single-threaded equivalent) |
+| Parsing throughput | ≥100K LOC/second |
 | Import resolution | <1s for 1000 files |
 | Reference resolution | <5s for 10K symbols |
 | Full index (100K LOC repo) | <5 seconds |

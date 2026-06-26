@@ -1,4 +1,4 @@
-# Astera — Architecture (C++)
+# Astera — Architecture (Rust + 3D Frontend)
 
 ## High-Level System Diagram
 
@@ -10,11 +10,11 @@
        │                              │
        ▼                              ▼
 ┌──────────────────────┐  ┌──────────────────────────┐
-│   Indexer Pipeline    │  │    HTTP Server (Drogon)   │
+│   Indexer Pipeline    │  │  HTTP Server (Axum)       │
 │                       │  │                           │
 │  Discover → Parse →   │  │  REST → JSON              │
 │  Extract → Resolve →  │  │  WebSocket → Events       │
-│  Store                │  │  OpenAPI / Swagger         │
+│  Store                │  │  utoipa / OpenAPI          │
 └──────────┬────────────┘  └───────────┬───────────────┘
            │                           │
            ▼                           ▼
@@ -27,7 +27,7 @@
            │
 ┌──────────┴────────────┐
 │   File Watcher         │
-│   (efsw / inotify)     │
+│   (notify crate)       │
 │   Debounced batches    │
 │   Incremental re-index │
 └───────────────────────┘
@@ -35,38 +35,38 @@
 
 ## Subsystems
 
-| # | Module | Responsibility | Libraries | Phase |
+| # | Crate | Responsibility | Crates | Phase |
 |---|---|---|---|---|
-| 1 | `core` | Enums (NodeKind, EdgeKind), config, error types | — | 1 |
-| 2 | `discovery` | Filesystem walking, gitignore, language classification | `std::filesystem`, custom gitignore | 1 |
-| 3 | `parser` | Tree-sitter integration, CST → symbol extraction | `tree-sitter` | 1 |
-| 4 | `resolver` | Reference resolution, scoping, import resolution | — | 1 |
-| 5 | `graph` | CPG builder, graph algorithms | — | 1 |
-| 6 | `storage` | SQLite CRUD, schema, FTS5 | `sqlite3` | 1 |
-| 7 | `metrics` | Complexity, coupling, cohesion, maintainability | — | 2 |
-| 8 | `impact` | Change impact analysis, transitive closure | — | 2 |
-| 9 | `api` | REST API server, middleware | `drogon` | 1 |
-| 10 | `cli` | CLI interface, output formatting | `CLI11`, `fmt` | 1 |
-| 11 | `watcher` | File watching, incremental updates | `efsw` / platform API | 2 |
-| 12 | `export` | Export formats (JSON, GraphML, DOT, CSV) | `nlohmann/json` | 3 |
+| 1 | `astera-core` | Types (NodeKind, EdgeKind), config, error types | — | 1 |
+| 2 | `astera-discovery` | Filesystem walking, gitignore, language classification | `walkdir`, `ignore`, `sha2` | 1 |
+| 3 | `astera-parser` | Tree-sitter integration, CST → symbol extraction | `tree-sitter` + language grammars | 1 |
+| 4 | `astera-resolver` | Reference resolution, scoping, import resolution | — | 1 |
+| 5 | `astera-graph` | CPG builder, graph algorithms | — | 1 |
+| 6 | `astera-storage` | SQLite CRUD, schema, FTS5 | `rusqlite` | 1 |
+| 7 | `astera-metrics` | Complexity, coupling, cohesion, maintainability | — | 2 |
+| 8 | `astera-impact` | Change impact analysis, transitive closure | — | 2 |
+| 9 | `astera-api` | REST API server, middleware | `axum`, `tower-http`, `utoipa` | 1 |
+| 10 | `astera-cli` | CLI interface, output formatting | `clap`, `serde_json` | 1 |
+| 11 | `astera-watcher` | File watching, incremental updates | `notify` | 2 |
+| 12 | `astera-export` | Export formats (JSON, GraphML, DOT, CSV) | `serde` | 3 |
 
 ## Module Dependency Graph
 
 ```
-cli
-  ├── discovery
-  ├── parser (→ core)
-  ├── resolver (→ core)
-  ├── graph (→ core)
-  ├── metrics (→ core)
-  ├── impact (→ graph)
-  ├── storage (→ core)
-  ├── api (→ core, storage)
-  ├── watcher (→ core)
-  └── export (→ core, storage)
+astera-cli
+  ├── astera-discovery
+  ├── astera-parser (→ astera-core)
+  ├── astera-resolver (→ astera-core)
+  ├── astera-graph (→ astera-core)
+  ├── astera-metrics (→ astera-core)
+  ├── astera-impact (→ astera-graph)
+  ├── astera-storage (→ astera-core)
+  ├── astera-api (→ astera-core, astera-storage)
+  ├── astera-watcher (→ astera-core)
+  └── astera-export (→ astera-core, astera-storage)
 ```
 
-`core` is the foundational module — all others depend on it. Contains only enums, structs, and interfaces.
+`astera-core` is the foundational crate — all others depend on it. Contains only enums, structs, and traits.
 
 ## Data Flow (Index Command)
 
@@ -74,10 +74,10 @@ cli
 1. CLI receives `astera index /path/to/repo`
    ↓
 2. discovery walks filesystem
-   → Returns std::vector<FileInfo> (path, language, size, hash)
+   → Returns Vec<FileInfo> (path, language, size, hash)
    ↓
-3. parser parses each file (TBB parallel_for)
-   → Returns std::vector<ParseResult> (symbols, references, imports)
+3. parser parses each file (rayon parallel iterator)
+   → Returns Vec<ParseResult> (symbols, references, imports)
    ↓
 4. resolver resolves imports → file dependencies
    → Resolves references → connects uses to definitions
@@ -97,54 +97,58 @@ cli
 
 | Layer | Choice | Rationale |
 |---|---|---|
-| **Language** | C++20 | Performance, tree-sitter C API is native, full control |
-| **Build** | CMake 3.28+ | Industry standard, presets, toolchain files |
-| **Package mgr** | vcpkg (manifest) | Deterministic builds, large library catalog |
-| **HTTP/WS** | Drogon | Async, high-perf, JSON built-in, WebSocket, controller-based routing |
-| **Parsing** | Tree-sitter (C API) | 100+ languages, incremental, error-tolerant, direct call |
-| **Storage** | SQLite3 C API + RAII | Embedded, zero-setup, full control |
+| **Language** | Rust (MSRV 1.80+) | Memory safety, zero-cost abstractions, cargo ecosystem |
+| **Build** | Cargo + workspace | First-class monorepo support, deterministic |
+| **Package mgr** | crates.io | Rust's native package registry |
+| **HTTP/WS** | Axum + tokio-tungstenite | Async, tower middleware, typed extractors, WebSocket |
+| **Parsing** | tree-sitter crate | 100+ languages, incremental, error-tolerant, Rust bindings |
+| **Storage** | rusqlite (bundled) | Embedded SQLite, safe Rust API, type-safe queries |
 | **Graph queries** | Recursive SQL CTEs | Avoids external graph DB, good enough for millions of nodes |
-| **JSON** | nlohmann/json | Header-only, easy, well-known, ecosystem standard |
-| **CLI** | CLI11 | Header-only, modern, subcommand support, completions |
-| **Formatting** | fmt / std::format | Type-safe, fast, required for this project |
-| **Logging** | spdlog | Header-only option, fmt-based, fast, sinks for file/console |
-| **Parallelism** | oneTBB | Work-stealing thread pool, parallel_for, concurrent containers |
-| **Testing** | Google Test + Benchmark | Standard, mocking, property testing via custom macros |
-| **Linting** | clang-tidy | Modern C++ linting, automated fix suggestions |
-| **Frontend** | React + TypeScript + Vite | Fast dev cycle, excellent tooling |
-| **Graph vis** | Cytoscape.js | Layout algorithms, large graph perf, extensible |
+| **JSON** | serde / serde_json | De facto Rust standard, derive macros |
+| **CLI** | clap (derive) | Modern, fast, subcommand support, completions |
+| **Logging** | tracing / tracing-subscriber | Structured, async-aware, fmt/otel backends |
+| **Parallelism** | rayon | Work-stealing thread pool, parallel iterators |
+| **Testing** | built-in `#[test]` + `criterion` for benchmarks | Zero-config, property testing via `proptest` |
+| **Linting** | clippy + rustfmt | Official, comprehensive, stable |
+| **Frontend** | React + TypeScript + Vite | Fast dev cycle, excellent tooling, r3f ecosystem |
+| **3D rendering** | React Three Fiber + Three.js | Declarative 3D, WebGL, great graph layout ecosystem |
 | **Code display** | Monaco Editor | Industry standard code viewer |
-| **Styling** | Tailwind CSS | Utility-first, fast iteration |
+| **Styling** | Tailwind CSS v4 | Utility-first, fast iteration |
 
 ## Memory Management Strategy
 
-Graph data uses **flat arrays + integer IDs** — no pointer-based structures for the CPG:
+Rust's ownership system eliminates the C++ flat-array approach. Graph data is stored directly:
 
-```cpp
-// Nodes owned by vector, referenced by index
+```rust
+// Nodes owned by Vec, referenced by index
 struct Node {
-    NodeKind kind;
-    std::string name;
-    int64_t file_id;
-    SourceSpan span;
-    std::optional<std::string> doc_comment;
-    nlohmann::json properties;
-};
+    kind: NodeKind,
+    name: String,
+    file_id: i64,
+    span: SourceSpan,
+    doc_comment: Option<String>,
+    properties: serde_json::Value,
+}
 
-// Graph = flat arrays
+// Graph = flat Vecs with index-based references
 struct Graph {
-    std::vector<Node> nodes;
-    std::vector<Edge> edges;
+    nodes: Vec<Node>,
+    edges: Vec<Edge>,
     // Adjacencies stored as index vectors
-    std::vector<std::vector<int64_t>> out_edges;  // per-node
-    std::vector<std::vector<int64_t>> in_edges;   // per-node
-};
+    out_edges: Vec<Vec<usize>>,  // per-node
+    in_edges: Vec<Vec<usize>>,   // per-node
+}
 ```
 
-This avoids pointer ownership issues entirely. Nodes are stable indices (never invalidated by reallocation — reserved capacity). No `unique_ptr`/`shared_ptr` overhead for the hot path.
+Tree-sitter parsing is scoped — AST trees are freed after symbol extraction via Rust's Drop:
 
-For tree-sitter parsing, each parse is scoped to a function — AST trees are freed after symbol extraction:
-```cpp
-auto result = parse_file(path);
-// result holds extracted data, tree is freed
+```rust
+fn parse_file(path: &Path) -> Result<ParseResult> {
+    let mut parser = Parser::new();
+    parser.set_language(&LANGUAGE.into())?;
+    let tree = parser.parse(&source, None)?;
+    let result = extract_symbols(tree.root_node(), &source);
+    // tree is dropped here, freeing the CST
+    Ok(result)
+}
 ```

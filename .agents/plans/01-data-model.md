@@ -39,67 +39,47 @@ Astera models a codebase as a directed, labeled, property graph. This is the sin
 | `DependsOn` | file → file | File-level dependency (has imports from) |
 | `Declares` | scope → symbol | Scope declares symbol |
 
-## Storage: SQLite3
+## Storage: SQLite via rusqlite
 
 ### Why SQLite
 
 - **Embedded** — No server, no Docker, no external process
 - **Zero setup** — `astera init` creates the DB
 - **Fast** — B-tree indexes, WAL mode, memory-mapped I/O
-- **Full-text search** — FTS5 extension built-in
+- **Full-text search** — FTS5 extension built-in (bundled in rusqlite)
 - **Recursive CTEs** — Graph traversal without external graph DB
 - **Portable** — Single `.db` file per repo
 
-### RAII Wrapper Pattern (C++)
+### Rust Pattern
 
-```cpp
-class Database {
-    sqlite3* db_ = nullptr;
-public:
-    Database(const std::filesystem::path& path);
-    ~Database();
+```rust
+use rusqlite::{Connection, params};
 
-    Database(const Database&) = delete;
-    Database& operator=(const Database&) = delete;
-    Database(Database&& other) noexcept : db_(std::exchange(other.db_, nullptr)) {}
-    Database& operator=(Database&& other) noexcept {
-        std::swap(db_, other.db_);
-        return *this;
+pub struct Database {
+    conn: Connection,
+}
+
+impl Database {
+    pub fn open(path: &Path) -> Result<Self> {
+        let conn = Connection::open(path)?;
+        conn.execute_batch("PRAGMA journal_mode=WAL; PRAGMA synchronous=NORMAL;")?;
+        let db = Database { conn };
+        db.initialize_schema()?;
+        Ok(db)
     }
 
-    // Prepared statements cached by key
-    Statement prepare(const char* sql);
-    Transaction begin_transaction();
-
-    // CRUD
-    int64_t insert_file(const FileInfo& file);
-    std::optional<FileInfo> get_file(const std::string& path);
-    std::vector<int64_t> insert_nodes(std::span<const Node> nodes);
-    std::vector<int64_t> insert_edges(std::span<const Edge> edges);
-    void delete_file(int64_t file_id);
-
-    // Queries
-    std::vector<Node> get_symbols(const SymbolQuery& q);
-    std::vector<Edge> get_edges(int64_t node_id, EdgeKind kind, Direction dir);
-    std::vector<SearchResult> search(const std::string& query);
-
-    // Schema
-    void migrate();  // Version-based schema updates
-};
+    pub fn insert_file(&self, file: &FileInfo) -> Result<i64> {
+        self.conn.execute(
+            "INSERT INTO files (repo_root, relative_path, language, hash, size, line_count, last_modified)
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)",
+            params![file.repo_root, file.relative_path, ...],
+        )?;
+        Ok(self.conn.last_insert_rowid())
+    }
+}
 ```
 
-### SQLite Configuration
-
-```sql
-PRAGMA journal_mode = WAL;
-PRAGMA synchronous = NORMAL;
-PRAGMA cache_size = -64000;         -- 64MB
-PRAGMA foreign_keys = ON;
-PRAGMA busy_timeout = 5000;
-PRAGMA mmap_size = 268435456;       -- 256MB mmap
-```
-
-### Schema
+## SQLite Schema
 
 ```sql
 CREATE TABLE files (
@@ -113,7 +93,6 @@ CREATE TABLE files (
     indexed_at TEXT NOT NULL DEFAULT (datetime('now')),
     last_modified TEXT NOT NULL
 );
-CREATE INDEX idx_files_language ON files(language);
 
 CREATE TABLE nodes (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -127,9 +106,6 @@ CREATE TABLE nodes (
     doc_comment TEXT,
     properties TEXT NOT NULL DEFAULT '{}'
 );
-CREATE INDEX idx_nodes_kind ON nodes(kind);
-CREATE INDEX idx_nodes_name ON nodes(name);
-CREATE INDEX idx_nodes_file ON nodes(file_id);
 
 CREATE TABLE edges (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -140,73 +116,39 @@ CREATE TABLE edges (
     file_id INTEGER REFERENCES files(id) ON DELETE SET NULL,
     UNIQUE(source_node_id, target_node_id, kind)
 );
-CREATE INDEX idx_edges_source ON edges(source_node_id);
-CREATE INDEX idx_edges_target ON edges(target_node_id);
-CREATE INDEX idx_edges_kind ON edges(kind);
 
-CREATE TABLE index_meta (
-    key TEXT PRIMARY KEY,
-    value TEXT NOT NULL
-);
-
--- FTS5 full-text search
+-- FTS5 for full-text search (auto-synced via triggers)
 CREATE VIRTUAL TABLE nodes_fts USING fts5(
-    name, doc_comment, properties_tokenized,
+    name, doc_comment, properties,
     content='nodes',
     content_rowid='id'
 );
 ```
 
-FTS5 sync triggers same as Rust version — `AFTER INSERT`, `AFTER DELETE`, `AFTER UPDATE` on nodes table.
+## Storage Layout
 
-### Graph Queries Via CTEs
+```
+.astera/
+  index.db       — SQLite database (files, nodes, edges, FTS5)
+```
 
-Transitive callers (unchanged — pure SQL):
+The `.astera/` directory lives at the repository root, gitignored by default.
+
+## Graph Query Patterns (Recursive CTEs)
 
 ```sql
+-- Full path from symbol to all transitive callers
 WITH RECURSIVE callers_of(id, depth) AS (
-    SELECT source_node_id, 1 FROM edges
-    WHERE target_node_id = ? AND kind = 'Calls'
-    UNION
+    SELECT ?1, 0
+    UNION ALL
     SELECT e.source_node_id, c.depth + 1
-    FROM edges e JOIN callers_of c ON e.target_node_id = c.id
-    WHERE e.kind = 'Calls' AND c.depth < ?
+    FROM edges e
+    JOIN callers_of c ON e.target_node_id = c.id
+    WHERE e.kind = 'Calls' AND c.depth < 10
 )
-SELECT DISTINCT n.* FROM nodes n
-JOIN callers_of co ON n.id = co.id
-ORDER BY co.depth;
-```
-
-Impact analysis — same recursive CTE pattern.
-
-## Disk Layout
-
-```
-/path/to/repo/
-├── src/
-└── .astera/
-    ├── index.db            # SQLite database
-    └── config.toml         # Generated/merged config
-```
-
-## Export Format (Phase 3)
-
-Portable JSON format for CI→local transfer:
-
-```json
-{
-  "version": 1,
-  "indexed_at": "2026-06-26T12:00:00Z",
-  "repo": {
-    "root": ".",
-    "files": 247,
-    "languages": { "typescript": 120, "python": 80 }
-  },
-  "statistics": {
-    "total_nodes": 3412,
-    "total_edges": 8901,
-    "avg_complexity": 4.2,
-    "avg_coupling": 3.1
-  }
-}
+SELECT DISTINCT n.id, n.name, n.kind
+FROM callers_of c
+JOIN nodes n ON n.id = c.id
+WHERE c.depth > 0
+ORDER BY c.depth;
 ```

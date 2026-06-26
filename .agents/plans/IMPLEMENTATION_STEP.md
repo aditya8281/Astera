@@ -2,37 +2,36 @@
 
 ## Prerequisites
 
-- **Compiler**: GCC 13+ or Clang 16+ (C++20)
-- **Build system**: CMake ≥3.28
-- **Package manager**: vcpkg (manifest mode)
+- **Rust**: MSRV 1.80+ (`rustup`, stable toolchain)
 - **Node.js**: ≥20 LTS (for web frontend)
+- **clang/LLVM**: Required by tree-sitter grammar build
 
 ## Quick Start
 
 ```bash
-# Clone and build
-git clone <repo> && cd astera
-cmake --preset release
-cmake --build build/release
+# Build CLI
+cargo build --release
 
 # Index a repo
-./build/release/apps/cli/astera init /path/to/repo
-./build/release/apps/cli/astera index /path/to/repo
+./target/release/astera init /path/to/repo
+./target/release/astera index /path/to/repo
 
-# Explore
-./build/release/apps/cli/astera serve --port 8080
+# Explore via CLI
+./target/release/astera query symbols
+./target/release/astera query edges
+
+# Serve API + 3D frontend
+./target/release/astera serve --port 8080
 # Open http://localhost:8080
 ```
 
 ## Repository
 
 ```
-astera/                    # CMake project (C++ backend)
-├── include/astera/       # Public headers (12 modules)
-├── src/                  # Implementations
-├── apps/cli/             # CLI binary
-├── apps/web/             # React frontend
-├── tests/                # Test fixtures + suites
+astera/                    # Cargo workspace (Rust backend)
+├── crates/               # 12 workspace crates
+├── apps/web/             # React + Three.js frontend
+├── tests/                # Test fixtures + integration tests
 └── docs/                 # Documentation
 ```
 
@@ -41,34 +40,33 @@ See [05-repo-structure.md](./05-repo-structure.md) for full layout.
 ## Development Commands
 
 ```bash
-# Configure + build (debug)
-cmake --preset debug
-cmake --build build/debug
+# Build all
+cargo build
 
 # Run all tests
-ctest --preset debug
+cargo test
 
 # Run specific test
-./build/debug/tests/test_parser --gtest_filter="*TypeScript*"
+cargo test -p astera-parser -- test_ts_extraction
 
 # Lint
-cmake --build build/debug --target clang-tidy
+cargo clippy --workspace -- -D warnings
 
 # Format check
-cmake --build build/debug --target clang-format
+cargo fmt --check
 
 # Watch mode (frontend)
 cd apps/web && npm run dev
 
 # API server + dev frontend
-./build/debug/apps/cli/astera serve    # serves API on :8080
+./target/debug/astera serve
 ```
 
 ## Build Pipeline
 
 ```
-Source → cmake + vcpkg → astera binary (statically linked)
-Web app → vite build → dist/ → embedded in binary via cfile or similar
+Source → cargo build → astera binary (statically linked)
+Web app → vite build → dist/ → embedded via rust-embed
 ```
 
 The binary ships with the frontend embedded. Single deployment artifact.
@@ -77,46 +75,53 @@ The binary ships with the frontend embedded. Single deployment artifact.
 
 | Phase | Duration | Goal |
 |---|---|---|
-| [Phase 1](./04-phases.md#phase-1-core-engine--mvp) | 10 weeks | Working MVP: TS/JS + Python indexing, CLI, basic web UI |
-| [Phase 2](./04-phases.md#phase-2-analysis-depth--rich-visualization) | 8 weeks | Deep analysis, Rust/Go, rich web UI, file watching |
+| [Phase 1](./04-phases.md#phase-1-core-engine--mvp) | ~8 weeks | Working MVP: TS/JS + Python + Rust indexing, CLI, 3D web UI |
+| [Phase 2](./04-phases.md#phase-2-analysis-depth--rich-visualization) | 8 weeks | Deep analysis, richer 3D, file watching, metrics |
 | [Phase 3](./04-phases.md#phase-3-advanced-features) | 8 weeks | Plugins, exports, CI integration, architecture rules |
 | [Phase 4](./04-phases.md#phase-4-ecosystem--scale) | Ongoing | IDE plugins, SDKs, scale, community |
 
 ## Testing Strategy
 
 ```
-Unit tests       → Every extractor, algorithm, metric function (Google Test)
+Unit tests       → #[test] alongside every module
 Golden file tests→ Parse fixtures, compare JSON snapshots
 Integration tests→ Index test repos, verify API responses
-Property tests   → Graph invariants (no dangling edges, all nodes reachable)
-Benchmarks       → Google Benchmark for parsing, indexing, query latency
-Fuzz tests       → Invalid source should never crash parser
+Property tests   → proptest for graph invariants
+Benchmarks       → criterion for parsing, indexing, query latency
 ```
 
-## Key Dependencies (vcpkg)
+## Key Dependencies
 
+| Crate | Purpose |
+|---|---|
+| `tree-sitter` + language grammars | Multi-language parsing |
+| `rusqlite` (bundled) | Storage engine |
+| `axum` + `tokio` | HTTP server + async runtime |
+| `clap` (derive) | CLI argument parsing |
+| `serde` / `serde_json` | Serialization |
+| `tracing` | Logging |
+| `rayon` | Parallelism |
+| `ignore` | Gitignore-aware file walk |
+
+**Frontend:**
 | Package | Purpose |
 |---|---|
-| `tree-sitter` + grammars | Multi-language parsing (C API) |
-| `drogon` | HTTP server + WebSocket |
-| `sqlite3` | Storage engine |
-| `nlohmann-json` | JSON serialization |
-| `cli11` | CLI argument parsing |
-| `fmt` | String formatting |
-| `spdlog` | Logging |
-| `gtest` / `google-benchmark` | Testing + benchmarks |
-| `tbb` | Parallelism (work-stealing thread pool) |
-| `cxxopts` | CLI parsing (or CLI11) |
-| `efsw` | Cross-platform file watching (Phase 2) |
+| `react` / `react-dom` | UI framework |
+| `@react-three/fiber` + `drei` | 3D rendering (Three.js) |
+| `three` | WebGL engine |
+| `vite` | Build tool |
+| `@tanstack/react-query` | Server state |
+| `zustand` | UI state |
+| `tailwindcss` | Styling |
 
 ## Language Support Rollout
 
 | Language | Phase | Notes |
 |---|---|---|
-| TypeScript / JavaScript | 1 | Primary focus — tree-sitter grammar is excellent |
+| TypeScript / JavaScript | 1 | Primary focus — excellent tree-sitter grammar |
 | Python | 1 | Very good tree-sitter grammar |
-| Rust | 2 | Excellent grammar, complex module resolution |
-| Go | 2 | Good grammar, simple module system |
+| Rust | 1 | Excellent grammar, complex module resolution |
+| Go | 1 | Good grammar, simple module system |
 | C / C++ | 3 | Large surface area, preprocessor complexity |
 | Java | 3 | Very good grammar, complex type system |
 | Ruby, PHP, Swift, Kotlin, Scala | 4 | Community-demand driven |
@@ -129,6 +134,6 @@ Fuzz tests       → Invalid source should never crash parser
 | [00-architecture.md](./00-architecture.md) | System architecture, subsystems, data flow |
 | [01-data-model.md](./01-data-model.md) | Code Property Graph, SQLite schema, storage |
 | [02-analysis-pipeline.md](./02-analysis-pipeline.md) | Parsing pipeline, incremental updates |
-| [03-api-frontend.md](./03-api-frontend.md) | REST API, frontend architecture, visualization |
-| [04-phases.md](./04-phases.md) | Phase 1-4 detailed plans (C++ adapted) |
+| [03-api-frontend.md](./03-api-frontend.md) | REST API, 3D frontend architecture, visualization |
+| [04-phases.md](./04-phases.md) | Phase 1-4 detailed plans (Rust adapted) |
 | [05-repo-structure.md](./05-repo-structure.md) | Code organization, conventions, file layout |

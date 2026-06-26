@@ -4,36 +4,39 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project
 
-Astera — local-first static analysis engine. Parses repos into a queryable Code Property Graph (CPG) of symbols, calls, dependencies, and metrics. CLI + Web UI.
+Astera — local-first static analysis engine. Parses repos into a queryable Code Property Graph (CPG) of symbols, calls, dependencies, and metrics. CLI + 3D Web UI.
 
-- **Language**: C++20 (backend), TypeScript/React (frontend)
-- **Build**: CMake 3.28+ with vcpkg manifest mode
-- **Compiler**: GCC 13+ or Clang 16+
+- **Language**: Rust (backend), TypeScript/React + Three.js (frontend)
+- **Build**: Cargo workspace
+- **MSRV**: 1.80+
 - **Design docs**: `.agents/plans/` — read before implementing anything
 
 ## Commands
 
 ```bash
 # Build
-cmake --preset debug && cmake --build build/debug
-
-# Test specific target
-./build/debug/tests/test_parser --gtest_filter="*TypeScript*"
+cargo build
 
 # Run all tests
-ctest --preset debug
+cargo test
+
+# Test specific crate
+cargo test -p astera-parser -- test_ts_extraction
 
 # Lint
-cmake --build build/debug --target clang-tidy
+cargo clippy --workspace -- -D warnings
 
 # Format
-cmake --build build/debug --target clang-format
+cargo fmt --check
 
 # Frontend dev
 cd apps/web && npm run dev
 
 # Frontend build
 cd apps/web && npm run build
+
+# Release build
+cargo build --release
 ```
 
 ## Commit Rule
@@ -42,8 +45,8 @@ After every logically complete change, commit with a single-line message. No co-
 ```
 feat: add TypeScript symbol extraction for function declarations
 fix: resolve crash on empty file parsing
-chore: set up vcpkg manifest with dependencies
-docs: update architecture diagram in 00-architecture.md
+chore: set up Rust workspace with crate structure
+docs: update architecture for Rust + 3D frontend
 ```
 
 ## Design Rule
@@ -52,37 +55,38 @@ Before starting any design or architecture work, always invoke the `impeccable` 
 
 ## Architecture
 
-Backend is organized as modules under `include/astera/` + `src/`:
+Backend organized as Cargo workspace crates under `crates/`:
 
-| Module | Responsibility |
+| Crate | Responsibility |
 |---|---|
-| `core` | NodeKind, EdgeKind, config, error types |
-| `discovery` | Filesystem walk, gitignore, language classification |
-| `parser` | Tree-sitter integration, symbol extraction |
-| `resolver` | Reference resolution, import resolution |
-| `graph` | CPG builder, graph algorithms |
-| `storage` | SQLite + FTS5 layer |
-| `metrics` | Complexity, coupling, cohesion (Phase 2) |
-| `impact` | Change impact analysis (Phase 2) |
-| `api` | Drogon HTTP server, routes, middleware |
-| `cli` | CLI11 entry point |
-| `watcher` | File watching, incremental updates (Phase 2) |
-| `export` | Export/import formats (Phase 3) |
+| `astera-core` | NodeKind, EdgeKind, config, error types |
+| `astera-discovery` | Filesystem walk, gitignore, language classification |
+| `astera-parser` | Tree-sitter integration, symbol extraction |
+| `astera-resolver` | Reference resolution, import resolution |
+| `astera-graph` | CPG builder, graph algorithms |
+| `astera-storage` | SQLite + FTS5 via rusqlite |
+| `astera-metrics` | Complexity, coupling, cohesion (Phase 2) |
+| `astera-impact` | Change impact analysis (Phase 2) |
+| `astera-api` | Axum HTTP server, routes, middleware |
+| `astera-cli` | CLAP entry point |
+| `astera-watcher` | File watching via notify crate (Phase 2) |
+| `astera-export` | Export/import formats (Phase 3) |
 
-Key libs: Drogon (HTTP), tree-sitter (parsing), SQLite3 (storage), nlohmann/json (JSON), oneTBB (parallel), spdlog (logging), Google Test (testing), CLI11 (CLI).
+Key libs: tree-sitter (parsing), rusqlite (storage), axum/tokio (HTTP), serde (JSON), rayon (parallel), tracing (logging), clap (CLI).
+
+Frontend: `apps/web/` — React + TypeScript + Vite + React Three Fiber (3D).
 
 ## Key Files
 
-- `vcpkg.json` — all third-party dependencies
-- `CMakePresets.json` — build configurations
+- `Cargo.toml` — workspace membership + shared dependencies
 - `.agents/plans/` — architecture and phase plans
 
 ## Conventions
 
-- C++20 with `std::format`, `std::span`
-- No raw `new`/`delete` — use RAII, `unique_ptr`, or flat arrays
-- Error handling: `Result<T,E>` or `std::optional` in hot paths, exceptions for infra
-- Headers: `.h`, one class per header or closely related group
-- Namespaces: `astera::core`, `astera::parser`, etc.
-- clang-format with LLVM style, 100 column limit
-- No `#pragma once` — use `#ifndef` guards
+- Rust edition 2021 — idiomatic Rust patterns
+- No `unsafe` in application code
+- `#[derive(Debug, Clone, Serialize, Deserialize)]` on data types
+- `anyhow::Result` for fallible functions
+- Snake_case functions/vars, PascalCase types
+- `#[cfg(test)] mod tests` in every source file
+- Conventional commits for git history

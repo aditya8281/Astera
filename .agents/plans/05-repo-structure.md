@@ -1,250 +1,281 @@
-# Astera — Repository Structure (C++)
+# Astera — Repository Structure (Rust)
 
 ## Top-Level Layout
 
 ```
 astera/
-├── CMakeLists.txt             # Root CMake — defines project, options
-├── CMakePresets.json          # Build presets (debug, release, ci, asan, ubsan)
-├── vcpkg.json                 # vcpkg manifest mode dependencies
-├── vcpkg-configuration.json   # vcpkg registries, overlay ports
+├── Cargo.toml                 # Workspace root — defines crate members
+├── Cargo.lock
+├── rust-toolchain.toml        # MSRV pinning (1.80+)
 ├── README.md
-├── LICENSE                    # Apache 2.0 or MIT
+├── LICENSE                    # MIT or Apache 2.0
 ├── .gitignore
-├── .clang-format              # Formatting rules
-├── .clang-tidy                # Lint checks
-├── .github/                   # CI/CD workflows
-├── cmake/                     # Custom CMake modules
-│   ├── CompilerWarnings.cmake # Warning-as-errors configuration
-│   ├── Sanitizers.cmake       # ASan, UBSan, MSan helpers
-│   ├── StaticAnalysis.cmake   # clang-tidy integration targets
-│   └── EmbedWebUI.cmake       # Embed frontend dist into binary
+├── .github/
+│   └── workflows/
+│       ├── ci.yml             # cargo build, test, clippy, fmt
+│       └── release.yml        # Cargo publish, binary release
 │
-├── include/
-│   └── astera/                # Public headers
-│       ├── core/
-│       │   ├── types.h        # NodeKind, EdgeKind, SourceSpan
-│       │   ├── config.h       # AsteraConfig struct
-│       │   ├── error.h        # Error types, Result<T>
-│       │   └── export.h       # Export/import visibility macros
-│       ├── discovery/
-│       │   ├── walker.h       # File walker
-│       │   └── classifier.h   # Language classification
-│       ├── parser/
-│       │   ├── parser.h       # Tree-sitter RAII wrapper
-│       │   ├── extractor.h    # Extractor interface
-│       │   ├── extractors/    # Language implementations
-│       │   │   ├── ts_extractor.h
-│       │   │   └── py_extractor.h
-│       ├── resolver/
-│       │   ├── scope.h        # Lexical scope tree
-│       │   ├── imports.h      # Import resolution
-│       │   └── resolver.h     # Reference resolver
-│       ├── graph/
-│       │   ├── types.h        # Node, Edge, Graph structs
-│       │   ├── builder.h      # CPG builder
-│       │   └── algorithms.h   # BFS, DFS, SCC, topsort
-│       ├── storage/
-│       │   ├── database.h     # Database RAII class
-│       │   └── queries.h      # Query parameter types
-│       ├── metrics/
-│       │   └── metrics.h      # Metrics computation
-│       ├── impact/
-│       │   └── impact.h       # Impact analysis
-│       ├── api/
-│       │   ├── server.h       # Drogon app setup
-│       │   ├── controllers/   # Request handlers
-│       │   │   ├── RepoController.h
-│       │   │   ├── FileController.h
-│       │   │   ├── SymbolController.h
-│       │   │   └── SearchController.h
-│       │   └── middleware/    # CORS, logging, error handling
-│       ├── watcher/
-│       │   └── watcher.h      # File system watcher (Phase 2)
-│       └── export/
-│           └── export.h       # Export formats (Phase 3)
-│
-├── src/                       # Implementation files
-│   ├── CMakeLists.txt         # Compiles into libastera static library
-│   ├── core/
-│   │   ├── config.cpp
-│   │   └── error.cpp
-│   ├── discovery/
-│   │   ├── walker.cpp
-│   │   └── classifier.cpp
-│   ├── parser/
-│   │   ├── parser.cpp
-│   │   ├── extractors/
-│   │   │   ├── ts_extractor.cpp
-│   │   │   └── py_extractor.cpp
-│   │   └── extractor_registry.cpp  # Language → extractor map
-│   ├── resolver/
-│   │   ├── scope.cpp
-│   │   ├── imports.cpp
-│   │   └── resolver.cpp
-│   ├── graph/
-│   │   ├── builder.cpp
-│   │   └── algorithms.cpp
-│   ├── storage/
-│   │   ├── database.cpp
-│   │   └── queries.cpp
-│   ├── metrics/
-│   │   └── metrics.cpp        # Phase 2
-│   ├── impact/
-│   │   └── impact.cpp         # Phase 2
-│   ├── api/                   # Phase 1
-│   │   ├── server.cpp
-│   │   ├── controllers/
-│   │   │   ├── RepoController.cpp
-│   │   │   ├── FileController.cpp
-│   │   │   ├── SymbolController.cpp
-│   │   │   └── SearchController.cpp
-│   │   └── middleware/
-│   ├── watcher/
-│   │   └── watcher.cpp        # Phase 2
-│   └── export/
-│       └── export.cpp         # Phase 3
+├── crates/
+│   ├── astera-core/           # Foundation types — NodeKind, EdgeKind, Span, Config
+│   │   ├── Cargo.toml
+│   │   └── src/lib.rs
+│   │
+│   ├── astera-discovery/      # Filesystem walk, gitignore, language classifier
+│   │   ├── Cargo.toml
+│   │   └── src/lib.rs
+│   │
+│   ├── astera-parser/         # Tree-sitter integration, language extractors
+│   │   ├── Cargo.toml
+│   │   └── src/
+│   │       ├── lib.rs
+│   │       ├── parsers/
+│   │       │   ├── mod.rs
+│   │       │   ├── typescript.rs
+│   │       │   ├── python.rs
+│   │       │   └── rust.rs
+│   │       └── extractors/
+│   │           ├── mod.rs
+│   │           ├── ts_extractor.rs
+│   │           ├── py_extractor.rs
+│   │           └── rs_extractor.rs
+│   │
+│   ├── astera-resolver/       # Reference resolution, scoping (Phase 1.3+)
+│   │   ├── Cargo.toml
+│   │   └── src/
+│   │       ├── lib.rs
+│   │       ├── scope.rs
+│   │       └── imports.rs
+│   │
+│   ├── astera-graph/          # CPG builder, graph algorithms
+│   │   ├── Cargo.toml
+│   │   └── src/
+│   │       ├── lib.rs
+│   │       ├── builder.rs
+│   │       └── algorithms.rs
+│   │
+│   ├── astera-storage/        # SQLite + FTS5 via rusqlite
+│   │   ├── Cargo.toml
+│   │   └── src/lib.rs
+│   │
+│   ├── astera-metrics/        # Code metrics computation (Phase 2)
+│   │   ├── Cargo.toml
+│   │   └── src/lib.rs
+│   │
+│   ├── astera-impact/         # Change impact analysis (Phase 2)
+│   │   ├── Cargo.toml
+│   │   └── src/lib.rs
+│   │
+│   ├── astera-api/            # HTTP server — Axum routes
+│   │   ├── Cargo.toml
+│   │   └── src/
+│   │       ├── lib.rs
+│   │       ├── routes/
+│   │       │   ├── mod.rs
+│   │       │   ├── repos.rs
+│   │       │   ├── files.rs
+│   │       │   ├── symbols.rs
+│   │       │   └── search.rs
+│   │       └── middleware.rs
+│   │
+│   ├── astera-cli/            # CLI binary
+│   │   ├── Cargo.toml
+│   │   └── src/
+│   │       ├── main.rs
+│   │       └── commands/
+│   │           ├── mod.rs
+│   │           ├── init.rs
+│   │           ├── index.rs
+│   │           ├── serve.rs
+│   │           └── query.rs
+│   │
+│   ├── astera-watcher/        # File watching (notify crate, Phase 2)
+│   │   ├── Cargo.toml
+│   │   └── src/lib.rs
+│   │
+│   └── astera-export/         # Export formats (Phase 3)
+│       ├── Cargo.toml
+│       └── src/lib.rs
 │
 ├── apps/
-│   ├── cli/                   # CLI binary
-│   │   ├── CMakeLists.txt
-│   │   └── main.cpp
-│   └── web/                   # React frontend (same layout)
+│   └── web/                   # React + Three.js frontend
 │       ├── package.json
-│       ├── vite.config.ts
 │       ├── tsconfig.json
+│       ├── vite.config.ts
 │       ├── tailwind.config.ts
 │       ├── index.html
 │       └── src/
 │           ├── main.tsx
 │           ├── App.tsx
-│           ├── api/           # React Query hooks
+│           ├── api/           # API client (fetch wrapper + React Query hooks)
 │           ├── pages/
+│           │   ├── Dashboard.tsx
+│           │   ├── FileExplorer.tsx
+│           │   ├── SymbolExplorer.tsx
+│           │   ├── CallGraph.tsx
+│           │   ├── DependencyGraph.tsx
+│           │   ├── ImpactAnalysis.tsx
+│           │   ├── Metrics.tsx
+│           │   └── Search.tsx
 │           ├── components/
-│           │   ├── common/
-│           │   ├── graph/     # Cytoscape wrappers
-│           │   └── layout/
-│           ├── hooks/
-│           ├── stores/        # Zustand
-│           ├── types/
-│           └── utils/
+│           │   ├── common/    # CodeBlock, SymbolBadge, Breadcrumb, LoadingSkeleton
+│           │   ├── graph/     # 3D graph components
+│           │   │   ├── GraphScene.tsx
+│           │   │   ├── ForceDirectedGraph.tsx
+│           │   │   ├── Node.tsx
+│           │   │   ├── Edge.tsx
+│           │   │   ├── NodeLabel.tsx
+│           │   │   ├── GraphControls.tsx
+│           │   │   ├── GraphOverlay.tsx
+│           │   │   ├── FilterPanel.tsx
+│           │   │   └── MiniMap.tsx
+│           │   ├── code/      # Monaco Editor wrapper
+│           │   └── layout/    # TopBar, Sidebar, Content
+│           ├── hooks/         # Custom hooks (useGraphSelection, useCamera)
+│           ├── stores/        # Zustand stores
+│           ├── types/         # TypeScript types
+│           └── utils/         # Force simulation, layout helpers
 │
-├── tests/                     # Unit + integration tests
-│   ├── CMakeLists.txt
-│   ├── test_types.cpp
-│   ├── test_parser.cpp
-│   ├── test_resolver.cpp
-│   ├── test_graph.cpp
-│   ├── test_storage.cpp
-│   ├── test_metrics.cpp       # Phase 2
-│   ├── test_impact.cpp        # Phase 2
-│   ├── fixtures/              # Test repos
-│   │   ├── ts-project/
-│   │   ├── python-project/
-│   │   └── mixed-project/
-│   └── benchmarks/
-│       ├── CMakeLists.txt
-│       ├── parse_benchmark.cpp
-│       └── query_benchmark.cpp
+├── tests/                    # Integration tests
+│   ├── fixtures/
+│   │   ├── ts-project/       # Small TypeScript repo
+│   │   ├── python-project/   # Small Python repo
+│   │   └── mixed-project/    # Mixed language repo
+│   └── integration/
+│       ├── test_indexing.rs
+│       ├── test_api.rs
+│       └── test_queries.rs
 │
-└── docs/
-    ├── README.md
-    ├── getting-started.md
-    ├── architecture.md
-    ├── api-reference.md
-    ├── configuration.md
-    ├── development.md
-    ├── cli-reference.md
-    ├── language-support.md
-    ├── faq.md
-    └── guides/
+├── docs/
+│   ├── README.md
+│   ├── getting-started.md
+│   ├── architecture.md
+│   ├── api-reference.md       # Generated from utoipa
+│   ├── configuration.md
+│   ├── development.md
+│   ├── cli-reference.md
+│   ├── language-support.md
+│   ├── faq.md
+│   └── guides/
+│       ├── ci-integration.md
+│       └── contributing.md
+│
+├── _archive/                 # Deprecated C++ implementation (kept for reference)
+│   ├── cmake/
+│   ├── include/
+│   ├── src/
+│   └── ...
+│
+└── .agents/                  # Design docs and plans
+    └── plans/
 ```
 
-## CMake Design
+## Crate Dependencies
 
-### vcpkg.json
-
-```json
-{
-  "name": "astera",
-  "version": "0.1.0",
-  "dependencies": [
-    "tree-sitter",
-    "drogon",
-    "sqlite3",
-    "nlohmann-json",
-    "cli11",
-    "fmt",
-    "spdlog",
-    "gtest",
-    "google-benchmark",
-    "tbb",
-    "efsw"
-  ]
-}
+```
+astera-core        → (no internal deps)
+astera-discovery   → astera-core
+astera-parser      → astera-core
+astera-resolver    → astera-core
+astera-graph       → astera-core
+astera-storage     → astera-core
+astera-metrics     → astera-core
+astera-impact      → astera-graph
+astera-api         → astera-core, astera-storage
+astera-cli         → all crates
+astera-watcher     → astera-core, astera-storage
+astera-export      → astera-core, astera-storage
 ```
 
-### CMakeLists.txt (root)
+## Key Dependencies (crates.io)
 
-```cmake
-cmake_minimum_required(VERSION 3.28)
-project(astera VERSION 0.1.0 LANGUAGES C CXX)
+| Crate | Purpose |
+|---|---|
+| `tree-sitter` + language grammars | Multi-language parsing |
+| `rusqlite` (bundled) | Storage engine |
+| `axum` + `tokio` | HTTP server + async runtime |
+| `tower-http` | CORS, trace middleware |
+| `utoipa` + `utoipa-swagger-ui` | OpenAPI spec generation |
+| `clap` (derive) | CLI argument parsing |
+| `serde` / `serde_json` | Serialization |
+| `tracing` / `tracing-subscriber` | Structured logging |
+| `rayon` | Parallelism |
+| `ignore` + `walkdir` | Gitignore-aware filesystem walk |
+| `sha2` | Content hashing |
+| `chrono` | Timestamps |
+| `notify` | File system watching (Phase 2) |
+| `thiserror` / `anyhow` | Error handling |
 
-set(CMAKE_CXX_STANDARD 20)
-set(CMAKE_CXX_STANDARD_REQUIRED ON)
-set(CMAKE_CXX_EXTENSIONS OFF)
-set(CMAKE_VISIBILITY_INLINES_HIDDEN ON)
-set(CMAKE_CXX_VISIBILITY_PRESET hidden)
-
-# Options
-option(ASTERA_BUILD_TESTS "Build tests" ON)
-option(ASTERA_BUILD_BENCHMARKS "Build benchmarks" OFF)
-option(ASTERA_EMBED_WEBUI "Embed web frontend" OFF)
-option(ASTERA_ENABLE_ASAN "Enable address sanitizer" OFF)
-
-# Find dependencies
-find_package(tree-sitter CONFIG REQUIRED)
-find_package(drogon CONFIG REQUIRED)
-find_package(SQLite3 REQUIRED)
-find_package(nlohmann_json CONFIG REQUIRED)
-find_package(CLI11 CONFIG REQUIRED)
-find_package(fmt CONFIG REQUIRED)
-find_package(spdlog CONFIG REQUIRED)
-find_package(TBB REQUIRED)
-
-add_subdirectory(src)
-add_subdirectory(apps/cli)
-if(ASTERA_BUILD_TESTS)
-    enable_testing()
-    add_subdirectory(tests)
-endif()
-```
+**Frontend:**
+| Package | Purpose |
+|---|---|
+| `react` / `react-dom` | UI framework |
+| `typescript` | Type safety |
+| `vite` | Build tool |
+| `@react-three/fiber` | React renderer for Three.js |
+| `@react-three/drei` | R3F helpers (controls, text, shapes) |
+| `three` | WebGL 3D engine |
+| `@tanstack/react-query` | Server state |
+| `zustand` | UI state |
+| `react-router-dom` | Routing |
+| `monaco-editor` | Code display |
+| `tailwindcss` | Styling |
+| `recharts` | Metrics charts |
+| `rust-embed` | Embed frontend dist in binary |
 
 ## Conventions
 
-### C++
-- **C++20** — use `std::format`, `std::span`, concepts (sparingly)
-- **No exceptions in hot path** — parser and graph builder use `Result<T, E>` or `std::optional`. Exceptions OK for infrastructure (DB, config, HTTP).
-- **No raw `new`/`delete`** — `std::unique_ptr`, `std::shared_ptr`, or arena allocators
-- **Headers**: `.h` for C++ headers (not `.hpp`)
-- **One class per header file** (or closely related group)
-- **Forward declare** in headers where possible
-- **Include order**: own header → standard → external → internal
-- **Namespaces**: `astera::core`, `astera::parser`, `astera::graph`, etc.
-- **`clang-format`** with LLVM style, 100 column limit
-- **`clang-tidy`** with modernize-*, performance-*, readability-*, bugprone-*
+### Rust
+- **Edition 2021** — idiomatic Rust patterns
+- **No `unsafe`** in application code (tree-sitter crate uses it internally)
+- **`Result<T, E>`** via `anyhow::Result` in public API, specific error types internally
+- **`#[derive(Debug, Clone, Serialize, Deserialize)]`** on all data types
+- **Module structure**: `mod.rs` or files named `module.rs` — follow rustfmt defaults
+- **Naming**: `snake_case` for functions/vars, `PascalCase` for types, `SCREAMING_CASE` for constants
+- **Doc comments**: `///` on public API, `//` on internals
+- **Tests**: inline `#[cfg(test)] mod tests` in source files
 
 ### TypeScript / Frontend
-- Same as Rust plan — strict TypeScript, PascalCase components, React Query for API
+- Strict TypeScript, no `any`
+- PascalCase components, camelCase functions/vars
+- React Query for all API calls
+- Three.js scene objects wrapped in R3F components
 
 ### Git
 - Conventional commits: `feat:`, `fix:`, `chore:`, `docs:`, `refactor:`, `perf:`
-- Branch from `main`, squash-merge to main
+- Single-line commit messages, no trailers
 - `.astera/` in `.gitignore`
 
 ### Testing
-- Google Test for all unit tests
-- Google Benchmark for performance
-- GCC/Clang sanitizers in CI: ASan, UBSan (MSan optional)
-- Golden file tests compare extracted JSON vs stored snapshots
-- Integration tests run against test fixtures in `tests/fixtures/`
+- `#[test]` for unit tests alongside code
+- `#[cfg(test)]` module in every source file
+- Integration tests in `tests/` directory
+- `criterion` for benchmarks (Phase 2)
+- Golden file tests for parser output
+
+## Build Commands
+
+```bash
+# Build all
+cargo build
+
+# Run all tests
+cargo test
+
+# Run specific test
+cargo test -p astera-parser -- test_ts_extraction
+
+# Lint
+cargo clippy --workspace -- -D warnings
+
+# Format
+cargo fmt --check
+
+# Frontend dev
+cd apps/web && npm run dev
+
+# Frontend build
+cd apps/web && npm run build
+
+# Full release build
+cargo build --release
+```

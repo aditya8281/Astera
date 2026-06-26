@@ -15,7 +15,7 @@ Unlike traditional static analysis tools that generate isolated reports, or AI c
 
 ### What Astera Actually Is
 
-A **developer tool** like `ripgrep`, `jq`, or `cloc` — small, fast, composable, CLI-friendly — with a web frontend for rich exploration.
+A **developer tool** like `ripgrep`, `jq`, or `cloc` — small, fast, composable, CLI-friendly — with a 3D interactive web frontend for rich exploration.
 
 ## Core Philosophy
 
@@ -28,7 +28,7 @@ A repository should not be treated as a collection of files. It should be unders
 - **Dependencies** — internal and external dependency graphs
 - **Architecture** — module boundaries, layering, design patterns
 
-Astera's job is to continuously understand all of the above and expose it through a high-performance API and rich visualizations.
+Astera's job is to continuously understand all of the above and expose it through a high-performance API and rich 3D visualizations.
 
 ## Target Audience
 
