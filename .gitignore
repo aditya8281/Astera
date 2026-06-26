@@ -5,3 +5,7 @@ _archive/vcpkg/
 
 # Rust build artifacts
 target/
+
+# Node dependencies
+apps/web/node_modules/
+apps/web/dist/
