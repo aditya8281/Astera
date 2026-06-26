@@ -2,4 +2,6 @@
 _archive/build/
 _archive/docs/
 _archive/vcpkg/
-target/>>>.gitignore
+
+# Rust build artifacts
+target/
