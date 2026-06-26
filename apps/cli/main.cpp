@@ -196,6 +196,65 @@ int cmd_index(const fs::path& path) {
     return 0;
 }
 
+int cmd_query(const fs::path& path, const std::string& subcommand,
+              const std::string& name_filter, int64_t node_id, int limit)
+{
+    auto astera_dir = path / ".astera";
+    if (!fs::exists(astera_dir)) {
+        fmt::print(stderr, "Not initialized. Run 'astera init' first.\n");
+        return 1;
+    }
+
+    Database db;
+    auto open_result = db.open(astera_dir / "index.db");
+    if (!open_result) {
+        fmt::print(stderr, "Failed to open database: {}\n",
+                   open_result.error().message());
+        return 1;
+    }
+
+    if (subcommand == "symbols") {
+        Database::SymbolQuery q;
+        q.name_prefix = name_filter;
+        q.limit = limit;
+        auto result = db.query_symbols(q);
+        if (!result) {
+            fmt::print(stderr, "Query failed: {}\n", result.error().message());
+            return 1;
+        }
+        for (const auto& s : result.value()) {
+            fmt::print("  {:>6} {} {} (file {})\n",
+                       s.id, to_string(s.kind), s.name, s.file_id);
+        }
+        fmt::print("{} symbols found.\n", result.value().size());
+    } else if (subcommand == "edges") {
+        auto out = db.get_edges(node_id, std::nullopt, false);
+        if (!out) {
+            fmt::print(stderr, "Query failed: {}\n", out.error().message());
+            return 1;
+        }
+        for (const auto& e : out.value()) {
+            fmt::print("  {} → {} [{}]\n",
+                       e.source_node_id, e.target_node_id, to_string(e.kind));
+        }
+
+        auto in = db.get_edges(node_id, std::nullopt, true);
+        if (in) {
+            for (const auto& e : in.value()) {
+                fmt::print("  {} ← {} [{}]\n",
+                           e.source_node_id, e.target_node_id, to_string(e.kind));
+            }
+        }
+        fmt::print("{} edges found.\n",
+                   out.value().size() + (in ? in.value().size() : 0));
+    } else {
+        fmt::print(stderr, "Unknown query: {}. Use 'symbols' or 'edges'.\n", subcommand);
+        return 1;
+    }
+
+    return 0;
+}
+
 int cmd_serve(const fs::path& path, const std::string& host, uint16_t port) {
     fmt::print("API server starting on {}:{}\n", host, port);
     fmt::print("Phase 2: Drogon HTTP server\n");
@@ -231,6 +290,21 @@ int main(int argc, char** argv) {
     serve_cmd->add_option("--host", host, "Host to bind to");
     serve_cmd->add_option("--port", port, "Port to bind to");
     serve_cmd->callback([&]() { return cmd_serve(repo_path, host, port); });
+
+    // query
+    auto* query_cmd = app.add_subcommand("query", "Query the index");
+    std::string query_sub = "symbols";
+    std::string query_name;
+    int64_t query_node = 0;
+    int query_limit = 50;
+    query_cmd->add_option("what", query_sub, "What to query: symbols|edges")
+        ->required();
+    query_cmd->add_option("--name", query_name, "Symbol name filter");
+    query_cmd->add_option("--node", query_node, "Node ID for edges query");
+    query_cmd->add_option("--limit", query_limit, "Max results");
+    query_cmd->callback([&]() {
+        return cmd_query(repo_path, query_sub, query_name, query_node, query_limit);
+    });
 
     // Require a subcommand
     app.require_subcommand(1);
