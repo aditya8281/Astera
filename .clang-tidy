@@ -1,0 +1,30 @@
+Checks: >
+  *,
+  -altera-*,
+  -fuchsia-*,
+  -google-*,
+  -llvm-*,
+  -llvmlibc-*,
+  -zircon-*,
+  -abseil-*,
+  -cppcoreguidelines-avoid-magic-numbers,
+  -readability-magic-numbers,
+  -readability-identifier-length,
+  -modernize-use-trailing-return-type,
+  -hicpp-uppercase-literal-suffix,
+  -cppcoreguidelines-uppercase-literal-suffix,
+  -clang-analyzer-optin.core.EnumCastOutOfRange,
+  -cert-err58-cpp,
+  -concurrency-mt-unsafe,
+
+WarningsAsErrors: >
+  bugprone-*,
+  performance-*,
+  readability-*,
+  modernize-*,
+  cppcoreguidelines-*,
+
+CheckOptions:
+  readability-function-cognitive-complexity.Threshold: 25
+  modernize-use-nullptr: true
+  modernize-concat-nested-namespaces: true

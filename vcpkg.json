@@ -1,0 +1,11 @@
+{
+  "name": "astera",
+  "version": "0.1.0",
+  "dependencies": [
+    "tree-sitter",
+    "sqlite3",
+    "fmt",
+    "spdlog",
+    "gtest"
+  ]
+}
