@@ -40,6 +40,7 @@ public:
 
     // Column access
     int64_t column_int64(int index);
+    double column_double(int index);
     std::string column_string(int index);
 
 private:
@@ -140,6 +141,8 @@ private:
 
     // Create tables
     core::Result<void> create_schema();
+    core::Result<void> create_fts5();
+    bool has_table(const std::string& name);
 };
 
 } // namespace astera::storage

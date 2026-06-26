@@ -117,3 +117,8 @@ fetch_grammar(tsx
 fetch_grammar(python
     "https://raw.githubusercontent.com/tree-sitter/tree-sitter-python/v0.25.0"
     "0.25.2")
+
+# Rust v0.23.2 → needs parser.h from tree-sitter v0.23.x
+fetch_grammar(rust
+    "https://raw.githubusercontent.com/tree-sitter/tree-sitter-rust/v0.23.2"
+    "0.23.2")

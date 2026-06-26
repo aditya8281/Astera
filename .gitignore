@@ -1,28 +1,4 @@
-# Build
-build/
-CMakeUserPresets.json
-
-# IDE
-.vscode/
-.idea/
-*.swp
-*.swo
-
-# OS
-.DS_Store
-Thumbs.db
-
-# Astera index
-.astera/
-
-# Frontend
-apps/web/node_modules/
-apps/web/dist/
-
-# vcpkg (vendored clone, install via manifest mode)
-vcpkg/
-
-# Agentic workflows (keep plans, ignore state)
-.agents/*/
-!.agents/plans/
-.claude/
+# Archive — C++ implementation, moved when switching to Rust
+_archive/build/
+_archive/docs/
+_archive/vcpkg/

@@ -55,6 +55,10 @@ int64_t Statement::column_int64(int index) {
     return sqlite3_column_int64(stmt_, index);
 }
 
+double Statement::column_double(int index) {
+    return sqlite3_column_double(stmt_, index);
+}
+
 std::string Statement::column_string(int index) {
     auto text = sqlite3_column_text(stmt_, index);
     if (!text) return {};
@@ -216,7 +220,21 @@ core::Result<void> Database::create_schema() {
 }
 
 core::Result<void> Database::migrate() {
-    return create_schema();
+    // Version 1: core schema
+    if (!has_table("nodes")) {
+        auto r = create_schema();
+        if (!r) return r;
+    }
+
+    // Version 2: FTS5 full-text search (optional — may not be compiled in)
+    if (!has_table("nodes_fts")) {
+        auto r = create_fts5();
+        if (!r) {
+            // FTS5 not available — continue with LIKE search
+        }
+    }
+
+    return {};
 }
 
 void Database::close() {
@@ -224,6 +242,49 @@ void Database::close() {
         sqlite3_close(db_);
         db_ = nullptr;
     }
+}
+
+bool Database::has_table(const std::string& name) {
+    Statement stmt(db_, "SELECT 1 FROM sqlite_master WHERE type='table' AND name=?1");
+    stmt.bind(1, name);
+    return stmt.step();
+}
+
+core::Result<void> Database::create_fts5() {
+    const char* sql = R"(
+        CREATE VIRTUAL TABLE IF NOT EXISTS nodes_fts USING fts5(
+            name, doc_comment, properties,
+            content='nodes',
+            content_rowid='id',
+            tokenize='porter unicode61'
+        );
+
+        CREATE TRIGGER IF NOT EXISTS nodes_ai AFTER INSERT ON nodes BEGIN
+            INSERT INTO nodes_fts(rowid, name, doc_comment, properties)
+            VALUES (new.id, new.name, new.doc_comment, new.properties);
+        END;
+
+        CREATE TRIGGER IF NOT EXISTS nodes_ad AFTER DELETE ON nodes BEGIN
+            INSERT INTO nodes_fts(nodes_fts, rowid, name, doc_comment, properties)
+            VALUES ('delete', old.id, old.name, old.doc_comment, old.properties);
+        END;
+
+        CREATE TRIGGER IF NOT EXISTS nodes_au AFTER UPDATE ON nodes BEGIN
+            INSERT INTO nodes_fts(nodes_fts, rowid, name, doc_comment, properties)
+            VALUES ('delete', old.id, old.name, old.doc_comment, old.properties);
+            INSERT INTO nodes_fts(rowid, name, doc_comment, properties)
+            VALUES (new.id, new.name, new.doc_comment, new.properties);
+        END;
+    )";
+
+    char* err = nullptr;
+    if (sqlite3_exec(db_, sql, nullptr, nullptr, &err) != SQLITE_OK) {
+        std::string msg = err ? err : "unknown error";
+        sqlite3_free(err);
+        return core::Errc::DatabaseError;
+    }
+
+    return {};
 }
 
 Transaction Database::begin_transaction(const std::string& name) {
@@ -459,7 +520,55 @@ core::Result<std::vector<Database::SearchResult>> Database::search(
 {
     std::vector<SearchResult> results;
 
-    // Phase 1: simple LIKE-based search (Phase 2: FTS5)
+    // Try FTS5 search if available
+    if (has_table("nodes_fts") && !query.empty()) {
+        Statement stmt(db_,
+            "SELECT n.id, n.kind, n.name, n.file_id, n.start_line, n.start_col, "
+            "       n.end_line, n.end_col, n.doc_comment, n.properties, "
+            "       rank "
+            "FROM nodes_fts "
+            "JOIN nodes n ON n.id = nodes_fts.rowid "
+            "WHERE nodes_fts MATCH ?1 "
+            "ORDER BY rank "
+            "LIMIT ?2");
+
+        // Use FTS5 prefix match: append * for simple queries
+        std::string fts_query = query;
+        bool needs_star = true;
+        for (char c : fts_query) {
+            if (c == '*' || c == '"' || c == '(' || c == ')' || c == ' ') {
+                needs_star = false;
+                break;
+            }
+        }
+        if (needs_star) fts_query += "*";
+
+        stmt.bind(1, fts_query);
+        stmt.bind(2, limit);
+
+        while (stmt.step()) {
+            SearchResult sr;
+            sr.symbol.id = stmt.column_int64(0);
+            sr.symbol.name = stmt.column_string(2);
+            sr.symbol.file_id = stmt.column_int64(3);
+            sr.symbol.span.start_line = static_cast<uint32_t>(stmt.column_int64(4));
+            sr.symbol.span.start_col = static_cast<uint32_t>(stmt.column_int64(5));
+            sr.symbol.span.end_line = static_cast<uint32_t>(stmt.column_int64(6));
+            sr.symbol.span.end_col = static_cast<uint32_t>(stmt.column_int64(7));
+            auto comment = stmt.column_string(8);
+            if (!comment.empty()) sr.symbol.doc_comment = comment;
+            sr.symbol.properties = stmt.column_string(9);
+            auto kind_str = stmt.column_string(1);
+            auto parsed = core::node_kind_from_string(kind_str);
+            if (parsed) sr.symbol.kind = *parsed;
+            sr.rank = stmt.column_double(10);
+            results.push_back(std::move(sr));
+        }
+
+        if (!results.empty()) return results;
+    }
+
+    // Fallback: LIKE-based search
     Statement stmt(db_,
         "SELECT id, kind, name, file_id, start_line, start_col, end_line, end_col, "
         "       doc_comment, properties "

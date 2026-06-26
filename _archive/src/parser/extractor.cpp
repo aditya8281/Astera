@@ -322,6 +322,149 @@ std::optional<core::Symbol> PythonExtractor::try_extract(
 }
 
 // ============================================================
+// Rust Extractor
+// ============================================================
+
+std::vector<core::Symbol> RustExtractor::extract(
+    TSTree* tree, std::string_view source, int64_t file_id,
+    std::vector<core::Edge>* out_edges) const
+{
+    std::vector<core::Symbol> symbols;
+    if (!tree) return symbols;
+    TSNode root = ts_tree_root_node(tree);
+    extract_node(root, source, file_id, symbols, out_edges, SIZE_MAX);
+    return symbols;
+}
+
+void RustExtractor::extract_node(
+    TSNode node, std::string_view source, int64_t file_id,
+    std::vector<core::Symbol>& out,
+    std::vector<core::Edge>* out_edges,
+    size_t parent_idx) const
+{
+    auto sym = try_extract(node, source, file_id);
+    size_t my_idx = SIZE_MAX;
+    if (sym) {
+        my_idx = out.size();
+        out.push_back(std::move(*sym));
+
+        if (out_edges && parent_idx < my_idx) {
+            auto parent_kind = out[parent_idx].kind;
+            auto child_kind = out[my_idx].kind;
+            bool is_containment = false;
+            // impl blocks contain functions (methods)
+            if (parent_kind == core::NodeKind::Class &&
+                child_kind == core::NodeKind::Function) {
+                is_containment = true;
+            }
+            // trait items contain function signatures
+            if (parent_kind == core::NodeKind::Interface &&
+                child_kind == core::NodeKind::Method) {
+                is_containment = true;
+            }
+            if (is_containment) {
+                core::Edge e;
+                e.source_node_id = static_cast<int64_t>(parent_idx);
+                e.target_node_id = static_cast<int64_t>(my_idx);
+                e.kind = core::EdgeKind::Contains;
+                e.file_id = file_id;
+                out_edges->push_back(std::move(e));
+            }
+        }
+    }
+
+    size_t next_parent = (my_idx < SIZE_MAX) ? my_idx : parent_idx;
+    uint32_t count = ts_node_named_child_count(node);
+    for (uint32_t i = 0; i < count; ++i) {
+        TSNode child = ts_node_named_child(node, i);
+        if (ts_node_is_null(child)) continue;
+        extract_node(child, source, file_id, out, out_edges, next_parent);
+    }
+}
+
+std::optional<core::Symbol> RustExtractor::try_extract(
+    TSNode node, std::string_view source, int64_t file_id) const
+{
+    const char* type = ts_node_type(node);
+    if (!type) return std::nullopt;
+
+    using core::NodeKind;
+    using core::Symbol;
+    using core::SourceSpan;
+
+    NodeKind kind;
+    bool has_name = true;
+
+    if (std::strcmp(type, "function_item") == 0) {
+        kind = NodeKind::Function;
+    } else if (std::strcmp(type, "struct_item") == 0) {
+        kind = NodeKind::Class;
+    } else if (std::strcmp(type, "impl_item") == 0) {
+        kind = NodeKind::Class;
+    } else if (std::strcmp(type, "enum_item") == 0) {
+        kind = NodeKind::Enum;
+    } else if (std::strcmp(type, "trait_item") == 0) {
+        kind = NodeKind::Interface;
+    } else if (std::strcmp(type, "type_item") == 0) {
+        kind = NodeKind::TypeAlias;
+    } else if (std::strcmp(type, "use_declaration") == 0) {
+        kind = NodeKind::Import;
+        has_name = false;
+    } else if (std::strcmp(type, "const_item") == 0 ||
+               std::strcmp(type, "static_item") == 0) {
+        kind = NodeKind::Variable;
+    } else if (std::strcmp(type, "let_declaration") == 0) {
+        kind = NodeKind::Variable;
+    } else {
+        return std::nullopt;
+    }
+
+    std::string name;
+    if (has_name) {
+        TSNode name_node = ts_node_child_by_field_name(node, "name", 4);
+        if (!ts_node_is_null(name_node)) {
+            name = node_text(name_node, source);
+        } else {
+            // impl_item has "type" field instead of "name"
+            name_node = ts_node_child_by_field_name(node, "type", 4);
+            if (!ts_node_is_null(name_node)) {
+                name = node_text(name_node, source);
+            }
+        }
+    }
+
+    // For use_declaration, capture the full import path
+    if (kind == NodeKind::Import && !has_name) {
+        name = node_text(node, source);
+    }
+
+    TSPoint start = ts_node_start_point(node);
+    TSPoint end = ts_node_end_point(node);
+
+    Symbol sym;
+    sym.id = 0;
+    sym.kind = kind;
+    sym.name = std::move(name);
+    sym.file_id = file_id;
+    sym.span = SourceSpan{
+        static_cast<uint32_t>(start.row),
+        static_cast<uint32_t>(start.column),
+        static_cast<uint32_t>(end.row),
+        static_cast<uint32_t>(end.column)
+    };
+    sym.properties = "{}";
+    return sym;
+}
+
+std::string RustExtractor::node_text(TSNode node, std::string_view source) {
+    uint32_t start = ts_node_start_byte(node);
+    uint32_t end = ts_node_end_byte(node);
+    if (start >= source.size()) return {};
+    if (end > source.size()) end = static_cast<uint32_t>(source.size());
+    return std::string(source.substr(start, end - start));
+}
+
+// ============================================================
 // Factory
 // ============================================================
 
@@ -331,6 +474,9 @@ std::unique_ptr<Extractor> Extractor::for_language(std::string_view language) {
     }
     if (language == "python") {
         return std::make_unique<PythonExtractor>();
+    }
+    if (language == "rust") {
+        return std::make_unique<RustExtractor>();
     }
     return nullptr;
 }

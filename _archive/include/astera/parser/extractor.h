@@ -66,6 +66,24 @@ private:
     static std::string node_text(TSNode node, std::string_view source);
 };
 
+/// Rust extractor
+class RustExtractor : public Extractor {
+public:
+    std::vector<core::Symbol> extract(
+        TSTree* tree, std::string_view source, int64_t file_id,
+        std::vector<core::Edge>* out_edges = nullptr) const override;
+
+private:
+    void extract_node(TSNode node, std::string_view source, int64_t file_id,
+                      std::vector<core::Symbol>& out,
+                      std::vector<core::Edge>* out_edges,
+                      size_t parent_idx) const;
+    std::optional<core::Symbol> try_extract(
+        TSNode node, std::string_view source, int64_t file_id) const;
+
+    static std::string node_text(TSNode node, std::string_view source);
+};
+
 } // namespace astera::parser
 
 #endif // ASTERA_PARSER_EXTRACTOR_H

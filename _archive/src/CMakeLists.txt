@@ -27,7 +27,7 @@ target_link_libraries(astera
 )
 
 # Link tree-sitter language grammars (downloaded via FetchContent)
-foreach(grammar javascript typescript tsx python)
+foreach(grammar javascript typescript tsx python rust)
     if(TARGET tsg-${grammar})
         target_link_libraries(astera PRIVATE tsg-${grammar})
     endif()

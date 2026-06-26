@@ -10,6 +10,7 @@ extern "C" {
     const TSLanguage* tree_sitter_typescript();
     const TSLanguage* tree_sitter_javascript();
     const TSLanguage* tree_sitter_python();
+    const TSLanguage* tree_sitter_rust();
 }
 
 namespace astera::parser {
@@ -43,6 +44,7 @@ bool Parser::set_language(std::string_view language) {
     if (language == "typescript") lang = tree_sitter_typescript();
     else if (language == "javascript") lang = tree_sitter_javascript();
     else if (language == "python") lang = tree_sitter_python();
+    else if (language == "rust") lang = tree_sitter_rust();
     else return false;
 
     ts_parser_set_language(parser_, lang);
