@@ -187,86 +187,83 @@ fn detect_circular_deps(edges: &[Edge], nodes: &[Node]) -> Vec<(String, String)>
     }
 
     let file_ids: Vec<i64> = file_nodes.keys().copied().collect();
-    let mut index_counter = 0;
-    let mut stack_indices: HashMap<i64, i32> = HashMap::new();
-    let mut low_links: HashMap<i64, i32> = HashMap::new();
-    let mut on_stack: HashMap<i64, bool> = HashMap::new();
-    let mut stack: Vec<i64> = Vec::new();
-    let mut sccs: Vec<Vec<i64>> = Vec::new();
+
+    struct TarjanState {
+        index_counter: i32,
+        indices: HashMap<i64, i32>,
+        low_links: HashMap<i64, i32>,
+        on_stack: HashMap<i64, bool>,
+        stack: Vec<i64>,
+        sccs: Vec<Vec<i64>>,
+    }
 
     fn strongconnect(
         node: i64,
         adj: &HashMap<i64, Vec<i64>>,
         all_nodes: &[i64],
-        index_counter: &mut i32,
-        indices: &mut HashMap<i64, i32>,
-        low_links: &mut HashMap<i64, i32>,
-        on_stack: &mut HashMap<i64, bool>,
-        stack: &mut Vec<i64>,
-        sccs: &mut Vec<Vec<i64>>,
+        state: &mut TarjanState,
     ) {
-        indices.insert(node, *index_counter);
-        low_links.insert(node, *index_counter);
-        *index_counter += 1;
-        stack.push(node);
-        on_stack.insert(node, true);
+        state.indices.insert(node, state.index_counter);
+        state.low_links.insert(node, state.index_counter);
+        state.index_counter += 1;
+        state.stack.push(node);
+        state.on_stack.insert(node, true);
 
         if let Some(neighbors) = adj.get(&node) {
             for &neighbor in neighbors {
                 if !all_nodes.contains(&neighbor) {
                     continue;
                 }
-                if !indices.contains_key(&neighbor) {
-                    strongconnect(neighbor, adj, all_nodes, index_counter, indices, low_links, on_stack, stack, sccs);
-                    let ll = *low_links.get(&node).unwrap_or(&0);
-                    let nl = *low_links.get(&neighbor).unwrap_or(&0);
-                    low_links.insert(node, ll.min(nl));
-                } else if *on_stack.get(&neighbor).unwrap_or(&false) {
-                    let ll = *low_links.get(&node).unwrap_or(&0);
-                    let ni = *indices.get(&neighbor).unwrap_or(&0);
-                    low_links.insert(node, ll.min(ni));
+                if !state.indices.contains_key(&neighbor) {
+                    strongconnect(neighbor, adj, all_nodes, state);
+                    let ll = *state.low_links.get(&node).unwrap_or(&0);
+                    let nl = *state.low_links.get(&neighbor).unwrap_or(&0);
+                    state.low_links.insert(node, ll.min(nl));
+                } else if *state.on_stack.get(&neighbor).unwrap_or(&false) {
+                    let ll = *state.low_links.get(&node).unwrap_or(&0);
+                    let ni = *state.indices.get(&neighbor).unwrap_or(&0);
+                    state.low_links.insert(node, ll.min(ni));
                 }
             }
         }
 
-        if *low_links.get(&node).unwrap_or(&0) == *indices.get(&node).unwrap_or(&0) {
+        if *state.low_links.get(&node).unwrap_or(&0) == *state.indices.get(&node).unwrap_or(&0) {
             let mut scc = Vec::new();
             loop {
-                let w = stack.pop().unwrap();
-                on_stack.insert(w, false);
+                let w = state.stack.pop().unwrap();
+                state.on_stack.insert(w, false);
                 scc.push(w);
                 if w == node {
                     break;
                 }
             }
             if scc.len() > 1 {
-                sccs.push(scc);
+                state.sccs.push(scc);
             }
         }
     }
 
+    let mut state = TarjanState {
+        index_counter: 0,
+        indices: HashMap::new(),
+        low_links: HashMap::new(),
+        on_stack: HashMap::new(),
+        stack: Vec::new(),
+        sccs: Vec::new(),
+    };
+
     for &fid in &file_ids {
-        if !index_counter.to_string().is_empty() && stack_indices.contains_key(&fid) {
+        if !state.index_counter.to_string().is_empty() && state.indices.contains_key(&fid) {
             continue;
         }
-        if !stack_indices.contains_key(&fid) {
-            strongconnect(
-                fid,
-                &adj,
-                &file_ids,
-                &mut index_counter,
-                &mut stack_indices,
-                &mut low_links,
-                &mut on_stack,
-                &mut stack,
-                &mut sccs,
-            );
+        if !state.indices.contains_key(&fid) {
+            strongconnect(fid, &adj, &file_ids, &mut state);
         }
     }
 
     // Convert SCCs to name pairs
     let mut result = Vec::new();
-    for scc in sccs {
+    for scc in state.sccs {
         for window in scc.windows(2) {
             if let (Some(a), Some(b)) = (file_nodes.get(&window[0]), file_nodes.get(&window[1])) {
                 result.push((a.name.clone(), b.name.clone()));

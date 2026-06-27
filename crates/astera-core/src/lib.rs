@@ -74,7 +74,7 @@ impl NodeKind {
         }
     }
 
-    pub fn from_str(s: &str) -> Option<Self> {
+    pub fn parse_from_str(s: &str) -> Option<Self> {
         match s {
             "File" => Some(NodeKind::File),
             "Module" => Some(NodeKind::Module),
@@ -136,7 +136,7 @@ impl EdgeKind {
         }
     }
 
-    pub fn from_str(s: &str) -> Option<Self> {
+    pub fn parse_from_str(s: &str) -> Option<Self> {
         match s {
             "Contains" => Some(EdgeKind::Contains),
             "Calls" => Some(EdgeKind::Calls),
@@ -286,7 +286,7 @@ mod tests {
             NodeKind::Variable,
             NodeKind::Import,
         ] {
-            assert_eq!(NodeKind::from_str(kind.as_str()), Some(kind.clone()));
+            assert_eq!(NodeKind::parse_from_str(kind.as_str()), Some(kind.clone()));
         }
     }
 
@@ -300,7 +300,7 @@ mod tests {
             EdgeKind::Imports,
             EdgeKind::DependsOn,
         ] {
-            assert_eq!(EdgeKind::from_str(kind.as_str()), Some(kind.clone()));
+            assert_eq!(EdgeKind::parse_from_str(kind.as_str()), Some(kind.clone()));
         }
     }
 

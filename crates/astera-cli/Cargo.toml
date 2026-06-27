@@ -3,6 +3,10 @@ name = "astera-cli"
 version = "0.1.0"
 edition = "2021"
 
+[[bin]]
+name = "astera"
+path = "src/main.rs"
+
 [dependencies]
 astera-core = { path = "../astera-core" }
 astera-discovery = { path = "../astera-discovery" }

@@ -10,17 +10,23 @@ All Phase 1 milestones achieved:
 - Axum HTTP server with 7 endpoints + CORS
 - React Three Fiber 3D frontend with force-directed graph
 - CLI with init/index/serve/query commands
-- 57 backend tests passing
+
+**Phase 2 in progress**: resolver, metrics, impact, API endpoints, frontend pages complete. File watcher, richer 3D views next.
+
+95 tests passing — 6 core + 8 discovery + 27 parser + 25 resolver + 9 storage + 4 metrics + 7 impact + 9 API.
 
 | Crate | Tests | Status |
 |---|---|---|
 | astera-core | 6 | ✅ |
 | astera-discovery | 8 | ✅ |
 | astera-parser | 27 | ✅ 5 languages, call graph, containment |
+| astera-resolver | 25 | ✅ scope chain, import resolution |
 | astera-storage | 9 | ✅ FTS5+LIKE fallback |
+| astera-metrics | 4 | ✅ cyclomatic/cognitive complexity, coupling, instability |
+| astera-impact | 7 | ✅ BFS transitive closure, critical path, cycle detection |
 | astera-cli | 0 | ✅ Builds, edge mapping implemented |
-| astera-api | 7 | ✅ 7 REST endpoints, integration tests |
-| apps/web | — | ✅ 3D frontend, 3 pages, force layout |
+| astera-api | 9 | ✅ 9 REST endpoints (stats, files, symbols, edges, search, graph, metrics, impact, symbol-by-id) |
+| apps/web | — | ✅ 3D frontend, 5 pages (Graph, Symbols, Files, Metrics, Impact) |
 
 ## Prerequisites
 

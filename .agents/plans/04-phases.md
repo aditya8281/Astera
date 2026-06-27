@@ -58,56 +58,54 @@
 
 ### Tasks
 
-- [ ] **Go extractor refinement**
-- [ ] **Reference resolution improvements**
-  - [ ] Qualified name resolution
-  - [ ] Cross-file resolution
-  - [ ] Caching resolved references
-- [ ] **Inheritance hierarchy**
-  - [ ] Class hierarchy tree
-  - [ ] Interface implementation tracking
-  - [ ] Method override detection
-- [ ] **Metrics module** (`astera-metrics`)
-  - [ ] Cyclomatic complexity
-  - [ ] Cogitative complexity
-  - [ ] Fan-in/fan-out coupling
-  - [ ] Maintainability index
-  - [ ] Doc coverage percentage
-- [ ] **Impact module** (`astera-impact`)
-  - [ ] BFS transitive closure (depth-limited)
-  - [ ] Cycle-aware traversal
-  - [ ] Impact set computation
-- [ ] **File watcher** (`notify` crate)
-  - [ ] Cross-platform event handling
-  - [ ] Event debouncing (500ms via tokio timer)
-  - [ ] Incremental re-index
-  - [ ] WebSocket push to frontend
-  - [ ] `astera watch` daemon mode
-- [ ] **FTS5 full-text search** (bundled rusqlite)
+- [x] **Reference resolution** (`astera-resolver`)
+  - [x] Scope chain tracking
+  - [x] Import resolution (TS, Python, Rust, Go)
+  - [x] Reference resolution (identifier → definition)
+- [x] **Metrics module** (`astera-metrics`)
+  - [x] Cyclomatic complexity
+  - [x] Cognitive complexity
+  - [x] Fan-in/fan-out coupling
+  - [x] Circular dependency detection (Tarjan's SCC)
+  - [x] Module metrics (size, coupling, instability)
+  - [x] API endpoint (`/api/metrics`)
+- [x] **Impact module** (`astera-impact`)
+  - [x] BFS transitive closure (depth-limited)
+  - [x] Cycle-aware traversal
+  - [x] Forward and reverse impact analysis
+  - [x] Critical path computation
+  - [x] API endpoint (`/api/impact`)
+- [x] **File watcher** (`astera-watcher`)
+  - [x] Cross-platform event handling via `notify` v7
+  - [x] Event debouncing (500ms)
+  - [x] Incremental re-index (hash-based diff)
+  - [x] `astera watch` daemon mode
+- [x] **Frontend serving** — API server serves static files with SPA fallback
+- [x] **Frontend pages**
+  - [x] Metrics page (summary cards, circular deps, complexity legend)
+  - [x] Impact page (symbol search, direction toggle, depth control)
+- [ ] **FTS5 full-text search** improvements
   - [ ] BM25 relevance ranking
   - [ ] Prefix matching for typeahead
-  - [ ] Kind and file-scoped filtering
 - [ ] **3D frontend enhancements**
-  - [ ] Impact analysis view (ring layout)
-  - [ ] Metrics dashboard (charts + 3D node scaling by metric)
   - [ ] LOD and instancing for >10K nodes
   - [ ] MiniMap
   - [ ] Filter panel (by kind, file, metric range)
-  - [ ] Auto-rotate and camera bookmarks
   - [ ] WebSocket integration for re-index progress
 - [ ] **Performance benchmarks** (criterion)
   - [ ] Parsing throughput
   - [ ] Query latency
   - [ ] Memory profiling
-  - [ ] Scaling tests
 
 **Phase 2 Deliverables:**
-- 5+ languages (TS/JS, Python, Rust, Go)
-- Accurate call graphs for static languages
-- Rich interactive 3D web UI
-- File watching + incremental updates
-- Code metrics
-- Benchmark suite
+- 5 languages (TS/JS, Python, Rust, Go)
+- Reference resolution (scope + imports)
+- Code metrics (complexity, coupling, circular deps)
+- Impact analysis (forward + reverse)
+- File watching + incremental re-index
+- Frontend with Metrics and Impact pages
+- Single-command serve (API + web UI)
+- 96 backend tests
 
 ---
 

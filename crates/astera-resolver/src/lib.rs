@@ -403,8 +403,8 @@ fn parse_import_text(text: &str) -> (ImportKind, String, Vec<String>) {
     }
 
     // import statements: could be TS/JS, Python, or Go
-    if trimmed.starts_with("import ") {
-        let rest = &trimmed["import ".len()..];
+    if let Some(rest) = trimmed.strip_prefix("import ") {
+        // Go: import "fmt" — the rest starts with a quote
 
         // Go: import "fmt" — the rest starts with a quote
         if rest.starts_with('"') || rest.starts_with('\'') {
@@ -421,7 +421,7 @@ fn parse_import_text(text: &str) -> (ImportKind, String, Vec<String>) {
                     let names_str = &trimmed[brace_start + 1..brace_end];
                     let names: Vec<String> = names_str
                         .split(',')
-                        .map(|n| n.trim().split_whitespace().next().unwrap_or("").to_string())
+                        .map(|n| n.split_whitespace().next().unwrap_or("").to_string())
                         .filter(|n| !n.is_empty())
                         .collect();
                     let module = extract_from_clause(trimmed);

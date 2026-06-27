@@ -242,6 +242,16 @@ impl Database {
         name: Option<&str>,
         file_id: Option<i64>,
     ) -> SqlResult<Vec<Node>> {
+        self.query_nodes_limit(kind, name, file_id, 50_000)
+    }
+
+    pub fn query_nodes_limit(
+        &self,
+        kind: Option<&str>,
+        name: Option<&str>,
+        file_id: Option<i64>,
+        limit: u32,
+    ) -> SqlResult<Vec<Node>> {
         let mut sql = String::from(
             "SELECT id, kind, name, file_id, start_line, start_col, end_line, end_col, doc_comment, properties FROM nodes WHERE 1=1",
         );
@@ -260,7 +270,7 @@ impl Database {
             param_values.push(Box::new(fid));
         }
 
-        sql.push_str(" ORDER BY name LIMIT 100");
+        sql.push_str(&format!(" ORDER BY name LIMIT {}", limit));
 
         let params_refs: Vec<&dyn rusqlite::types::ToSql> = param_values.iter().map(|p| p.as_ref()).collect();
         let mut stmt = self.conn.prepare(&sql)?;
@@ -352,7 +362,7 @@ impl Database {
             param_values.push(Box::new(tid));
         }
 
-        sql.push_str(" LIMIT 100");
+        sql.push_str(" LIMIT 50000");
 
         let params_refs: Vec<&dyn rusqlite::types::ToSql> = param_values.iter().map(|p| p.as_ref()).collect();
         let mut stmt = self.conn.prepare(&sql)?;
@@ -362,7 +372,7 @@ impl Database {
                 id: Some(row.get(0)?),
                 source_node_id: row.get(1)?,
                 target_node_id: row.get(2)?,
-                kind: EdgeKind::from_str(&row.get::<_, String>(3)?).unwrap_or(EdgeKind::References),
+                kind: EdgeKind::parse_from_str(&row.get::<_, String>(3)?).unwrap_or(EdgeKind::References),
                 file_id: row.get(4)?,
                 properties: serde_json::from_str(&props_str).unwrap_or_default(),
             })
@@ -401,7 +411,7 @@ impl Database {
         let props_str: String = row.get(9)?;
         Ok(Node {
             id: Some(row.get(0)?),
-            kind: NodeKind::from_str(&row.get::<_, String>(1)?).unwrap_or(NodeKind::Anonymous),
+            kind: NodeKind::parse_from_str(&row.get::<_, String>(1)?).unwrap_or(NodeKind::Anonymous),
             name: row.get(2)?,
             file_id: row.get(3)?,
             span: SourceSpan {
