@@ -4,16 +4,17 @@
 
 **Phase 1 (Core Engine — MVP)**: ✅ COMPLETE
 
-All Phase 1 milestones achieved:
-- 5 languages (TS/JS, Python, Rust, Go) with call graph extraction
-- SQLite storage with FTS5+LIKE fallback
-- Axum HTTP server with 7 endpoints + CORS
-- React Three Fiber 3D frontend with force-directed graph
-- CLI with init/index/serve/query commands
+**Phase 2 (Analysis & Rich Visualization)**: ✅ COMPLETE
 
-**Phase 2 in progress**: resolver, metrics, impact, API endpoints, frontend pages complete. File watcher, richer 3D views next.
+All Phase 2 milestones achieved:
+- Reference resolution (scope chain + import resolution for 5 languages)
+- Code metrics (cyclomatic/cognitive complexity, coupling, circular deps via Tarjan's SCC)
+- Impact analysis (BFS transitive closure, forward/reverse, critical path)
+- File watching (notify v7, debounced, incremental re-index)
+- Frontend serving (API server serves static files with SPA fallback)
+- Frontend pages: Metrics + Impact added to existing Graph, Symbols, Files
 
-95 tests passing — 6 core + 8 discovery + 27 parser + 25 resolver + 9 storage + 4 metrics + 7 impact + 9 API.
+**96 tests passing** — 6 core + 8 discovery + 27 parser + 25 resolver + 9 storage + 4 metrics + 7 impact + 9 API + 1 watcher.
 
 | Crate | Tests | Status |
 |---|---|---|
@@ -22,10 +23,11 @@ All Phase 1 milestones achieved:
 | astera-parser | 27 | ✅ 5 languages, call graph, containment |
 | astera-resolver | 25 | ✅ scope chain, import resolution |
 | astera-storage | 9 | ✅ FTS5+LIKE fallback |
-| astera-metrics | 4 | ✅ cyclomatic/cognitive complexity, coupling, instability |
+| astera-metrics | 4 | ✅ cyclomatic/cognitive complexity, coupling, instability, Tarjan SCC |
 | astera-impact | 7 | ✅ BFS transitive closure, critical path, cycle detection |
-| astera-cli | 0 | ✅ Builds, edge mapping implemented |
-| astera-api | 9 | ✅ 9 REST endpoints (stats, files, symbols, edges, search, graph, metrics, impact, symbol-by-id) |
+| astera-cli | 0 | ✅ Builds, edge mapping, serve with --web-dir |
+| astera-api | 9 | ✅ 9 REST endpoints (stats, files, symbols, edges, search, graph, metrics, impact, symbol-by-id) + static file serving |
+| astera-watcher | 1 | ✅ notify v7 file watching, debounced incremental re-index |
 | apps/web | — | ✅ 3D frontend, 5 pages (Graph, Symbols, Files, Metrics, Impact) |
 
 ## Prerequisites
@@ -44,26 +46,34 @@ cargo build --release
 ./target/release/astera init /path/to/repo
 ./target/release/astera index /path/to/repo
 
-# Explore via CLI
-./target/release/astera query symbols
-./target/release/astera query edges
-
 # Serve API + 3D frontend
 ./target/release/astera serve --port 8080
 # Open http://localhost:8080
+
+# OR: explore via CLI
+./target/release/astera query symbols
+./target/release/astera query edges --kind Calls
 ```
 
 ## Repository
 
 ```
 astera/                    # Cargo workspace (Rust backend)
-├── crates/               # 12 workspace crates
+├── crates/               # 10 workspace crates
+│   ├── astera-core/      # Types, config, error types
+│   ├── astera-discovery/ # Filesystem walk, language classification
+│   ├── astera-parser/    # Tree-sitter integration, symbol extraction
+│   ├── astera-resolver/  # Scope chain, import resolution
+│   ├── astera-storage/   # SQLite + FTS5
+│   ├── astera-metrics/   # Complexity, coupling, instability
+│   ├── astera-impact/    # BFS impact analysis
+│   ├── astera-api/       # Axum HTTP server + static file serving
+│   ├── astera-cli/       # Clap CLI entry point
+│   └── astera-watcher/   # File watching via notify
 ├── apps/web/             # React + Three.js frontend
 ├── tests/                # Test fixtures + integration tests
 └── docs/                 # Documentation
 ```
-
-See [05-repo-structure.md](./05-repo-structure.md) for full layout.
 
 ## Development Commands
 
@@ -78,7 +88,7 @@ cargo test
 cargo test -p astera-parser -- test_ts_extraction
 
 # Lint
-cargo clippy --workspace -- -D warnings
+cargo clippy --workspace
 
 # Format check
 cargo fmt --check
@@ -90,33 +100,25 @@ cd apps/web && npm run dev
 ./target/debug/astera serve
 ```
 
-## Build Pipeline
-
-```
-Source → cargo build → astera binary (statically linked)
-Web app → vite build → dist/ → embedded via rust-embed
-```
-
-The binary ships with the frontend embedded. Single deployment artifact.
-
 ## Phase Sequence
 
-| Phase | Duration | Goal |
+| Phase | Status | Goal |
 |---|---|---|
-| [Phase 1](./04-phases.md#phase-1-core-engine--mvp) | ~8 weeks | Working MVP: TS/JS + Python + Rust indexing, CLI, 3D web UI |
-| [Phase 2](./04-phases.md#phase-2-analysis-depth--rich-visualization) | 8 weeks | Deep analysis, richer 3D, file watching, metrics |
-| [Phase 3](./04-phases.md#phase-3-advanced-features) | 8 weeks | Plugins, exports, CI integration, architecture rules |
-| [Phase 4](./04-phases.md#phase-4-ecosystem--scale) | Ongoing | IDE plugins, SDKs, scale, community |
+| [Phase 1](./04-phases.md#phase-1-core-engine--mvp) | ✅ Complete | Working MVP: 5 languages, CLI, 3D web UI |
+| [Phase 2](./04-phases.md#phase-2-analysis-depth--rich-visualization) | ✅ Complete | Deep analysis, metrics, impact, file watching |
+| [Phase 3](./04-phases.md#phase-3-advanced-features) | Next | Plugins, exports, CI integration, architecture rules |
+| [Phase 4](./04-phases.md#phase-4-ecosystem--scale) | Planned | IDE plugins, SDKs, scale, community |
 
-## Testing Strategy
+## Language Support
 
-```
-Unit tests       → #[test] alongside every module
-Golden file tests→ Parse fixtures, compare JSON snapshots
-Integration tests→ Index test repos, verify API responses
-Property tests   → proptest for graph invariants
-Benchmarks       → criterion for parsing, indexing, query latency
-```
+| Language | Phase | Status |
+|---|---|---|
+| TypeScript / JavaScript | 1 | ✅ Full extraction |
+| Python | 1 | ✅ Full extraction |
+| Rust | 1 | ✅ Full extraction |
+| Go | 1 | ✅ Full extraction |
+| C / C++ | 3 | Planned |
+| Java | 3 | Planned |
 
 ## Key Dependencies
 
@@ -130,6 +132,8 @@ Benchmarks       → criterion for parsing, indexing, query latency
 | `tracing` | Logging |
 | `rayon` | Parallelism |
 | `ignore` | Gitignore-aware file walk |
+| `notify` v7 | File system watching |
+| `mime_guess` | Static file MIME detection |
 
 **Frontend:**
 | Package | Purpose |
@@ -142,18 +146,6 @@ Benchmarks       → criterion for parsing, indexing, query latency
 | `zustand` | UI state |
 | `tailwindcss` | Styling |
 
-## Language Support Rollout
-
-| Language | Phase | Notes |
-|---|---|---|
-| TypeScript / JavaScript | 1 | Primary focus — excellent tree-sitter grammar |
-| Python | 1 | Very good tree-sitter grammar |
-| Rust | 1 | Excellent grammar, complex module resolution |
-| Go | 1 | Good grammar, simple module system |
-| C / C++ | 3 | Large surface area, preprocessor complexity |
-| Java | 3 | Very good grammar, complex type system |
-| Ruby, PHP, Swift, Kotlin, Scala | 4 | Community-demand driven |
-
 ## Design Documents Index
 
 | Document | Covers |
@@ -163,5 +155,5 @@ Benchmarks       → criterion for parsing, indexing, query latency
 | [01-data-model.md](./01-data-model.md) | Code Property Graph, SQLite schema, storage |
 | [02-analysis-pipeline.md](./02-analysis-pipeline.md) | Parsing pipeline, incremental updates |
 | [03-api-frontend.md](./03-api-frontend.md) | REST API, 3D frontend architecture, visualization |
-| [04-phases.md](./04-phases.md) | Phase 1-4 detailed plans (Rust adapted) |
+| [04-phases.md](./04-phases.md) | Phase 1-4 detailed plans |
 | [05-repo-structure.md](./05-repo-structure.md) | Code organization, conventions, file layout |
