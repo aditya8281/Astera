@@ -1,0 +1,244 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-06-27T00:00:00Z",
+  "title": "Design System: Astera",
+  "extensions": {
+    "colorMeta": {
+      "primary": {
+        "role": "primary",
+        "displayName": "Electric Cyan",
+        "canonical": "#59F6FF",
+        "tonalRamp": ["#1A6B6E", "#228B90", "#2AA9B2", "#3AA8B0", "#45C5D0", "#59F6FF", "#8FF9FF", "#C5FCFF"]
+      },
+      "primary-dim": {
+        "role": "primary",
+        "displayName": "Cyan Dim",
+        "canonical": "#3AA8B0",
+        "tonalRamp": ["#1A4D50", "#226B6E", "#2A8A8D", "#3AA8B0", "#4DBEC1", "#65D4D7", "#7DEAED", "#95FFFF"]
+      },
+      "neutral-bg": {
+        "role": "neutral",
+        "displayName": "Deep Space",
+        "canonical": "#1F2128",
+        "tonalRamp": ["#0F1014", "#141518", "#1A1B20", "#1F2128", "#25272E", "#2A2D35", "#30333B", "#36393F"]
+      },
+      "neutral-surface": {
+        "role": "neutral",
+        "displayName": "Panel Surface",
+        "canonical": "#2A2D35",
+        "tonalRamp": ["#1A1C20", "#1F2128", "#252830", "#2A2D35", "#32353D", "#3A3D45", "#454850", "#50535B"]
+      },
+      "neutral-surface-dim": {
+        "role": "neutral",
+        "displayName": "Surface Dim",
+        "canonical": "#252830",
+        "tonalRamp": ["#151720", "#1A1C20", "#1F2128", "#252830", "#2A2D35", "#30333B", "#36393F", "#3C3F47"]
+      },
+      "neutral-surface-hover": {
+        "role": "neutral",
+        "displayName": "Surface Hover",
+        "canonical": "#32353D",
+        "tonalRamp": ["#22242A", "#27292F", "#2C2E34", "#32353D", "#3A3D45", "#42454D", "#4A4D55", "#52555D"]
+      },
+      "neutral-border": {
+        "role": "neutral",
+        "displayName": "Border",
+        "canonical": "#3A3D45",
+        "tonalRamp": ["#2A2C32", "#303238", "#35373D", "#3A3D45", "#42454D", "#4A4D55", "#52555D", "#5A5D65"]
+      },
+      "neutral-border-light": {
+        "role": "neutral",
+        "displayName": "Border Light",
+        "canonical": "#454850",
+        "tonalRamp": ["#35373D", "#3A3D45", "#404248", "#454850", "#4D5058", "#55585F", "#5D6067", "#65686F"]
+      },
+      "neutral-text": {
+        "role": "neutral",
+        "displayName": "Text Primary",
+        "canonical": "#E0E4EC",
+        "tonalRamp": ["#8B91A0", "#9BA0AE", "#ABB0BC", "#BFC4CC", "#D0D4DC", "#E0E4EC", "#EAF0F5", "#F5F8FF"]
+      },
+      "neutral-text-muted": {
+        "role": "neutral",
+        "displayName": "Text Muted",
+        "canonical": "#8B91A0",
+        "tonalRamp": ["#4B5060", "#5B6070", "#6B7080", "#7B8090", "#8B91A0", "#9BA0AE", "#ABB0BC", "#BFC4CC"]
+      },
+      "neutral-text-dim": {
+        "role": "neutral",
+        "displayName": "Text Dim",
+        "canonical": "#5A6070",
+        "tonalRamp": ["#3A3F4A", "#42474F", "#4A4F58", "#525760", "#5A6070", "#62687A", "#6A7082", "#72788A"]
+      },
+      "success": {
+        "role": "semantic",
+        "displayName": "Success Green",
+        "canonical": "#4ADE80",
+        "tonalRamp": ["#1A5C30", "#227A3E", "#2A984C", "#34B65A", "#4ADE80", "#6AE896", "#88F0AC", "#A6F8C2"]
+      },
+      "error": {
+        "role": "semantic",
+        "displayName": "Error Red",
+        "canonical": "#F87171",
+        "tonalRamp": ["#7A2828", "#983232", "#B63C3C", "#D44646", "#F87171", "#FA8D8D", "#FCA9A9", "#FCC5C5"]
+      },
+      "warning": {
+        "role": "semantic",
+        "displayName": "Warning Amber",
+        "canonical": "#FBBF24",
+        "tonalRamp": ["#7A5A0C", "#987010", "#B68614", "#D49C18", "#FBBF24", "#FCCD4A", "#FDDB70", "#FEE996"]
+      },
+      "ai": {
+        "role": "semantic",
+        "displayName": "AI Violet",
+        "canonical": "#B388FF",
+        "tonalRamp": ["#5A347A", "#6E4098", "#824CB6", "#9658D4", "#B388FF", "#C5A0FF", "#D7B8FF", "#E9D0FF"]
+      }
+    },
+    "typographyMeta": {
+      "display": {
+        "displayName": "Display",
+        "purpose": "Page titles and hero text. Space Grotesk bold only."
+      },
+      "body": {
+        "displayName": "Body",
+        "purpose": "Paragraphs, descriptions, panel content. IBM Plex Sans."
+      },
+      "label": {
+        "displayName": "Label",
+        "purpose": "Navigation items, section labels, uppercase markers."
+      },
+      "mono": {
+        "displayName": "Mono",
+        "purpose": "Code, paths, IDs, timestamps, technical data. IBM Plex Mono."
+      }
+    },
+    "shadows": [],
+    "motion": [
+      { "name": "ease-out-quart", "value": "cubic-bezier(0.25, 1, 0.5, 1)", "purpose": "Default easing for state transitions, hovers, focus." },
+      { "name": "ease-out-quint", "value": "cubic-bezier(0.22, 1, 0.36, 1)", "purpose": "Panel and sidebar transitions." },
+      { "name": "ease-out-expo", "value": "cubic-bezier(0.16, 1, 0.3, 1)", "purpose": "Sidebar expand/collapse, panel entrance." },
+      { "name": "duration-micro", "value": "120ms", "purpose": "Button hover, checkbox toggle, micro-feedback." },
+      { "name": "duration-selection", "value": "150ms", "purpose": "Selection state changes, focus ring." },
+      { "name": "duration-panel", "value": "250ms", "purpose": "Panel slide-in/out, sidebar expand/collapse." },
+      { "name": "duration-camera", "value": "650ms", "purpose": "Graph camera transitions, node focus." }
+    ],
+    "breakpoints": [
+      { "name": "sm", "value": "640px" },
+      { "name": "md", "value": "768px" },
+      { "name": "lg", "value": "1024px" },
+      { "name": "xl", "value": "1280px" }
+    ]
+  },
+  "components": [
+    {
+      "name": "Primary Button",
+      "kind": "button",
+      "refersTo": "button-primary",
+      "description": "Cyan background, dark text. For primary actions only — indexing, confirming, selecting.",
+      "html": "<button class=\"ds-btn-primary\">Index Repository</button>",
+      "css": ".ds-btn-primary { background: #59F6FF; color: #1F2128; padding: 8px 16px; border-radius: 4px; border: none; font-family: 'IBM Plex Sans', sans-serif; font-size: 11px; font-weight: 600; letter-spacing: 0.05em; cursor: pointer; transition: background 120ms ease-out; } .ds-btn-primary:hover { background: #3AA8B0; } .ds-btn-primary:active { transform: scale(0.95); } .ds-btn-primary:focus-visible { outline: 2px solid #59F6FF; outline-offset: 2px; }"
+    },
+    {
+      "name": "Ghost Button",
+      "kind": "button",
+      "refersTo": "button-ghost",
+      "description": "Transparent background, muted text. For secondary actions — cancel, dismiss, browse.",
+      "html": "<button class=\"ds-btn-ghost\">Cancel</button>",
+      "css": ".ds-btn-ghost { background: transparent; color: #8B91A0; padding: 6px 12px; border-radius: 4px; border: 1px solid #3A3D45; font-family: 'IBM Plex Sans', sans-serif; font-size: 11px; font-weight: 600; letter-spacing: 0.05em; cursor: pointer; transition: all 120ms ease-out; } .ds-btn-ghost:hover { background: #32353D; color: #E0E4EC; } .ds-btn-ghost:focus-visible { outline: 2px solid #59F6FF; outline-offset: 2px; }"
+    },
+    {
+      "name": "Search Input",
+      "kind": "input",
+      "refersTo": "input",
+      "description": "Dark background, mono font, for search fields and command palette. The primary data entry point.",
+      "html": "<input class=\"ds-input-search\" type=\"text\" placeholder=\"Search symbols...\" />",
+      "css": ".ds-input-search { background: #1F2128; color: #E0E4EC; border: 1px solid #3A3D45; border-radius: 4px; padding: 8px 12px; font-family: 'IBM Plex Mono', monospace; font-size: 12px; outline: none; transition: border-color 120ms ease-out; width: 100%; } .ds-input-search::placeholder { color: #5A6070; } .ds-input-search:focus { border-color: #59F6FF; outline: 2px solid #59F6FF; outline-offset: 2px; }"
+    },
+    {
+      "name": "Navigation Item",
+      "kind": "nav",
+      "refersTo": "nav-item",
+      "description": "Sidebar nav row with icon, label, and keyboard shortcut. Active state has a 2px cyan left bar.",
+      "html": "<button class=\"ds-nav-item\"><svg width=\"16\" height=\"16\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\"><path d=\"M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z\"/></svg><span>Home</span><kbd>0</kbd></button>",
+      "css": ".ds-nav-item { display: flex; align-items: center; gap: 12px; width: 100%; padding: 10px 12px; background: transparent; color: #8B91A0; border: none; cursor: pointer; font-family: 'IBM Plex Sans', sans-serif; font-size: 11px; font-weight: 600; letter-spacing: 0.05em; transition: all 120ms ease-out; position: relative; text-align: left; } .ds-nav-item:hover { background: #32353D; color: #E0E4EC; } .ds-nav-item.active { color: #59F6FF; background: rgba(89,246,255,0.1); } .ds-nav-item.active::before { content: ''; position: absolute; left: 0; top: 50%; transform: translateY(-50%); width: 2px; height: 20px; background: #59F6FF; border-radius: 0 2px 2px 0; } .ds-nav-item kbd { margin-left: auto; font-family: 'IBM Plex Mono', monospace; font-size: 10px; color: #5A6070; } .ds-nav-item:focus-visible { outline: 2px solid #59F6FF; outline-offset: -2px; }"
+    },
+    {
+      "name": "Panel",
+      "kind": "custom",
+      "refersTo": "panel",
+      "description": "Right-side panel for detailed views (symbols, metrics, impact). 380px fixed width, tonal surface.",
+      "html": "<div class=\"ds-panel\"><div class=\"ds-panel-header\">Impact Analysis</div><div class=\"ds-panel-body\">Panel content goes here.</div></div>",
+      "css": ".ds-panel { width: 380px; height: 100%; background: #2A2D35; border-left: 1px solid #3A3D45; overflow-y: auto; padding: 16px; } .ds-panel-header { font-family: 'Space Grotesk', sans-serif; font-weight: 700; font-size: 1rem; color: #E0E4EC; margin-bottom: 16px; } .ds-panel-body { font-family: 'IBM Plex Sans', sans-serif; font-size: 13px; color: #8B91A0; line-height: 1.5; } .ds-panel::-webkit-scrollbar { width: 5px; } .ds-panel::-webkit-scrollbar-track { background: transparent; } .ds-panel::-webkit-scrollbar-thumb { background: #3A3D45; border-radius: 3px; }"
+    },
+    {
+      "name": "Chip / Tag",
+      "kind": "chip",
+      "refersTo": "chip",
+      "description": "Language badges, kind filters, status indicators. Compact, monospace, tonal.",
+      "html": "<span class=\"ds-chip\">TypeScript</span>",
+      "css": ".ds-chip { display: inline-flex; align-items: center; padding: 2px 8px; background: #252830; color: #8B91A0; border: 1px solid #3A3D45; border-radius: 4px; font-family: 'IBM Plex Mono', monospace; font-size: 10px; } .ds-chip.selected { background: rgba(89,246,255,0.1); color: #59F6FF; border-color: rgba(89,246,255,0.3); }"
+    },
+    {
+      "name": "Tooltip",
+      "kind": "custom",
+      "refersTo": "tooltip",
+      "description": "Minimal floating label on hover. Tonal surface, border, no shadow.",
+      "html": "<div class=\"ds-tooltip\">Symbol name</div>",
+      "css": ".ds-tooltip { position: absolute; padding: 4px 8px; background: #2A2D35; color: #E0E4EC; border: 1px solid #3A3D45; border-radius: 6px; font-family: 'IBM Plex Mono', monospace; font-size: 10px; white-space: nowrap; z-index: 60; pointer-events: none; animation: fadeIn 150ms ease-out; }"
+    },
+    {
+      "name": "Skeleton Loader",
+      "kind": "custom",
+      "refersTo": "skeleton",
+      "description": "Shimmer placeholder during loading. Respects reduced-motion.",
+      "html": "<div class=\"ds-skeleton\" style=\"width: 200px; height: 16px;\"></div>",
+      "css": ".ds-skeleton { background: linear-gradient(90deg, #2A2D35 25%, #252830 50%, #2A2D35 75%); background-size: 200% 100%; animation: shimmer 1.5s ease-in-out infinite; border-radius: 4px; } @media (prefers-reduced-motion: reduce) { .ds-skeleton { animation: none; background: #2A2D35; } }"
+    }
+  ],
+  "narrative": {
+    "northStar": "The Observatory",
+    "overview": "You are looking out at a vast codebase through a precision instrument. The dark field is not decoration — it is the void against which structure becomes visible. Every bright point is a symbol, every line is a relationship, and the instrument's purpose is to make the invisible architecture of code appear with total clarity. Astera borrows from observatories, radar screens, and modern code editors. The warm charcoal background is deep space. The electric cyan accent is the instrument's reticle — the thing that draws your eye to what matters.",
+    "keyCharacteristics": [
+      "Tonal depth only — no shadows, no glass effects, no decorative blur",
+      "Information density over visual spectacle",
+      "Precision geometry — clean borders, consistent spacing, mechanical feel",
+      "One accent color (electric cyan) reserved for active states and primary actions",
+      "Dark by necessity, not by style — the graph needs contrast to breathe"
+    ],
+    "rules": [
+      { "name": "The Reticle Rule", "body": "Electric cyan (#59F6FF) is used on ≤10% of any given screen. It appears only on: the currently selected node, active sidebar item, focus rings, primary action buttons, and highlighted edges. Its rarity is the point.", "section": "colors" },
+      { "name": "The Tonal Depth Rule", "body": "Depth is conveyed through surface color steps (bg → surface → surface-hover), never through shadows, drop-shadows, or backdrop-blur. Everything sits on the same plane; hierarchy comes from color, not elevation.", "section": "colors" },
+      { "name": "The Single-Weight Rule", "body": "Space Grotesk uses only weight 700 (bold). No light, no regular, no semibold. Bold for all hierarchy levels, differentiated by size alone.", "section": "typography" },
+      { "name": "The Monospace-For-Data Rule", "body": "Any text that represents code, paths, IDs, or technical data is set in IBM Plex Mono. No exceptions. Human-readable labels use the sans.", "section": "typography" },
+      { "name": "The Flat-By-Default Rule", "body": "Surfaces are flat at rest. No shadows, no backdrop-blur, no lift on hover. Interactive feedback comes from surface color shifts and border color changes, never from elevation changes.", "section": "elevation" },
+      { "name": "The Three-Step Rule", "body": "There are exactly three surface depths: background, surface, surface-hover. No more. If a design needs a fourth surface color, it's over-decorated.", "section": "elevation" }
+    ],
+    "dos": [
+      "Do use tonal layering for depth — background → surface → surface-hover is the entire elevation vocabulary.",
+      "Do reserve electric cyan (#59F6FF) for selection, focus, and active states only.",
+      "Do use IBM Plex Mono for all code, paths, IDs, and technical data.",
+      "Do keep body text at ≥4.5:1 contrast ratio against dark backgrounds.",
+      "Do use 1px borders for structural separation. Borders are always functional, never decorative.",
+      "Do honor prefers-reduced-motion — disable all animations, use static surfaces for skeletons.",
+      "Do maintain the sidebar → panel → content hierarchy.",
+      "Do use skeleton loading states, never spinners in the middle of content areas."
+    ],
+    "donts": [
+      "Don't use shadows, drop-shadows, or backdrop-blur anywhere. Depth is tonal, not optical.",
+      "Don't use glassmorphism, glass effects, or decorative transparency.",
+      "Don't use gradient text (background-clip: text with gradient).",
+      "Don't use side-stripe borders (border-left > 1px as accent).",
+      "Don't use oversized rounded corners (>12px). Max border-radius: 12px.",
+      "Don't use neon glow, RGB effects, or scanline overlays.",
+      "Don't use identical card grids with icon + heading + text repeated endlessly.",
+      "Don't use decorative motion — no bounce, no elastic, no orchestrated page-load sequences.",
+      "Don't put display fonts (Space Grotesk) in UI labels, buttons, or data.",
+      "Don't use Text Dim (#5A6070) for body text or any text that carries meaning.",
+      "Don't use modal as first thought.",
+      "Don't use the hero-metric template (big number, small label, supporting stats, gradient accent).",
+      "Don't use tiny uppercase tracked eyebrows above every section.",
+      "Don't use numbered section markers (01 / 02 / 03) as default scaffolding."
+    ]
+  }
+}
