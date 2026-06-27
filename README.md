@@ -1,5 +1,10 @@
 # Astera
 
+[![CI](https://github.com/user/astera/actions/workflows/ci.yml/badge.svg)](https://github.com/user/astera/actions/workflows/ci.yml)
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+[![Rust 1.80+](https://img.shields.io/badge/Rust-1.80+-orange.svg)](https://www.rust-lang.org)
+[![Release](https://img.shields.io/github/v/release/user/astera)](https://github.com/user/astera/releases)
+
 Local-first static analysis engine that parses codebases into a queryable Code Property Graph (CPG). CLI + REST API + interactive 3D web UI.
 
 ## Features
@@ -307,6 +312,14 @@ Astera builds a **Code Property Graph** with two core entities:
 
 The graph is stored in SQLite and queried via SQL or the REST API. The 3D frontend renders it as a force-directed layout where nodes are color-coded by kind and edges show relationships.
 
+## Contributing
+
+See [CONTRIBUTING.md](CONTRIBUTING.md) for development setup, workflow, and code style.
+
+## Security
+
+See [SECURITY.md](SECURITY.md) for vulnerability reporting.
+
 ## License
 
-MIT
+[MIT](LICENSE)
