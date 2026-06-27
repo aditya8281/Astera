@@ -105,11 +105,16 @@ pub async fn serve_with_static(
     let router = create_router_with_static(db, static_dir.clone());
     let addr = format!("0.0.0.0:{}", port);
 
-    if static_dir.is_some() {
+    if let Some(ref dir) = static_dir {
         println!("Web UI:  http://localhost:{}", port);
         println!("API:     http://localhost:{}/api/stats", port);
+        println!("Static:  {}", dir.display());
     } else {
         println!("API server: http://localhost:{}/api/stats", port);
+        println!();
+        println!("Tip: Build the frontend for a web UI:");
+        println!("  cd apps/web && npm install && npm run build");
+        println!("  astera serve --web-dir apps/web/dist");
     }
 
     let listener = tokio::net::TcpListener::bind(&addr).await?;

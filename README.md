@@ -129,6 +129,9 @@ astera query edges
 astera query edges --kind Calls
 astera query edges --kind Contains
 
+# Show index statistics
+astera stats
+
 # Export graph to JSON, CSV, or DOT
 astera export --output graph.json
 astera export --output graph.dot
