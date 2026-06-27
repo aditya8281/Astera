@@ -147,7 +147,10 @@ fn load_workspace_config(workspace_dir: &Path) -> Result<WorkspaceConfig, anyhow
     Ok(config)
 }
 
-fn save_workspace_config(workspace_dir: &Path, config: &WorkspaceConfig) -> Result<(), anyhow::Error> {
+fn save_workspace_config(
+    workspace_dir: &Path,
+    config: &WorkspaceConfig,
+) -> Result<(), anyhow::Error> {
     let config_path = workspace_config_path(workspace_dir);
     let content = toml::to_string_pretty(config)?;
     std::fs::write(&config_path, content)?;
@@ -174,7 +177,11 @@ fn workspace_init(name: &str) -> Result<(), anyhow::Error> {
     let config = WorkspaceConfig::new(name);
     save_workspace_config(&root, &config)?;
 
-    println!("Initialized workspace '{}' at: {}", name, astera_dir.display());
+    println!(
+        "Initialized workspace '{}' at: {}",
+        name,
+        astera_dir.display()
+    );
     Ok(())
 }
 
@@ -265,10 +272,7 @@ fn workspace_list() -> Result<(), anyhow::Error> {
             .exists();
 
         let status = if indexed { "✓" } else { "—" };
-        println!(
-            "{:<20} {:<60} {} {}",
-            repo.name, repo.path, langs, status
-        );
+        println!("{:<20} {:<60} {} {}", repo.name, repo.path, langs, status);
     }
 
     if !config.rules.is_empty() {
@@ -288,7 +292,11 @@ fn workspace_index() -> Result<(), anyhow::Error> {
         return Ok(());
     }
 
-    println!("Indexing workspace '{}' ({} repos)", config.name, config.repos.len());
+    println!(
+        "Indexing workspace '{}' ({} repos)",
+        config.name,
+        config.repos.len()
+    );
     println!();
 
     let mut total_files = 0u64;
@@ -379,7 +387,8 @@ fn workspace_index() -> Result<(), anyhow::Error> {
                     let src = e.source_node_id as usize;
                     let tgt = e.target_node_id as usize;
                     if src < node_ids.len() && tgt < node_ids.len() {
-                        let mut edge = astera_core::Edge::new(node_ids[src], node_ids[tgt], e.kind.clone());
+                        let mut edge =
+                            astera_core::Edge::new(node_ids[src], node_ids[tgt], e.kind.clone());
                         edge.file_id = Some(*file_id);
                         Some(edge)
                     } else {
@@ -432,13 +441,19 @@ fn workspace_stats() -> Result<(), anyhow::Error> {
     let mut total_symbols = 0u64;
     let mut total_edges = 0u64;
 
-    println!("{:<20} {:>8} {:>10} {:>8} {:>10}", "Repo", "Files", "Symbols", "Edges", "Languages");
+    println!(
+        "{:<20} {:>8} {:>10} {:>8} {:>10}",
+        "Repo", "Files", "Symbols", "Edges", "Languages"
+    );
     println!("{}", "-".repeat(60));
 
     for repo in &config.repos {
         let db_path = Path::new(&repo.path).join(".astera").join("index.db");
         if !db_path.exists() {
-            println!("{:<20} {:>8} {:>10} {:>8} {:>10}", repo.name, "—", "—", "—", "not indexed");
+            println!(
+                "{:<20} {:>8} {:>10} {:>8} {:>10}",
+                repo.name, "—", "—", "—", "not indexed"
+            );
             continue;
         }
 
@@ -464,11 +479,18 @@ fn workspace_stats() -> Result<(), anyhow::Error> {
 
                 println!(
                     "{:<20} {:>8} {:>10} {:>8} {:>10}",
-                    repo.name, files, symbols, edges, langs.join(", ")
+                    repo.name,
+                    files,
+                    symbols,
+                    edges,
+                    langs.join(", ")
                 );
             }
             Err(_) => {
-                println!("{:<20} {:>8} {:>10} {:>8} {:>10}", repo.name, "—", "—", "—", "db error");
+                println!(
+                    "{:<20} {:>8} {:>10} {:>8} {:>10}",
+                    repo.name, "—", "—", "—", "db error"
+                );
             }
         }
     }
@@ -504,8 +526,8 @@ enum BenchCommands {
 }
 
 fn bench_save(criterion_dir: &str) -> Result<(), anyhow::Error> {
-    let root = find_astera_root(Path::new("."))
-        .unwrap_or_else(|| std::env::current_dir().expect("cwd"));
+    let root =
+        find_astera_root(Path::new(".")).unwrap_or_else(|| std::env::current_dir().expect("cwd"));
 
     let criterion_path = Path::new(criterion_dir);
     if !criterion_path.exists() {
@@ -537,8 +559,8 @@ fn bench_save(criterion_dir: &str) -> Result<(), anyhow::Error> {
 }
 
 fn bench_check(threshold: f64, criterion_dir: &str) -> Result<(), anyhow::Error> {
-    let root = find_astera_root(Path::new("."))
-        .unwrap_or_else(|| std::env::current_dir().expect("cwd"));
+    let root =
+        find_astera_root(Path::new(".")).unwrap_or_else(|| std::env::current_dir().expect("cwd"));
 
     let baseline = benchmarks::load_baseline(&root)?;
 
@@ -576,8 +598,8 @@ fn bench_check(threshold: f64, criterion_dir: &str) -> Result<(), anyhow::Error>
 }
 
 fn bench_show() -> Result<(), anyhow::Error> {
-    let root = find_astera_root(Path::new("."))
-        .unwrap_or_else(|| std::env::current_dir().expect("cwd"));
+    let root =
+        find_astera_root(Path::new(".")).unwrap_or_else(|| std::env::current_dir().expect("cwd"));
 
     let baseline = benchmarks::load_baseline(&root)?;
 
@@ -592,18 +614,12 @@ fn bench_show() -> Result<(), anyhow::Error> {
     let mut results: Vec<_> = baseline.results.values().collect();
     results.sort_by(|a, b| a.name.cmp(&b.name));
 
-    println!(
-        "{:<55} {:>12} {:>8}",
-        "Benchmark", "Mean", "Iters"
-    );
+    println!("{:<55} {:>12} {:>8}", "Benchmark", "Mean", "Iters");
     println!("{}", "─".repeat(78));
 
     for r in results {
         let mean_str = benchmarks::format_ns(r.mean_ns);
-        println!(
-            "{:<55} {:>12} {:>8}",
-            r.name, mean_str, r.iterations
-        );
+        println!("{:<55} {:>12} {:>8}", r.name, mean_str, r.iterations);
     }
 
     Ok(())

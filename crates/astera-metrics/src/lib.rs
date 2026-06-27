@@ -229,8 +229,8 @@ pub fn compute_importance(nodes: &[Node], edges: &[Edge]) -> HashMap<i64, f64> {
             None => continue,
         };
 
-        let degree = fan_out.get(&nid).copied().unwrap_or(0)
-            + fan_in.get(&nid).copied().unwrap_or(0);
+        let degree =
+            fan_out.get(&nid).copied().unwrap_or(0) + fan_in.get(&nid).copied().unwrap_or(0);
         let fi = fan_in.get(&nid).copied().unwrap_or(0) as f64;
         let fo = fan_out.get(&nid).copied().unwrap_or(0) as f64;
         let lines = (node.span.end_line.saturating_sub(node.span.start_line)) as f64;

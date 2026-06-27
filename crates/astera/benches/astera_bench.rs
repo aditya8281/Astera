@@ -1,6 +1,6 @@
-use criterion::{black_box, criterion_group, criterion_main, BenchmarkId, Criterion, Throughput};
 use astera_core::{Edge, EdgeKind, FileInfo, Node, NodeKind, SourceSpan};
 use astera_parser::{parse, Extractor};
+use criterion::{black_box, criterion_group, criterion_main, BenchmarkId, Criterion, Throughput};
 
 // ═══════════════════════════════════════════════════════════════
 // Fixture generators — realistic code at varying scales
@@ -509,7 +509,13 @@ fn bench_storage(c: &mut Criterion) {
     // ── Edge insert benchmark ──
     {
         let edges: Vec<Edge> = (0..2000)
-            .map(|i| Edge::new((i % 500) as i64 + 1, ((i + 1) % 500) as i64 + 1, EdgeKind::Calls))
+            .map(|i| {
+                Edge::new(
+                    (i % 500) as i64 + 1,
+                    ((i + 1) % 500) as i64 + 1,
+                    EdgeKind::Calls,
+                )
+            })
             .collect();
 
         group.bench_function("insert_2000_edges", |b| {
@@ -611,14 +617,10 @@ fn bench_storage(c: &mut Criterion) {
         });
 
         // Symbol count
-        group.bench_function("symbol_count", |b| {
-            b.iter(|| db.symbol_count().unwrap())
-        });
+        group.bench_function("symbol_count", |b| b.iter(|| db.symbol_count().unwrap()));
 
         // Edge count
-        group.bench_function("edge_count", |b| {
-            b.iter(|| db.edge_count().unwrap())
-        });
+        group.bench_function("edge_count", |b| b.iter(|| db.edge_count().unwrap()));
 
         // Get children of
         group.bench_function("get_children_of", |b| {
@@ -626,9 +628,7 @@ fn bench_storage(c: &mut Criterion) {
         });
 
         // List files
-        group.bench_function("list_files", |b| {
-            b.iter(|| db.list_files().unwrap())
-        });
+        group.bench_function("list_files", |b| b.iter(|| db.list_files().unwrap()));
     }
 
     group.finish();
@@ -639,7 +639,7 @@ fn bench_storage(c: &mut Criterion) {
 // ═══════════════════════════════════════════════════════════════
 
 fn bench_metrics(c: &mut Criterion) {
-    use astera_metrics::{compute_metrics, compute_importance};
+    use astera_metrics::{compute_importance, compute_metrics};
 
     let mut group = c.benchmark_group("metrics");
 
@@ -726,11 +726,9 @@ fn bench_discovery(c: &mut Criterion) {
     for (label, size) in [("1KB", 1024), ("64KB", 65536), ("1MB", 1048576)] {
         let data: Vec<u8> = (0..size).map(|i| (i % 256) as u8).collect();
         group.throughput(Throughput::Bytes(size as u64));
-        group.bench_with_input(
-            BenchmarkId::new("sha256_hash", label),
-            &data,
-            |b, d| b.iter(|| compute_hash(black_box(d))),
-        );
+        group.bench_with_input(BenchmarkId::new("sha256_hash", label), &data, |b, d| {
+            b.iter(|| compute_hash(black_box(d)))
+        });
     }
 
     // Line counting
@@ -906,7 +904,8 @@ fn bench_parse_edge_cases(c: &mut Criterion) {
     });
 
     // Unicode-heavy source
-    let unicode_src = "// 日本語コメント\nfunction 名前(パラメータ: string): string { return 'テスト'; }\n";
+    let unicode_src =
+        "// 日本語コメント\nfunction 名前(パラメータ: string): string { return 'テスト'; }\n";
     group.bench_function("unicode_source", |b| {
         b.iter(|| parse(black_box(unicode_src.as_bytes()), "typescript").unwrap())
     });

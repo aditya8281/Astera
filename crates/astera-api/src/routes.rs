@@ -322,21 +322,27 @@ pub async fn modules(
     let db = state.db.lock().map_err(|e| {
         (
             StatusCode::INTERNAL_SERVER_ERROR,
-            Json(ErrorResponse { error: format!("Database lock: {}", e) }),
+            Json(ErrorResponse {
+                error: format!("Database lock: {}", e),
+            }),
         )
     })?;
 
     let nodes = db.query_nodes(None, None, None).map_err(|e| {
         (
             StatusCode::INTERNAL_SERVER_ERROR,
-            Json(ErrorResponse { error: format!("Database error: {}", e) }),
+            Json(ErrorResponse {
+                error: format!("Database error: {}", e),
+            }),
         )
     })?;
 
     let edges = db.get_edges(None, None, None).map_err(|e| {
         (
             StatusCode::INTERNAL_SERVER_ERROR,
-            Json(ErrorResponse { error: format!("Database error: {}", e) }),
+            Json(ErrorResponse {
+                error: format!("Database error: {}", e),
+            }),
         )
     })?;
 
@@ -353,7 +359,16 @@ pub async fn modules(
     // Filter to container types: Module, Class, Interface, Enum, File
     let modules: Vec<ModuleSummary> = nodes
         .iter()
-        .filter(|n| matches!(n.kind, NodeKind::Module | NodeKind::Class | NodeKind::Interface | NodeKind::Enum | NodeKind::File))
+        .filter(|n| {
+            matches!(
+                n.kind,
+                NodeKind::Module
+                    | NodeKind::Class
+                    | NodeKind::Interface
+                    | NodeKind::Enum
+                    | NodeKind::File
+            )
+        })
         .map(|n| {
             let nid = n.id.unwrap_or(0);
             ModuleSummary {

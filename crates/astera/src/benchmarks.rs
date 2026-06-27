@@ -90,8 +90,7 @@ pub fn detect_regressions(
 
     for result in current {
         if let Some(base) = baseline.results.get(&result.name) {
-            let change_pct =
-                ((result.mean_ns - base.mean_ns) / base.mean_ns) * 100.0;
+            let change_pct = ((result.mean_ns - base.mean_ns) / base.mean_ns) * 100.0;
 
             let severity = if change_pct > 50.0 {
                 RegressionSeverity::Critical
@@ -180,13 +179,13 @@ pub fn parse_criterion_json(path: &Path) -> anyhow::Result<Vec<BenchmarkResult>>
 }
 
 /// Pretty-print regression report
-pub fn print_regression_report(
-    baseline: &BenchmarkBaseline,
-    regressions: &[BenchmarkRegression],
-) {
+pub fn print_regression_report(baseline: &BenchmarkBaseline, regressions: &[BenchmarkRegression]) {
     println!("Benchmark Regression Report");
     println!("═══════════════════════════════════════════════════════════════");
-    println!("Baseline: {} (commit: {})", baseline.timestamp, baseline.commit);
+    println!(
+        "Baseline: {} (commit: {})",
+        baseline.timestamp, baseline.commit
+    );
     println!();
 
     if regressions.is_empty() {

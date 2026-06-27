@@ -26,8 +26,15 @@ pub fn classify_language(path: &Path) -> Option<&'static str> {
 /// Known parseable languages
 pub fn known_languages() -> &'static [&'static str] {
     &[
-        "typescript", "javascript", "tsx", "python", "rust", "go",
-        "c", "cpp", "java",
+        "typescript",
+        "javascript",
+        "tsx",
+        "python",
+        "rust",
+        "go",
+        "c",
+        "cpp",
+        "java",
     ]
 }
 

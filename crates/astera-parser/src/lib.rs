@@ -956,7 +956,8 @@ impl Extractor {
             "declaration" => {
                 // Variable declaration: only top-level (no function body parent)
                 let in_func = parent_stack.iter().any(|p| {
-                    p.map(|i| nodes[i].kind == NodeKind::Function).unwrap_or(false)
+                    p.map(|i| nodes[i].kind == NodeKind::Function)
+                        .unwrap_or(false)
                 });
                 if !in_func {
                     if let Some(declarator) = node.child_by_field_name("declarator") {
@@ -1019,11 +1020,9 @@ impl Extractor {
                     Self::find_identifier_child(declarator, source)
                 }
             }
-            "parenthesized_declarator" => {
-                (0..declarator.child_count())
-                    .filter_map(|i| declarator.child(i))
-                    .find_map(|c| Self::find_c_declarator_name(c, source))
-            }
+            "parenthesized_declarator" => (0..declarator.child_count())
+                .filter_map(|i| declarator.child(i))
+                .find_map(|c| Self::find_c_declarator_name(c, source)),
             "pointer_declarator" | "type_declarator" | "array_declarator" => {
                 Self::find_identifier_child(declarator, source)
             }
@@ -1178,9 +1177,9 @@ impl Extractor {
                 // into it so the inner class/function gets extracted
             }
             "declaration" => {
-                let in_class = parent_stack.iter().any(|p| {
-                    p.map(|i| nodes[i].kind == NodeKind::Class).unwrap_or(false)
-                });
+                let in_class = parent_stack
+                    .iter()
+                    .any(|p| p.map(|i| nodes[i].kind == NodeKind::Class).unwrap_or(false));
                 if !in_class {
                     if let Some(declarator) = node.child_by_field_name("declarator") {
                         if let Some(name) = Self::find_c_declarator_name(declarator, source) {
@@ -1403,8 +1402,7 @@ impl Extractor {
                 // Java: obj.method() — we want the method name, not the object
                 if let Some(name_node) = node.child_by_field_name("name") {
                     let callee_name = Self::node_text(name_node, source).to_string();
-                    if let Some(caller_idx) =
-                        Self::find_enclosing_function_idx(nodes, parent_stack)
+                    if let Some(caller_idx) = Self::find_enclosing_function_idx(nodes, parent_stack)
                     {
                         call_refs.push((caller_idx, callee_name));
                     }
@@ -1860,7 +1858,12 @@ mod tests {
             .iter()
             .filter(|n| n.kind == NodeKind::Import)
             .collect();
-        assert_eq!(imports.len(), 2, "Expected 2 imports, got: {:?}", result.nodes);
+        assert_eq!(
+            imports.len(),
+            2,
+            "Expected 2 imports, got: {:?}",
+            result.nodes
+        );
     }
 
     #[test]
@@ -1926,7 +1929,11 @@ mod tests {
             .iter()
             .filter(|e| e.kind == EdgeKind::Contains)
             .count();
-        assert!(contains >= 2, "Expected at least 2 Contains edges, got: {}", contains);
+        assert!(
+            contains >= 2,
+            "Expected at least 2 Contains edges, got: {}",
+            contains
+        );
     }
 
     #[test]
@@ -1992,7 +1999,12 @@ mod tests {
             .iter()
             .filter(|n| n.kind == NodeKind::Import)
             .collect();
-        assert_eq!(imports.len(), 2, "Expected 2 imports, got: {:?}", result.nodes);
+        assert_eq!(
+            imports.len(),
+            2,
+            "Expected 2 imports, got: {:?}",
+            result.nodes
+        );
     }
 
     #[test]
@@ -2000,10 +2012,7 @@ mod tests {
         let source = b"package com.example.app;";
         let result = extract("java", source);
         assert!(
-            result
-                .nodes
-                .iter()
-                .any(|n| n.kind == NodeKind::Module),
+            result.nodes.iter().any(|n| n.kind == NodeKind::Module),
             "Expected module for package, got: {:?}",
             result.nodes
         );
@@ -2032,7 +2041,11 @@ mod tests {
             .iter()
             .filter(|e| e.kind == EdgeKind::Contains)
             .count();
-        assert!(contains >= 2, "Expected at least 2 Contains edges, got: {}", contains);
+        assert!(
+            contains >= 2,
+            "Expected at least 2 Contains edges, got: {}",
+            contains
+        );
     }
 
     #[test]

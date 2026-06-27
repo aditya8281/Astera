@@ -30,11 +30,7 @@ pub enum ChangeType {
 }
 
 /// Analyze git diff between two commits and correlate with indexed data
-pub fn analyze_git_diff(
-    from_commit: &str,
-    to_commit: &str,
-    diff_output: &str,
-) -> GitDiff {
+pub fn analyze_git_diff(from_commit: &str, to_commit: &str, diff_output: &str) -> GitDiff {
     let mut files_changed = Vec::new();
     let mut total_additions = 0u32;
     let mut total_deletions = 0u32;

@@ -7,10 +7,7 @@ use tokio::sync::broadcast;
 use crate::AppState;
 
 /// WebSocket endpoint — broadcasts index events to connected clients
-pub async fn ws_handler(
-    ws: WebSocketUpgrade,
-    AxumState(state): AxumState<AppState>,
-) -> Response {
+pub async fn ws_handler(ws: WebSocketUpgrade, AxumState(state): AxumState<AppState>) -> Response {
     ws.on_upgrade(move |socket| handle_socket(socket, state.event_tx))
 }
 

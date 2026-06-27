@@ -276,7 +276,7 @@ pub struct ArchitectureValidation {
 pub fn validate_architecture(
     rules: &[ArchitectureRule],
     file_nodes: &[(i64, String, String)], // (id, name, path)
-    dep_edges: &[(i64, i64, String)],      // (source_file_id, target_file_id, edge_kind)
+    dep_edges: &[(i64, i64, String)],     // (source_file_id, target_file_id, edge_kind)
 ) -> ArchitectureValidation {
     // Map each file to its layer(s) based on glob patterns
     let mut file_layers: HashMap<i64, Vec<String>> = HashMap::new();
@@ -373,7 +373,11 @@ fn glob_match_inner(path: &[u8], pattern: &[u8]) -> bool {
         // ** matches everything (including /)
         let rest = &pattern[2..];
         // skip optional /
-        let rest = if rest.first() == Some(&b'/') { &rest[1..] } else { rest };
+        let rest = if rest.first() == Some(&b'/') {
+            &rest[1..]
+        } else {
+            rest
+        };
         // try matching rest of pattern at every position in path
         for i in 0..=path.len() {
             if glob_match_inner(&path[i..], rest) {
@@ -602,10 +606,7 @@ mod tests {
             (3, "db.ts".into(), "src/storage/db.ts".into()),
         ];
         // ui → service (allowed), service → storage (allowed)
-        let dep_edges = vec![
-            (1, 2, "DependsOn".into()),
-            (2, 3, "DependsOn".into()),
-        ];
+        let dep_edges = vec![(1, 2, "DependsOn".into()), (2, 3, "DependsOn".into())];
         let result = validate_architecture(&rules, &file_nodes, &dep_edges);
         assert_eq!(result.total_violations, 0);
     }
@@ -659,6 +660,9 @@ mod tests {
         ];
         let dep_edges = vec![(1, 2, "DependsOn".into())];
         let result = validate_architecture(&rules, &file_nodes, &dep_edges);
-        assert_eq!(result.total_violations, 0, "Same layer deps should be allowed");
+        assert_eq!(
+            result.total_violations, 0,
+            "Same layer deps should be allowed"
+        );
     }
 }

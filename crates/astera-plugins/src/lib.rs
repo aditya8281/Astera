@@ -508,12 +508,72 @@ mod tests {
     fn test_metrics_summary_oop_ratio() {
         let plugin = MetricsSummaryPlugin;
         let nodes = vec![
-            Node::new(NodeKind::Method, "m1", 1, SourceSpan { start_line: 1, start_col: 1, end_line: 2, end_col: 1 }),
-            Node::new(NodeKind::Method, "m2", 1, SourceSpan { start_line: 3, start_col: 1, end_line: 4, end_col: 1 }),
-            Node::new(NodeKind::Method, "m3", 1, SourceSpan { start_line: 5, start_col: 1, end_line: 6, end_col: 1 }),
-            Node::new(NodeKind::Method, "m4", 1, SourceSpan { start_line: 7, start_col: 1, end_line: 8, end_col: 1 }),
-            Node::new(NodeKind::Method, "m5", 1, SourceSpan { start_line: 9, start_col: 1, end_line: 10, end_col: 1 }),
-            Node::new(NodeKind::Function, "f1", 1, SourceSpan { start_line: 11, start_col: 1, end_line: 12, end_col: 1 }),
+            Node::new(
+                NodeKind::Method,
+                "m1",
+                1,
+                SourceSpan {
+                    start_line: 1,
+                    start_col: 1,
+                    end_line: 2,
+                    end_col: 1,
+                },
+            ),
+            Node::new(
+                NodeKind::Method,
+                "m2",
+                1,
+                SourceSpan {
+                    start_line: 3,
+                    start_col: 1,
+                    end_line: 4,
+                    end_col: 1,
+                },
+            ),
+            Node::new(
+                NodeKind::Method,
+                "m3",
+                1,
+                SourceSpan {
+                    start_line: 5,
+                    start_col: 1,
+                    end_line: 6,
+                    end_col: 1,
+                },
+            ),
+            Node::new(
+                NodeKind::Method,
+                "m4",
+                1,
+                SourceSpan {
+                    start_line: 7,
+                    start_col: 1,
+                    end_line: 8,
+                    end_col: 1,
+                },
+            ),
+            Node::new(
+                NodeKind::Method,
+                "m5",
+                1,
+                SourceSpan {
+                    start_line: 9,
+                    start_col: 1,
+                    end_line: 10,
+                    end_col: 1,
+                },
+            ),
+            Node::new(
+                NodeKind::Function,
+                "f1",
+                1,
+                SourceSpan {
+                    start_line: 11,
+                    start_col: 1,
+                    end_line: 12,
+                    end_col: 1,
+                },
+            ),
         ];
 
         let input = PluginInput {

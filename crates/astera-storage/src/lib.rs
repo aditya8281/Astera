@@ -364,10 +364,14 @@ impl Database {
              FROM nodes WHERE id IN ({}) ORDER BY name",
             in_clause
         );
-        let params_refs: Vec<&dyn rusqlite::types::ToSql> =
-            child_ids.iter().map(|id| id as &dyn rusqlite::types::ToSql).collect();
+        let params_refs: Vec<&dyn rusqlite::types::ToSql> = child_ids
+            .iter()
+            .map(|id| id as &dyn rusqlite::types::ToSql)
+            .collect();
         let mut stmt = self.conn.prepare(&nodes_sql)?;
-        let nodes = stmt.query_map(params_refs.as_slice(), Self::map_node)?.collect::<SqlResult<Vec<_>>>()?;
+        let nodes = stmt
+            .query_map(params_refs.as_slice(), Self::map_node)?
+            .collect::<SqlResult<Vec<_>>>()?;
 
         // Fetch edges that connect to/from children
         let edges_sql = format!(
@@ -377,7 +381,8 @@ impl Database {
             in_clause = in_clause
         );
         // Build params: child_ids for source, then again for target
-        let mut all_params: Vec<Box<dyn rusqlite::types::ToSql>> = Vec::with_capacity(child_ids.len() * 2);
+        let mut all_params: Vec<Box<dyn rusqlite::types::ToSql>> =
+            Vec::with_capacity(child_ids.len() * 2);
         for id in &child_ids {
             all_params.push(Box::new(*id));
         }
@@ -387,18 +392,20 @@ impl Database {
         let params_refs2: Vec<&dyn rusqlite::types::ToSql> =
             all_params.iter().map(|p| p.as_ref()).collect();
         let mut stmt2 = self.conn.prepare(&edges_sql)?;
-        let edges = stmt2.query_map(params_refs2.as_slice(), |row| {
-            let props_str: String = row.get(5)?;
-            Ok(Edge {
-                id: Some(row.get(0)?),
-                source_node_id: row.get(1)?,
-                target_node_id: row.get(2)?,
-                kind: EdgeKind::parse_from_str(&row.get::<_, String>(3)?)
-                    .unwrap_or(EdgeKind::References),
-                file_id: row.get(4)?,
-                properties: serde_json::from_str(&props_str).unwrap_or_default(),
-            })
-        })?.collect::<SqlResult<Vec<_>>>()?;
+        let edges = stmt2
+            .query_map(params_refs2.as_slice(), |row| {
+                let props_str: String = row.get(5)?;
+                Ok(Edge {
+                    id: Some(row.get(0)?),
+                    source_node_id: row.get(1)?,
+                    target_node_id: row.get(2)?,
+                    kind: EdgeKind::parse_from_str(&row.get::<_, String>(3)?)
+                        .unwrap_or(EdgeKind::References),
+                    file_id: row.get(4)?,
+                    properties: serde_json::from_str(&props_str).unwrap_or_default(),
+                })
+            })?
+            .collect::<SqlResult<Vec<_>>>()?;
 
         Ok((nodes, edges))
     }
