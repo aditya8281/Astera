@@ -1,11 +1,13 @@
 import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { api } from '../api'
-import { NODE_COLORS } from '../types'
+import { NODE_COLORS, COLORS } from '../constants'
+import { useUIStore } from '../store'
 
 export function SymbolsPage() {
-  const [kind, setKind] = useState<string>('')
+  const [kind, setKind] = useState('')
   const [search, setSearch] = useState('')
+  const selectNode = useUIStore((s) => s.selectNode)
 
   const { data, isLoading } = useQuery({
     queryKey: ['symbols', kind, search],
@@ -19,20 +21,22 @@ export function SymbolsPage() {
 
   return (
     <div className="h-full flex flex-col p-6">
-      <h2 className="text-lg font-semibold text-text-primary mb-4">Symbols</h2>
+      <h2 className="text-lg font-heading font-bold mb-4" style={{ color: COLORS.text }}>Symbols</h2>
 
       <div className="flex gap-3 mb-4">
         <input
           type="text"
           value={search}
           onChange={(e) => setSearch(e.target.value)}
-          placeholder="Search symbols…"
-          className="bg-bg-surface border border-border-subtle rounded px-3 py-2 text-xs text-text-primary placeholder-text-muted flex-1 focus:outline-none focus:border-accent-cyan"
+          placeholder="Search symbols..."
+          className="flex-1 px-3 py-2 rounded text-xs font-mono outline-none"
+          style={{ background: COLORS.bg, color: COLORS.text, border: `1px solid ${COLORS.border}` }}
         />
         <select
           value={kind}
           onChange={(e) => setKind(e.target.value)}
-          className="bg-bg-surface border border-border-subtle rounded px-3 py-2 text-xs text-text-primary focus:outline-none"
+          className="px-3 py-2 rounded text-xs font-mono outline-none cursor-pointer"
+          style={{ background: COLORS.bg, color: COLORS.text, border: `1px solid ${COLORS.border}` }}
         >
           <option value="">All kinds</option>
           {Object.keys(NODE_COLORS).map(k => (
@@ -42,24 +46,27 @@ export function SymbolsPage() {
       </div>
 
       {isLoading ? (
-        <div className="text-text-muted text-sm animate-pulse">Loading…</div>
+        <div className="space-y-2">
+          {[...Array(10)].map((_, i) => <div key={i} className="skeleton h-8 w-full" />)}
+        </div>
       ) : (
         <div className="flex-1 overflow-auto">
-          <p className="text-[11px] text-text-muted mb-2">{symbols.length} symbols</p>
-          <div className="space-y-1">
+          <p className="text-[11px] mb-2" style={{ color: COLORS.textMuted }}>{symbols.length} symbols</p>
+          <div className="space-y-0.5">
             {symbols.map((s, i) => (
-              <div
+              <button
                 key={s.id ?? i}
-                className="flex items-center gap-3 px-3 py-2 rounded bg-bg-surface hover:bg-bg-card transition-colors cursor-default group"
+                onClick={() => { if (s.id !== null) selectNode(s.id) }}
+                className="w-full flex items-center gap-3 px-3 py-2 rounded text-left transition-colors"
+                style={{ color: COLORS.text }}
+                onMouseEnter={(e) => (e.currentTarget.style.background = COLORS.surfaceHover)}
+                onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
               >
-                <span
-                  className="w-2.5 h-2.5 rounded-full flex-shrink-0"
-                  style={{ background: NODE_COLORS[s.kind] || '#64748b' }}
-                />
-                <span className="text-xs text-text-primary font-mono">{s.name}</span>
-                <span className="text-[10px] text-text-muted ml-auto">{s.kind}</span>
-                <span className="text-[10px] text-text-muted">L{s.span.start_line}</span>
-              </div>
+                <span className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ background: NODE_COLORS[s.kind] || COLORS.inactive }} />
+                <span className="text-xs font-mono flex-1">{s.name}</span>
+                <span className="text-[10px] font-mono px-1.5 py-0.5 rounded" style={{ background: COLORS.surfaceDim, color: COLORS.textMuted }}>{s.kind}</span>
+                <span className="text-[10px]" style={{ color: COLORS.textDim }}>L{s.span.start_line}</span>
+              </button>
             ))}
           </div>
         </div>

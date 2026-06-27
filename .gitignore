@@ -13,6 +13,7 @@ apps/web/dist/
 
 # Agent plans / internal docs
 .agents/
+superpowers/
 
 # Claude settings
 .claude/

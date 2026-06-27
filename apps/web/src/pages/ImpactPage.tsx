@@ -1,16 +1,15 @@
 import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { api } from '../api'
-import { NODE_COLORS } from '../types'
+import { NODE_COLORS, COLORS } from '../constants'
 import type { ImpactResponse } from '../types'
 
 export function ImpactPage() {
-  const [rootId, setRootId] = useState<string>('')
-  const [maxDepth, setMaxDepth] = useState<string>('5')
-  const [direction, setDirection] = useState<string>('forward')
+  const [rootId, setRootId] = useState('')
+  const [maxDepth, setMaxDepth] = useState('5')
+  const [direction, setDirection] = useState('forward')
   const [searchName, setSearchName] = useState('')
 
-  // Search for a symbol to pick as root
   const { data: searchData } = useQuery({
     queryKey: ['search', searchName],
     queryFn: () => api.search(searchName),
@@ -29,112 +28,112 @@ export function ImpactPage() {
 
   return (
     <div className="h-full flex flex-col p-6">
-      <h2 className="text-lg font-semibold text-text-primary mb-4">Impact Analysis</h2>
+      <h2 className="text-lg font-heading font-bold mb-4" style={{ color: COLORS.text }}>Impact Analysis</h2>
 
-      {/* Input controls */}
       <div className="flex gap-3 mb-4">
         <input
           type="text"
           value={searchName}
           onChange={(e) => setSearchName(e.target.value)}
-          placeholder="Search symbol for root…"
-          className="bg-bg-surface border border-border-subtle rounded px-3 py-2 text-xs text-text-primary placeholder-text-muted flex-1 focus:outline-none focus:border-accent-cyan"
+          placeholder="Search symbol for root..."
+          className="flex-1 px-3 py-2 rounded text-xs font-mono outline-none"
+          style={{ background: COLORS.bg, color: COLORS.text, border: `1px solid ${COLORS.border}` }}
         />
         <input
           type="number"
           value={maxDepth}
           onChange={(e) => setMaxDepth(e.target.value)}
-          min={1}
-          max={20}
-          className="bg-bg-surface border border-border-subtle rounded px-3 py-2 text-xs text-text-primary w-20 focus:outline-none focus:border-accent-cyan"
+          min={1} max={20}
+          className="w-20 px-3 py-2 rounded text-xs font-mono outline-none"
+          style={{ background: COLORS.bg, color: COLORS.text, border: `1px solid ${COLORS.border}` }}
           title="Max depth"
         />
         <select
           value={direction}
           onChange={(e) => setDirection(e.target.value)}
-          className="bg-bg-surface border border-border-subtle rounded px-3 py-2 text-xs text-text-primary focus:outline-none"
+          className="px-3 py-2 rounded text-xs font-mono outline-none cursor-pointer"
+          style={{ background: COLORS.bg, color: COLORS.text, border: `1px solid ${COLORS.border}` }}
         >
           <option value="forward">Forward (who affects)</option>
           <option value="reverse">Reverse (what affects me)</option>
         </select>
       </div>
 
-      {/* Search results — click to set as root */}
       {searchResults.length > 0 && rootId === '' && (
-        <div className="mb-4 bg-bg-surface border border-border-subtle rounded-lg p-3 max-h-40 overflow-auto">
-          <p className="text-[10px] text-text-muted mb-2 uppercase tracking-wider">Click a symbol to set as root</p>
+        <div className="mb-4 rounded-lg p-3 max-h-40 overflow-auto" style={{ background: COLORS.surface, border: `1px solid ${COLORS.border}` }}>
+          <p className="text-[10px] font-mono uppercase tracking-wider mb-2" style={{ color: COLORS.textDim }}>Click a symbol to set as root</p>
           {searchResults.map((s) => (
             <button
               key={s.id}
               onClick={() => { setRootId(String(s.id)); setSearchName('') }}
-              className="flex items-center gap-2 w-full px-2 py-1.5 rounded hover:bg-bg-card transition-colors text-left"
+              className="flex items-center gap-2 w-full px-2 py-1.5 rounded text-left transition-colors"
+              style={{ color: COLORS.text }}
+              onMouseEnter={(e) => (e.currentTarget.style.background = COLORS.surfaceHover)}
+              onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
             >
-              <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: NODE_COLORS[s.kind] || '#64748b' }} />
-              <span className="text-xs text-text-primary font-mono">{s.name}</span>
-              <span className="text-[10px] text-text-muted ml-auto">{s.kind}</span>
+              <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: NODE_COLORS[s.kind] || COLORS.inactive }} />
+              <span className="text-xs font-mono">{s.name}</span>
+              <span className="text-[10px] ml-auto" style={{ color: COLORS.textDim }}>{s.kind}</span>
             </button>
           ))}
         </div>
       )}
 
-      {/* Root selected */}
       {rootId && (
-        <div className="flex items-center gap-2 mb-4 text-xs text-text-muted">
+        <div className="flex items-center gap-2 mb-4 text-xs" style={{ color: COLORS.textMuted }}>
           <span>Root:</span>
-          <span className="text-accent-cyan font-mono">#{rootId}</span>
-          {impact && <span className="text-text-primary font-mono">{impact.root_name}</span>}
-          <button onClick={() => setRootId('')} className="text-accent-rose ml-2 hover:underline">clear</button>
+          <span className="font-mono" style={{ color: COLORS.relationship }}>#{rootId}</span>
+          {impact && <span className="font-mono" style={{ color: COLORS.text }}>{impact.root_name}</span>}
+          <button onClick={() => setRootId('')} className="ml-2 hover:underline" style={{ color: COLORS.error }}>clear</button>
         </div>
       )}
 
-      {/* Loading / Error */}
       {isLoading && rootId && (
-        <div className="text-text-muted text-sm animate-pulse">Analyzing impact…</div>
-      )}
-      {error && rootId && (
-        <div className="text-accent-rose text-sm">Failed to run impact analysis. Check that the API server is running.</div>
+        <div className="space-y-2">
+          {[...Array(6)].map((_, i) => <div key={i} className="skeleton h-8 w-full" />)}
+        </div>
       )}
 
-      {/* Results */}
+      {error && rootId && (
+        <div className="text-sm" style={{ color: COLORS.error }}>Failed to run impact analysis. Check that the API server is running.</div>
+      )}
+
       {impact && (
         <>
-          {/* Summary */}
           <div className="flex gap-4 mb-4">
-            <div className="bg-bg-surface border border-border-subtle rounded px-4 py-2">
-              <p className="text-[10px] text-text-muted">Affected</p>
-              <p className="text-xl font-bold text-accent-cyan">{impact.total_affected}</p>
+            <div className="rounded px-4 py-2" style={{ background: COLORS.surface, border: `1px solid ${COLORS.border}` }}>
+              <p className="text-[10px] font-mono" style={{ color: COLORS.textDim }}>Affected</p>
+              <p className="text-xl font-heading font-bold" style={{ color: COLORS.relationship }}>{impact.total_affected}</p>
             </div>
-            <div className="bg-bg-surface border border-border-subtle rounded px-4 py-2">
-              <p className="text-[10px] text-text-muted">Max Depth</p>
-              <p className="text-xl font-bold text-text-primary">{impact.max_depth}</p>
+            <div className="rounded px-4 py-2" style={{ background: COLORS.surface, border: `1px solid ${COLORS.border}` }}>
+              <p className="text-[10px] font-mono" style={{ color: COLORS.textDim }}>Max Depth</p>
+              <p className="text-xl font-heading font-bold" style={{ color: COLORS.text }}>{impact.max_depth}</p>
             </div>
             {impact.cycle_detected && (
-              <div className="bg-bg-surface border border-accent-rose/30 rounded px-4 py-2">
-                <p className="text-[10px] text-accent-rose">Cycle Detected</p>
-                <p className="text-xl font-bold text-accent-rose">⚠</p>
+              <div className="rounded px-4 py-2" style={{ background: COLORS.surface, border: `1px solid ${COLORS.error}40` }}>
+                <p className="text-[10px]" style={{ color: COLORS.error }}>Cycle Detected</p>
+                <p className="text-xl font-heading font-bold" style={{ color: COLORS.error }}>⚠</p>
               </div>
             )}
           </div>
 
-          {/* Affected list */}
           <div className="flex-1 overflow-auto">
-            <div className="space-y-1">
+            <div className="space-y-0.5">
               {impact.affected.map((node) => (
                 <div
                   key={node.node_id}
-                  className="flex items-center gap-3 px-3 py-2 rounded bg-bg-surface hover:bg-bg-card transition-colors"
+                  className="flex items-center gap-3 px-3 py-2 rounded transition-colors"
+                  style={{ color: COLORS.text }}
+                  onMouseEnter={(e) => (e.currentTarget.style.background = COLORS.surfaceHover)}
+                  onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
                 >
-                  {/* Depth indicator */}
-                  <span className="text-[10px] text-text-muted w-6 text-right" title="Depth from root">
+                  <span className="text-[10px] font-mono w-8 text-right" style={{ color: COLORS.textDim }}>
                     {'→'.repeat(Math.min(node.depth, 5))}
                   </span>
-                  <span
-                    className="w-2.5 h-2.5 rounded-full flex-shrink-0"
-                    style={{ background: NODE_COLORS[node.kind] || '#64748b' }}
-                  />
-                  <span className="text-xs text-text-primary font-mono flex-1 truncate">{node.name}</span>
-                  <span className="text-[10px] text-text-muted">{node.kind}</span>
-                  <span className="text-[10px] text-text-muted">L{node.depth}</span>
+                  <span className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ background: NODE_COLORS[node.kind] || COLORS.inactive }} />
+                  <span className="text-xs font-mono flex-1 truncate">{node.name}</span>
+                  <span className="text-[10px]" style={{ color: COLORS.textDim }}>{node.kind}</span>
+                  <span className="text-[10px]" style={{ color: COLORS.textDim }}>L{node.depth}</span>
                 </div>
               ))}
             </div>
