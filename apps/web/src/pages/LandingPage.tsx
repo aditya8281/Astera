@@ -358,19 +358,12 @@ export function LandingPage() {
               }}
             >
               <span
-                className="w-6 h-6 flex items-center justify-center rounded-full text-[10px] font-mono font-bold flex-shrink-0"
-                style={{
-                  background: COLORS.surfaceHover,
-                  color: COLORS.textMuted,
-                  border: `1px solid ${COLORS.border}`,
-                }}
+                className="font-mono text-[10px] tracking-wider flex-shrink-0 uppercase"
+                style={{ color: COLORS.textDim, width: '48px' }}
               >
-                {i + 1}
+                {step.label}
               </span>
               <div className="flex-1 min-w-0">
-                <span className="text-[10px] block mb-0.5" style={{ color: COLORS.textDim }}>
-                  {step.label}
-                </span>
                 <code
                   className="font-mono text-xs block truncate"
                   style={{ color: COLORS.text }}
