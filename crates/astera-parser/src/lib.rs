@@ -9,6 +9,9 @@ pub enum Grammar {
     Python,
     Rust,
     Go,
+    C,
+    Cpp,
+    Java,
 }
 
 impl Grammar {
@@ -20,6 +23,9 @@ impl Grammar {
             "python" => Some(Grammar::Python),
             "rust" => Some(Grammar::Rust),
             "go" => Some(Grammar::Go),
+            "c" => Some(Grammar::C),
+            "cpp" | "c++" => Some(Grammar::Cpp),
+            "java" => Some(Grammar::Java),
             _ => None,
         }
     }
@@ -71,6 +77,9 @@ fn get_language(grammar: Grammar) -> Result<tree_sitter::Language, String> {
         Grammar::Python => Ok(tree_sitter_python::LANGUAGE.into()),
         Grammar::Rust => Ok(tree_sitter_rust::LANGUAGE.into()),
         Grammar::Go => Ok(tree_sitter_go::LANGUAGE.into()),
+        Grammar::C => Ok(tree_sitter_c::LANGUAGE.into()),
+        Grammar::Cpp => Ok(tree_sitter_cpp::LANGUAGE.into()),
+        Grammar::Java => Ok(tree_sitter_java::LANGUAGE.into()),
     }
 }
 
@@ -88,6 +97,9 @@ impl Extractor {
             "python" => Self::extract_python(root, source, file_id),
             "rust" => Self::extract_rust(root, source, file_id),
             "go" => Self::extract_go(root, source, file_id),
+            "c" => Self::extract_c(root, source, file_id),
+            "cpp" | "c++" => Self::extract_cpp(root, source, file_id),
+            "java" => Self::extract_java(root, source, file_id),
             _ => ParseOutput {
                 nodes: vec![],
                 edges: vec![],
@@ -844,6 +856,549 @@ impl Extractor {
         }
         parent_stack.pop();
     }
+
+    // ─── C Extractor ───
+
+    pub fn extract_c(root: tree_sitter::Node, source: &[u8], file_id: i64) -> ParseOutput {
+        let mut nodes = Vec::new();
+        let mut edges = Vec::new();
+        let mut parent_stack: Vec<Option<usize>> = Vec::new();
+        let mut call_refs: Vec<(usize, String)> = Vec::new();
+
+        Self::walk_c(
+            root,
+            source,
+            file_id,
+            &mut nodes,
+            &mut edges,
+            &mut parent_stack,
+            &mut call_refs,
+        );
+        Self::resolve_calls(&nodes, &mut edges, &call_refs);
+        ParseOutput { nodes, edges }
+    }
+
+    fn walk_c(
+        node: tree_sitter::Node,
+        source: &[u8],
+        file_id: i64,
+        nodes: &mut Vec<Node>,
+        edges: &mut Vec<Edge>,
+        parent_stack: &mut Vec<Option<usize>>,
+        call_refs: &mut Vec<(usize, String)>,
+    ) {
+        let kind = node.kind();
+        let mut extracted = None;
+
+        match kind {
+            "function_definition" => {
+                let name = node
+                    .child_by_field_name("declarator")
+                    .and_then(|d| Self::find_c_declarator_name(d, source))
+                    .unwrap_or_else(|| "anonymous".to_string());
+                extracted = Some(Node::new(
+                    NodeKind::Function,
+                    &name,
+                    file_id,
+                    Self::node_span(node),
+                ));
+            }
+            "struct_specifier" => {
+                let name = node
+                    .child_by_field_name("name")
+                    .map(|n| Self::node_text(n, source))
+                    .unwrap_or("anonymous")
+                    .to_string();
+                extracted = Some(Node::new(
+                    NodeKind::Class,
+                    &name,
+                    file_id,
+                    Self::node_span(node),
+                ));
+            }
+            "enum_specifier" => {
+                let name = node
+                    .child_by_field_name("name")
+                    .map(|n| Self::node_text(n, source))
+                    .unwrap_or("anonymous")
+                    .to_string();
+                extracted = Some(Node::new(
+                    NodeKind::Enum,
+                    &name,
+                    file_id,
+                    Self::node_span(node),
+                ));
+            }
+            "type_definition" => {
+                let name = node
+                    .child_by_field_name("name")
+                    .map(|n| Self::node_text(n, source))
+                    .unwrap_or("anonymous")
+                    .to_string();
+                extracted = Some(Node::new(
+                    NodeKind::TypeAlias,
+                    &name,
+                    file_id,
+                    Self::node_span(node),
+                ));
+            }
+            "preproc_include" => {
+                let text = Self::node_text(node, source).to_string();
+                extracted = Some(Node::new(
+                    NodeKind::Import,
+                    &text,
+                    file_id,
+                    Self::node_span(node),
+                ));
+            }
+            "declaration" => {
+                // Variable declaration: only top-level (no function body parent)
+                let in_func = parent_stack.iter().any(|p| {
+                    p.map(|i| nodes[i].kind == NodeKind::Function).unwrap_or(false)
+                });
+                if !in_func {
+                    if let Some(declarator) = node.child_by_field_name("declarator") {
+                        if let Some(name) = Self::find_c_declarator_name(declarator, source) {
+                            extracted = Some(Node::new(
+                                NodeKind::Variable,
+                                &name,
+                                file_id,
+                                Self::node_span(node),
+                            ));
+                        }
+                    }
+                }
+            }
+            _ => {}
+        }
+
+        if let Some(sym) = extracted {
+            let node_idx = nodes.len();
+            nodes.push(sym);
+            parent_stack.push(Some(node_idx));
+        } else {
+            if kind == "call_expression" {
+                if let Some(func_node) = node.child_by_field_name("function") {
+                    let (callee_name, is_direct) = Self::extract_callee_name(func_node, source);
+                    if is_direct {
+                        if let Some(caller_idx) =
+                            Self::find_enclosing_function_idx(nodes, parent_stack)
+                        {
+                            call_refs.push((caller_idx, callee_name));
+                        }
+                    }
+                }
+            }
+            parent_stack.push(parent_stack.last().copied().flatten());
+        }
+
+        let mut cursor = node.walk();
+        for child in node.children(&mut cursor) {
+            Self::walk_c(
+                child,
+                source,
+                file_id,
+                nodes,
+                edges,
+                parent_stack,
+                call_refs,
+            );
+        }
+        parent_stack.pop();
+    }
+
+    fn find_c_declarator_name(declarator: tree_sitter::Node, source: &[u8]) -> Option<String> {
+        match declarator.kind() {
+            "identifier" => Some(Self::node_text(declarator, source).to_string()),
+            "function_declarator" => {
+                declarator.child_by_field_name("declarator")
+                    .and_then(|d| Self::find_c_declarator_name(d, source))
+            }
+            "parenthesized_declarator" => {
+                declarator.child(1)
+                    .and_then(|d| Self::find_c_declarator_name(d, source))
+            }
+            "pointer_declarator" => {
+                declarator.child(0)
+                    .and_then(|d| Self::find_c_declarator_name(d, source))
+            }
+            _ => None,
+        }
+    }
+
+    // ─── C++ Extractor ───
+
+    pub fn extract_cpp(root: tree_sitter::Node, source: &[u8], file_id: i64) -> ParseOutput {
+        let mut nodes = Vec::new();
+        let mut edges = Vec::new();
+        let mut parent_stack: Vec<Option<usize>> = Vec::new();
+        let mut call_refs: Vec<(usize, String)> = Vec::new();
+
+        Self::walk_cpp(
+            root,
+            source,
+            file_id,
+            &mut nodes,
+            &mut edges,
+            &mut parent_stack,
+            &mut call_refs,
+        );
+        Self::resolve_calls(&nodes, &mut edges, &call_refs);
+        ParseOutput { nodes, edges }
+    }
+
+    fn walk_cpp(
+        node: tree_sitter::Node,
+        source: &[u8],
+        file_id: i64,
+        nodes: &mut Vec<Node>,
+        edges: &mut Vec<Edge>,
+        parent_stack: &mut Vec<Option<usize>>,
+        call_refs: &mut Vec<(usize, String)>,
+    ) {
+        let kind = node.kind();
+        let mut extracted = None;
+
+        match kind {
+            "function_definition" => {
+                let name = node
+                    .child_by_field_name("declarator")
+                    .and_then(|d| Self::find_c_declarator_name(d, source))
+                    .unwrap_or_else(|| "anonymous".to_string());
+                extracted = Some(Node::new(
+                    NodeKind::Function,
+                    &name,
+                    file_id,
+                    Self::node_span(node),
+                ));
+            }
+            "class_specifier" => {
+                let name = node
+                    .child_by_field_name("name")
+                    .map(|n| Self::node_text(n, source))
+                    .unwrap_or("anonymous")
+                    .to_string();
+                extracted = Some(Node::new(
+                    NodeKind::Class,
+                    &name,
+                    file_id,
+                    Self::node_span(node),
+                ));
+            }
+            "struct_specifier" => {
+                let name = node
+                    .child_by_field_name("name")
+                    .map(|n| Self::node_text(n, source))
+                    .unwrap_or("anonymous")
+                    .to_string();
+                extracted = Some(Node::new(
+                    NodeKind::Class,
+                    &name,
+                    file_id,
+                    Self::node_span(node),
+                ));
+            }
+            "enum_specifier" => {
+                let name = node
+                    .child_by_field_name("name")
+                    .map(|n| Self::node_text(n, source))
+                    .unwrap_or("anonymous")
+                    .to_string();
+                extracted = Some(Node::new(
+                    NodeKind::Enum,
+                    &name,
+                    file_id,
+                    Self::node_span(node),
+                ));
+            }
+            "namespace_definition" => {
+                let name = node
+                    .child_by_field_name("name")
+                    .map(|n| Self::node_text(n, source))
+                    .unwrap_or("anonymous")
+                    .to_string();
+                extracted = Some(Node::new(
+                    NodeKind::Module,
+                    &name,
+                    file_id,
+                    Self::node_span(node),
+                ));
+            }
+            "type_definition" => {
+                let name = node
+                    .child_by_field_name("name")
+                    .map(|n| Self::node_text(n, source))
+                    .unwrap_or("anonymous")
+                    .to_string();
+                extracted = Some(Node::new(
+                    NodeKind::TypeAlias,
+                    &name,
+                    file_id,
+                    Self::node_span(node),
+                ));
+            }
+            "preproc_include" => {
+                let text = Self::node_text(node, source).to_string();
+                extracted = Some(Node::new(
+                    NodeKind::Import,
+                    &text,
+                    file_id,
+                    Self::node_span(node),
+                ));
+            }
+            "template_declaration" => {
+                // Template functions/classes — extract the inner declaration
+                // We don't create a node for the template itself, but we need to recurse
+                // into it so the inner class/function gets extracted
+            }
+            "declaration" => {
+                let in_class = parent_stack.iter().any(|p| {
+                    p.map(|i| nodes[i].kind == NodeKind::Class).unwrap_or(false)
+                });
+                if !in_class {
+                    if let Some(declarator) = node.child_by_field_name("declarator") {
+                        if let Some(name) = Self::find_c_declarator_name(declarator, source) {
+                            extracted = Some(Node::new(
+                                NodeKind::Variable,
+                                &name,
+                                file_id,
+                                Self::node_span(node),
+                            ));
+                        }
+                    }
+                }
+            }
+            _ => {}
+        }
+
+        if let Some(sym) = extracted {
+            let node_idx = nodes.len();
+            // Class→method containment
+            if let Some(Some(parent_idx)) = parent_stack.last() {
+                if nodes[*parent_idx].kind == NodeKind::Class && sym.kind == NodeKind::Function {
+                    edges.push(Edge::new(
+                        *parent_idx as i64,
+                        node_idx as i64,
+                        EdgeKind::Contains,
+                    ));
+                }
+                if nodes[*parent_idx].kind == NodeKind::Module && sym.kind == NodeKind::Function {
+                    edges.push(Edge::new(
+                        *parent_idx as i64,
+                        node_idx as i64,
+                        EdgeKind::Contains,
+                    ));
+                }
+            }
+            nodes.push(sym);
+            parent_stack.push(Some(node_idx));
+        } else {
+            if kind == "call_expression" {
+                if let Some(func_node) = node.child_by_field_name("function") {
+                    let (callee_name, is_direct) = Self::extract_callee_name(func_node, source);
+                    if is_direct {
+                        if let Some(caller_idx) =
+                            Self::find_enclosing_function_idx(nodes, parent_stack)
+                        {
+                            call_refs.push((caller_idx, callee_name));
+                        }
+                    }
+                }
+            }
+            parent_stack.push(parent_stack.last().copied().flatten());
+        }
+
+        let mut cursor = node.walk();
+        for child in node.children(&mut cursor) {
+            Self::walk_cpp(
+                child,
+                source,
+                file_id,
+                nodes,
+                edges,
+                parent_stack,
+                call_refs,
+            );
+        }
+        parent_stack.pop();
+    }
+
+    // ─── Java Extractor ───
+
+    pub fn extract_java(root: tree_sitter::Node, source: &[u8], file_id: i64) -> ParseOutput {
+        let mut nodes = Vec::new();
+        let mut edges = Vec::new();
+        let mut parent_stack: Vec<Option<usize>> = Vec::new();
+        let mut call_refs: Vec<(usize, String)> = Vec::new();
+
+        Self::walk_java(
+            root,
+            source,
+            file_id,
+            &mut nodes,
+            &mut edges,
+            &mut parent_stack,
+            &mut call_refs,
+        );
+        Self::resolve_calls(&nodes, &mut edges, &call_refs);
+        ParseOutput { nodes, edges }
+    }
+
+    fn walk_java(
+        node: tree_sitter::Node,
+        source: &[u8],
+        file_id: i64,
+        nodes: &mut Vec<Node>,
+        edges: &mut Vec<Edge>,
+        parent_stack: &mut Vec<Option<usize>>,
+        call_refs: &mut Vec<(usize, String)>,
+    ) {
+        let kind = node.kind();
+        let mut extracted = None;
+
+        match kind {
+            "method_declaration" => {
+                let name = node
+                    .child_by_field_name("name")
+                    .map(|n| Self::node_text(n, source))
+                    .unwrap_or("anonymous")
+                    .to_string();
+                extracted = Some(Node::new(
+                    NodeKind::Method,
+                    &name,
+                    file_id,
+                    Self::node_span(node),
+                ));
+            }
+            "class_declaration" => {
+                let name = node
+                    .child_by_field_name("name")
+                    .map(|n| Self::node_text(n, source))
+                    .unwrap_or("anonymous")
+                    .to_string();
+                extracted = Some(Node::new(
+                    NodeKind::Class,
+                    &name,
+                    file_id,
+                    Self::node_span(node),
+                ));
+            }
+            "interface_declaration" => {
+                let name = node
+                    .child_by_field_name("name")
+                    .map(|n| Self::node_text(n, source))
+                    .unwrap_or("anonymous")
+                    .to_string();
+                extracted = Some(Node::new(
+                    NodeKind::Interface,
+                    &name,
+                    file_id,
+                    Self::node_span(node),
+                ));
+            }
+            "enum_declaration" => {
+                let name = node
+                    .child_by_field_name("name")
+                    .map(|n| Self::node_text(n, source))
+                    .unwrap_or("anonymous")
+                    .to_string();
+                extracted = Some(Node::new(
+                    NodeKind::Enum,
+                    &name,
+                    file_id,
+                    Self::node_span(node),
+                ));
+            }
+            "package_declaration" => {
+                let text = Self::node_text(node, source).to_string();
+                extracted = Some(Node::new(
+                    NodeKind::Module,
+                    &text,
+                    file_id,
+                    Self::node_span(node),
+                ));
+            }
+            "import_declaration" => {
+                let text = Self::node_text(node, source).to_string();
+                extracted = Some(Node::new(
+                    NodeKind::Import,
+                    &text,
+                    file_id,
+                    Self::node_span(node),
+                ));
+            }
+            "constructor_declaration" => {
+                let name = node
+                    .child_by_field_name("name")
+                    .map(|n| Self::node_text(n, source))
+                    .unwrap_or("anonymous")
+                    .to_string();
+                extracted = Some(Node::new(
+                    NodeKind::Method,
+                    &name,
+                    file_id,
+                    Self::node_span(node),
+                ));
+            }
+            "field_declaration" => {
+                if let Some(declarator) = node.child_by_field_name("declarator") {
+                    let name = Self::node_text(declarator, source).to_string();
+                    extracted = Some(Node::new(
+                        NodeKind::Variable,
+                        &name,
+                        file_id,
+                        Self::node_span(node),
+                    ));
+                }
+            }
+            _ => {}
+        }
+
+        if let Some(sym) = extracted {
+            let node_idx = nodes.len();
+            // Class→method containment
+            if let Some(Some(parent_idx)) = parent_stack.last() {
+                if (nodes[*parent_idx].kind == NodeKind::Class
+                    || nodes[*parent_idx].kind == NodeKind::Interface)
+                    && (sym.kind == NodeKind::Method || sym.kind == NodeKind::Variable)
+                {
+                    edges.push(Edge::new(
+                        *parent_idx as i64,
+                        node_idx as i64,
+                        EdgeKind::Contains,
+                    ));
+                }
+            }
+            nodes.push(sym);
+            parent_stack.push(Some(node_idx));
+        } else {
+            if kind == "method_invocation" {
+                if let Some(obj_node) = node.child_by_field_name("object") {
+                    let (callee_name, _) = Self::extract_callee_name(obj_node, source);
+                    if let Some(caller_idx) =
+                        Self::find_enclosing_function_idx(nodes, parent_stack)
+                    {
+                        call_refs.push((caller_idx, callee_name));
+                    }
+                }
+            }
+            parent_stack.push(parent_stack.last().copied().flatten());
+        }
+
+        let mut cursor = node.walk();
+        for child in node.children(&mut cursor) {
+            Self::walk_java(
+                child,
+                source,
+                file_id,
+                nodes,
+                edges,
+                parent_stack,
+                call_refs,
+            );
+        }
+        parent_stack.pop();
+    }
 }
 
 #[cfg(test)]
@@ -1208,5 +1763,259 @@ mod tests {
     fn test_parse_unknown_language() {
         let result = parse(b"hello", "unknown_lang");
         assert!(result.is_err());
+    }
+
+    // ─── C Tests ───
+
+    #[test]
+    fn test_c_function_extraction() {
+        let source = b"int greet(const char* name) { return 0; }";
+        let result = extract("c", source);
+        assert!(
+            result
+                .nodes
+                .iter()
+                .any(|n| n.kind == NodeKind::Function && n.name == "greet"),
+            "Expected function 'greet', got: {:?}",
+            result.nodes
+        );
+    }
+
+    #[test]
+    fn test_c_struct_extraction() {
+        let source = b"struct User { char name[50]; int age; };";
+        let result = extract("c", source);
+        assert!(
+            result
+                .nodes
+                .iter()
+                .any(|n| n.kind == NodeKind::Class && n.name == "User"),
+            "Expected struct 'User', got: {:?}",
+            result.nodes
+        );
+    }
+
+    #[test]
+    fn test_c_enum_extraction() {
+        let source = b"enum Color { RED, GREEN, BLUE };";
+        let result = extract("c", source);
+        assert!(
+            result
+                .nodes
+                .iter()
+                .any(|n| n.kind == NodeKind::Enum && n.name == "Color"),
+            "Expected enum 'Color', got: {:?}",
+            result.nodes
+        );
+    }
+
+    #[test]
+    fn test_c_typedef_extraction() {
+        let source = b"typedef int (*callback)(void);";
+        let result = extract("c", source);
+        assert!(
+            result
+                .nodes
+                .iter()
+                .any(|n| n.kind == NodeKind::TypeAlias && n.name == "callback"),
+            "Expected type alias 'callback', got: {:?}",
+            result.nodes
+        );
+    }
+
+    #[test]
+    fn test_c_include_extraction() {
+        let source = b"#include <stdio.h>\n#include \"myheader.h\"";
+        let result = extract("c", source);
+        let imports: Vec<_> = result
+            .nodes
+            .iter()
+            .filter(|n| n.kind == NodeKind::Import)
+            .collect();
+        assert_eq!(imports.len(), 2, "Expected 2 imports, got: {:?}", result.nodes);
+    }
+
+    #[test]
+    fn test_c_call_graph() {
+        let source = b"void helper(void) {}\nvoid main(void) { helper(); }";
+        let result = extract("c", source);
+        let calls: Vec<_> = result
+            .edges
+            .iter()
+            .filter(|e| e.kind == EdgeKind::Calls)
+            .collect();
+        assert_eq!(calls.len(), 1, "Expected 1 Calls edge, got: {:?}", calls);
+    }
+
+    // ─── C++ Tests ───
+
+    #[test]
+    fn test_cpp_class_extraction() {
+        let source = b"class MyClass { public: void doSomething() {} };";
+        let result = extract("cpp", source);
+        assert!(
+            result
+                .nodes
+                .iter()
+                .any(|n| n.kind == NodeKind::Class && n.name == "MyClass"),
+            "Expected class 'MyClass', got: {:?}",
+            result.nodes
+        );
+    }
+
+    #[test]
+    fn test_cpp_method_extraction() {
+        let source = b"class Foo { void bar() {} void baz() {} };";
+        let result = extract("cpp", source);
+        let methods: Vec<_> = result
+            .nodes
+            .iter()
+            .filter(|n| n.kind == NodeKind::Method)
+            .collect();
+        assert!(methods.len() >= 2, "Expected 2 methods, got: {:?}", methods);
+    }
+
+    #[test]
+    fn test_cpp_namespace_extraction() {
+        let source = b"namespace utils { int helper() { return 0; } }";
+        let result = extract("cpp", source);
+        assert!(
+            result
+                .nodes
+                .iter()
+                .any(|n| n.kind == NodeKind::Module && n.name == "utils"),
+            "Expected namespace 'utils', got: {:?}",
+            result.nodes
+        );
+    }
+
+    #[test]
+    fn test_cpp_containment_edge() {
+        let source = b"class Container { void method_a() {} void method_b() {} };";
+        let result = extract("cpp", source);
+        let contains = result
+            .edges
+            .iter()
+            .filter(|e| e.kind == EdgeKind::Contains)
+            .count();
+        assert!(contains >= 2, "Expected at least 2 Contains edges, got: {}", contains);
+    }
+
+    #[test]
+    fn test_cpp_call_graph() {
+        let source = b"void helper() {}\nvoid main() { helper(); }";
+        let result = extract("cpp", source);
+        let calls: Vec<_> = result
+            .edges
+            .iter()
+            .filter(|e| e.kind == EdgeKind::Calls)
+            .collect();
+        assert_eq!(calls.len(), 1, "Expected 1 Calls edge, got: {:?}", calls);
+    }
+
+    // ─── Java Tests ───
+
+    #[test]
+    fn test_java_class_extraction() {
+        let source = b"public class MyClass { public void doSomething() {} }";
+        let result = extract("java", source);
+        assert!(
+            result
+                .nodes
+                .iter()
+                .any(|n| n.kind == NodeKind::Class && n.name == "MyClass"),
+            "Expected class 'MyClass', got: {:?}",
+            result.nodes
+        );
+    }
+
+    #[test]
+    fn test_java_interface_extraction() {
+        let source = b"public interface Drawable { void draw(); }";
+        let result = extract("java", source);
+        assert!(
+            result
+                .nodes
+                .iter()
+                .any(|n| n.kind == NodeKind::Interface && n.name == "Drawable"),
+            "Expected interface 'Drawable', got: {:?}",
+            result.nodes
+        );
+    }
+
+    #[test]
+    fn test_java_method_extraction() {
+        let source = b"class Foo { void bar() {} void baz() {} }";
+        let result = extract("java", source);
+        let methods: Vec<_> = result
+            .nodes
+            .iter()
+            .filter(|n| n.kind == NodeKind::Method)
+            .collect();
+        assert!(methods.len() >= 2, "Expected 2 methods, got: {:?}", methods);
+    }
+
+    #[test]
+    fn test_java_import_extraction() {
+        let source = b"import java.util.List;\nimport java.io.File;";
+        let result = extract("java", source);
+        let imports: Vec<_> = result
+            .nodes
+            .iter()
+            .filter(|n| n.kind == NodeKind::Import)
+            .collect();
+        assert_eq!(imports.len(), 2, "Expected 2 imports, got: {:?}", result.nodes);
+    }
+
+    #[test]
+    fn test_java_package_extraction() {
+        let source = b"package com.example.app;";
+        let result = extract("java", source);
+        assert!(
+            result
+                .nodes
+                .iter()
+                .any(|n| n.kind == NodeKind::Module),
+            "Expected module for package, got: {:?}",
+            result.nodes
+        );
+    }
+
+    #[test]
+    fn test_java_enum_extraction() {
+        let source = b"enum Status { ACTIVE, INACTIVE }";
+        let result = extract("java", source);
+        assert!(
+            result
+                .nodes
+                .iter()
+                .any(|n| n.kind == NodeKind::Enum && n.name == "Status"),
+            "Expected enum 'Status', got: {:?}",
+            result.nodes
+        );
+    }
+
+    #[test]
+    fn test_java_containment_edge() {
+        let source = b"class Container { void methodA() {} void methodB() {} }";
+        let result = extract("java", source);
+        let contains = result
+            .edges
+            .iter()
+            .filter(|e| e.kind == EdgeKind::Contains)
+            .count();
+        assert!(contains >= 2, "Expected at least 2 Contains edges, got: {}", contains);
+    }
+
+    #[test]
+    fn test_java_call_graph() {
+        let source = b"class App { void helper() {} void main() { helper(); } }";
+        let result = extract("java", source);
+        let calls: Vec<_> = result
+            .edges
+            .iter()
+            .filter(|e| e.kind == EdgeKind::Calls)
+            .collect();
+        assert_eq!(calls.len(), 1, "Expected 1 Calls edge, got: {:?}", calls);
     }
 }

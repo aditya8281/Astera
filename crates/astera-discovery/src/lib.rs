@@ -18,13 +18,17 @@ pub fn classify_language(path: &Path) -> Option<&'static str> {
         "go" => Some("go"),
         "c" | "h" => Some("c"),
         "cpp" | "hpp" | "cc" | "hh" | "cxx" | "hxx" => Some("cpp"),
+        "java" => Some("java"),
         _ => None,
     }
 }
 
-/// Known parseable languages for Phase 1
+/// Known parseable languages
 pub fn known_languages() -> &'static [&'static str] {
-    &["typescript", "javascript", "tsx", "python", "rust", "go"]
+    &[
+        "typescript", "javascript", "tsx", "python", "rust", "go",
+        "c", "cpp", "java",
+    ]
 }
 
 /// Compute SHA-256 hash of file contents
