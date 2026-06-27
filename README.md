@@ -12,6 +12,7 @@ Local-first static analysis engine that parses codebases into a queryable Code P
 - **Impact analysis** — BFS transitive closure to see what a change affects
 - **CLI + API** — query from terminal or HTTP
 - **SQLite storage** — zero-setup, embedded, portable `.astera/` directory
+- **File watching** — automatic re-index on file changes with debounced batch updates
 
 ## Prerequisites
 
@@ -34,38 +35,90 @@ The binary will be at `target/release/astera`.
 ## Quick Start
 
 ```bash
-# 1. Initialize an Astera index in your repo
-astera init /path/to/your/repo
+# 1. Navigate to any codebase
+cd /path/to/your/project
 
-# 2. Index the codebase
-astera index /path/to/your/repo
+# 2. Initialize Astera
+astera init
 
-# 3. Query from CLI
-astera query symbols
-astera query symbols --kind Function
-astera query edges --kind Calls
+# 3. Index the codebase (builds the full CPG)
+astera index
 
-# 4. Start the API server + web UI
+# 4a. Start the API + Web UI (single command)
 astera serve --port 8080
 # Open http://localhost:8080
+
+# 4b. OR just use the CLI
+astera query symbols --kind Function
+astera query edges --kind Calls
 ```
 
-## CLI Commands
+## Step-by-Step Usage
 
-```
-astera init [PATH]           Initialize .astera/ directory at repo root
-astera index [PATH]          Parse and index all source files
-astera query symbols         List indexed symbols
-  --kind <KIND>              Filter by kind (Function, Class, etc.)
-  --name <NAME>              Filter by name
-astera query edges           List indexed edges
-  --kind <KIND>              Filter by kind (Calls, Contains, etc.)
-astera serve --port <PORT>   Start HTTP API server (default: 8080)
-astera watch [PATH]          Watch for changes + auto re-index + serve API
-  --port <PORT>              API port while watching (default: 8080)
+### 1. Initialize
+
+Creates a `.astera/` directory at your repo root with the SQLite database:
+
+```bash
+cd /path/to/your/project
+astera init
 ```
 
-## API Endpoints
+### 2. Index
+
+Parses all source files and builds the code property graph:
+
+```bash
+astera index
+```
+
+Output shows what was indexed:
+```
+Indexing repository: /path/to/your/project
+Found 476 parseable files
+Indexing 476 files (0 unchanged, skipped)
+
+Index complete:
+  Files:        476 (476 indexed, 0 skipped)
+  Symbols:      3,241
+  Edges:        1,847
+  Time:         2,340ms
+```
+
+Re-running `astera index` skips unchanged files (hash comparison).
+
+### 3. Query (CLI)
+
+```bash
+# List all indexed symbols
+astera query symbols
+
+# Filter by kind
+astera query symbols --kind Function
+astera query symbols --kind Class
+astera query symbols --kind Import
+
+# Filter by name
+astera query symbols --name "handleRequest"
+
+# List all edges (relationships)
+astera query edges
+
+# Filter edges by kind
+astera query edges --kind Calls
+astera query edges --kind Contains
+```
+
+### 4. API Server + Web UI
+
+```bash
+# Start the server (serves both API and web UI)
+astera serve --port 8080
+```
+
+Open `http://localhost:8080` in your browser for the 3D graph visualization.
+
+#### API Endpoints
 
 All endpoints return `{ data, meta: { count, elapsed_ms } }`.
 
@@ -81,7 +134,7 @@ All endpoints return `{ data, meta: { count, elapsed_ms } }`.
 | GET | `/api/metrics` | Code metrics (complexity, coupling, circular deps) |
 | GET | `/api/impact?root_id=` | Impact analysis (query: `?root_id=`, `?max_depth=`, `?direction=reverse`) |
 
-### Example
+#### Example API Calls
 
 ```bash
 # Get stats
@@ -90,9 +143,27 @@ curl http://localhost:8080/api/stats
 # Search for symbols
 curl "http://localhost:8080/api/search?q=handle"
 
+# Get symbols filtered by kind
+curl "http://localhost:8080/api/symbols?kind=Function"
+
 # Get dependency graph
 curl http://localhost:8080/api/graph/dependency
+
+# Get metrics
+curl http://localhost:8080/api/metrics
+
+# Impact analysis (what does symbol 42 affect?)
+curl "http://localhost:8080/api/impact?root_id=42&direction=forward"
 ```
+
+### 5. File Watching (Auto Re-index)
+
+```bash
+# Watch for changes + auto re-index + serve API
+astera watch --port 8080
+```
+
+Files are watched recursively. Changes are debounced (500ms) and only changed files are re-indexed.
 
 ## Frontend Development
 
@@ -132,7 +203,7 @@ npm run build
 ┌────────────────────┐  ┌─────────────────────┐
 │  Indexer Pipeline   │  │  HTTP Server (Axum) │
 │  Discover → Parse → │  │  REST API → JSON    │
-│  Extract → Store    │  │  CORS + Tracing     │
+│  Extract → Store    │  │  + Static Files     │
 └────────┬───────────┘  └────────┬────────────┘
          │                       │
          ▼                       ▼
@@ -153,8 +224,9 @@ npm run build
 | `astera-storage` | SQLite CRUD, FTS5, batch inserts |
 | `astera-metrics` | Cyclomatic/cognitive complexity, coupling, instability |
 | `astera-impact` | BFS impact analysis, critical path, cycle detection |
-| `astera-api` | Axum HTTP server with 7 REST endpoints |
+| `astera-api` | Axum HTTP server with REST endpoints + static file serving |
 | `astera-cli` | Clap-based CLI entry point |
+| `astera-watcher` | File watching via notify crate |
 
 ### Frontend
 
@@ -162,7 +234,7 @@ npm run build
 |---|---|
 | `apps/web/src/components/Graph3D.tsx` | 3D force-directed graph (React Three Fiber) |
 | `apps/web/src/components/Layout.tsx` | Sidebar with nav + kind filters |
-| `apps/web/src/pages/` | Graph, Symbols, Files pages |
+| `apps/web/src/pages/` | Graph, Symbols, Files, Metrics, Impact pages |
 | `apps/web/src/store.ts` | Zustand UI state |
 | `apps/web/src/api.ts` | React Query API client |
 
@@ -179,11 +251,11 @@ npm run build
 ## Testing
 
 ```bash
-# Run all tests (93 total)
+# Run all tests (96 total)
 cargo test
 
 # Test a specific crate
-cargo test -p astera-parser
+cargo test -p astera-parser -- test_ts_extraction
 cargo test -p astera-storage
 cargo test -p astera-impact
 
