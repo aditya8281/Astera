@@ -71,7 +71,7 @@ class AIService {
     return response
   }
 
-  private generateMockAnswer(input: string, context?: AIQuery['context']): string {
+  private generateMockAnswer(input: string, _context?: AIQuery['context']): string {
     const lower = input.toLowerCase()
 
     if (lower.includes('what does') || lower.includes('what is')) {
@@ -106,7 +106,7 @@ export function AIChatPanel() {
   const [input, setInput] = useState('')
   const [messages, setMessages] = useState<Array<{ role: 'user' | 'ai'; content: string; timestamp: number }>>([])
   const [loading, setLoading] = useState(false)
-  const [configured, setConfigured] = useState(false)
+  const [configured] = useState(false)
 
   const handleSubmit = useCallback(async () => {
     if (!input.trim() || loading) return

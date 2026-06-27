@@ -28,6 +28,8 @@ export const COLORS = {
   text: '#F0F0F0',
   textMuted: '#888888',
   textDim: '#555555',
+  muted: '#888888',
+  accent: '#E65100',
 } as const
 
 // ─── Node colors by kind ───

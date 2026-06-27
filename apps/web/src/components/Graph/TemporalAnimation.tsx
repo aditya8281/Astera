@@ -1,7 +1,6 @@
 import { useRef, useEffect, useState, useCallback } from 'react'
 import { useFrame } from '@react-three/fiber'
 import * as THREE from 'three'
-import { useUIStore } from '../../store'
 
 // ─── Temporal animation state ───
 
@@ -122,7 +121,6 @@ function easeOutBack(t: number): number {
 // ─── Component: renders animated glow ring for newly added nodes ───
 
 export function TemporalGlow({
-  nodeId,
   position,
   isAnimating,
   color = '#00ff88',
@@ -175,7 +173,6 @@ export function TemporalGlow({
 // ─── Component: re-index progress overlay ───
 
 export function ReindexOverlay() {
-  const [event, setEvent] = useState<TemporalEvent | null>(null)
   const [visible, setVisible] = useState(false)
 
   useEffect(() => {
