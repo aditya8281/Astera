@@ -25,11 +25,18 @@ Local-first static analysis engine that parses codebases into a queryable Code P
 ## Install
 
 ```bash
-# Install globally (adds to ~/.cargo/bin)
-cargo install --path crates/astera
+# Option 1: Install from source (requires Rust)
+cargo install astera
 
-# Or build locally
+# Option 2: Download pre-built binary from GitHub Releases
+# https://github.com/user/astera/releases
+# Available for Linux (x86_64, aarch64), macOS (x86_64, aarch64), Windows (x86_64)
+
+# Option 3: Build locally from git clone
+git clone https://github.com/user/astera.git
+cd astera
 cargo build --release
+# Binary at: target/release/astera
 ```
 
 ## Uninstall

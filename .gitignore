@@ -12,3 +12,19 @@ apps/web/dist/
 
 # Astera index (generated per-repo)
 .astera/
+
+# Editor / IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
+
+# OS artifacts
+*.tmp
+*.bak
+
+# Logs
+*.log

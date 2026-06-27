@@ -1,18 +1,26 @@
 [workspace]
 resolver = "2"
 members = [
-    "crates/astera-core",
-    "crates/astera-discovery",
-    "crates/astera-parser",
-    "crates/astera-resolver",
-    "crates/astera-storage",
-    "crates/astera-metrics",
-    "crates/astera-impact",
-    "crates/astera-watcher",
-    "crates/astera-api",
-    "crates/astera-export",
-    "crates/astera",
+  "crates/astera-core",
+  "crates/astera-discovery",
+  "crates/astera-parser",
+  "crates/astera-resolver",
+  "crates/astera-storage",
+  "crates/astera-metrics",
+  "crates/astera-impact",
+  "crates/astera-watcher",
+  "crates/astera-api",
+  "crates/astera-export",
+  "crates/astera",
 ]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2021"
+license = "MIT"
+repository = "https://github.com/user/astera"
+description = "Local-first static analysis engine with CLI + REST API + interactive 3D web UI"
+authors = ["Aditya"]
 
 [workspace.dependencies]
 serde = { version = "1", features = ["derive"] }
