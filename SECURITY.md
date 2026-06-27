@@ -25,16 +25,19 @@ You should receive a response within 72 hours. We will work with you to understa
 Astera is a local-first tool. It does not:
 - Send data to external servers
 - Accept network input beyond localhost HTTP requests
-- Execute arbitrary code from untrusted sources
+- Execute arbitrary code from untrusted sources (except WASM plugins, which run in a sandboxed runtime)
 
 The primary attack surface is:
 - Maliciously crafted source files (fuzzing target)
 - Path traversal via file serving in the web UI
 - SQLite injection via query parameters
+- Native/WASM plugins loaded from filesystem
 
 ## Security Measures
 
 - All file serving uses sanitized paths
 - SQL queries use parameterized statements (rusqlite)
 - No `unsafe` code in the application
+- WASM plugins run in wasmtime sandbox (when feature enabled)
+- Native plugins loaded via `libloading` (requires explicit filesystem access)
 - GitHub Actions workflows follow injection-safe patterns

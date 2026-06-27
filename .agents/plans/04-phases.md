@@ -41,8 +41,8 @@
 - [x] Graph page (3D visualization with search overlay)
 - [x] Symbol Explorer page (search + list + detail)
 - [x] File Explorer page (list with language, lines, size)
-- [ ] `rust-embed` frontend dist into binary *(deferred to Phase 2 — not yet done)*
-- [ ] Single `astera` binary release *(deferred to Phase 2 — not yet done)*
+- [x] `rust-embed` frontend dist into binary
+- [x] Single `astera` binary release (embedded frontend)
 
 **Phase 1 Deliverables:**
 - 5 languages (TS/JS, Python, Rust, Go) indexed
@@ -89,7 +89,7 @@
   - [x] LOD and instancing for >10K nodes (useLOD hook, InstancedMesh nodes/edges)
   - [x] MiniMap (SVG minimap with click-to-navigate)
   - [ ] Filter panel — kind filter done in Sidebar; file/metric range filters not implemented
-  - [ ] WebSocket integration for re-index progress
+  - [x] WebSocket integration for re-index progress
 - [x] **Performance benchmarks** (criterion — 73 benchmarks, 11 groups)
   - [x] Parsing throughput (5 languages × multiple scales)
   - [x] Symbol extraction + full pipeline
@@ -102,7 +102,7 @@
   - [x] Parse edge cases (empty, malformed, nested, long lines, unicode)
   - [x] Concurrent storage reads + API response simulation
   - [ ] Memory profiling (deferred)
-  - [ ] Benchmark regression tracking (deferred)
+  - [x] Benchmark regression tracking (astera bench save/check/show)
 
 **Phase 2 Deliverables:**
 - 5 languages (TS/JS, Python, Rust, Go)
@@ -117,33 +117,49 @@
 
 ---
 
-## Phase 3: Advanced Features
+## Phase E: Frontend Redesign ✅ COMPLETE
+
+**Goal**: Living codebase feel — warm black + deep orange, animated backgrounds, performance-optimized.
+
+### Tasks
+
+- [x] WebSocket live events for re-index progress
+- [x] Temporal animation (fade-in/out for added/removed nodes, glow rings)
+- [x] Plugin registry UI (findings display, severity badges)
+- [x] AI layer reservation (stub + chat panel for future LLM integration)
+
+---
+
+## Phase 3: Advanced Features ✅ COMPLETE
 
 **Goal**: Plugins, exports, CI integration, architecture rules.
 
 ### Tasks
 
 - [x] **Export formats** (JSON, CSV, DOT) via `astera-export` crate
-- [ ] **Multi-repo workspace** — multiple repos served from one daemon
-- [ ] **Git-aware analysis** — diff-based change impact
-- [ ] **Architecture rule validation** — layer constraints in config
-- [ ] **GitHub Action** — reusable action for CI indexing
-- [ ] **Pre-commit hook** for impact checks
-- [ ] **C grammar + extractor** (functions, structs, #include)
-- [ ] **C++ grammar + extractor** (classes, functions, templates)
-- [ ] **Java grammar + extractor** (classes, interfaces, packages)
-- [ ] **WASM-based plugin system** for custom analyzers
-- [ ] **Benchmark regression tracking** — compare against baselines
-- [ ] **Frontend embedding** — rust-embed static files into binary
+- [x] **Multi-repo workspace** — WorkspaceConfig with add/remove/index/stats commands
+- [x] **Git-aware analysis** — diff-based change impact via `astera-export`
+- [x] **Architecture rule validation** — layer constraints via `ArchitectureRule` + `validate_architecture()`
+- [x] **GitHub Action** — reusable action for CI indexing (`.github/actions/astera-index/`)
+- [x] **Pre-commit hook** for impact checks (`hooks/pre-commit`)
+- [x] **C grammar + extractor** (functions, structs, #include)
+- [x] **C++ grammar + extractor** (classes, functions, templates)
+- [x] **Java grammar + extractor** (classes, interfaces, packages)
+- [x] **Plugin system** — `astera-plugins` with trait, registry, native loading, built-in pattern checker & metrics summary
+- [x] **Benchmark regression tracking** — compare against baselines (astera bench save/check/show)
+- [x] **Frontend embedding** — rust-embed static files into binary
 
 **Phase 3 Deliverables:**
-- 3 export formats (JSON, CSV, DOT — already done)
-- GitHub Action
-- Architecture rule engine
-- Pre-commit hook
-- 8+ languages
-- WASM plugin system
-- Benchmark CI integration
+- 3 export formats (JSON, CSV, DOT)
+- GitHub Action for CI indexing
+- Architecture rule engine with validation
+- Pre-commit hook for impact checks
+- 8 languages (TS, JS, Python, Rust, Go, C, C++, Java)
+- Plugin system (trait-based, native loading, 2 built-in plugins)
+- Benchmark regression tracking (save/check/show)
+- Embedded frontend in single binary
+- Multi-repo workspace support
+- Git-aware diff analysis
 
 ---
 

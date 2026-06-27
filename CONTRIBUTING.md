@@ -38,15 +38,16 @@ astera/
 ├── crates/           # Rust backend (workspace crates)
 │   ├── astera-core/        # Shared types and config
 │   ├── astera-discovery/   # Filesystem walking
-│   ├── astera-parser/      # Tree-sitter parsing (5 languages)
+│   ├── astera-parser/      # Tree-sitter parsing (8 languages)
 │   ├── astera-resolver/    # Reference resolution
 │   ├── astera-storage/     # SQLite + FTS5
 │   ├── astera-metrics/     # Code metrics
-│   ├── astera-impact/      # Change impact analysis
-│   ├── astera-api/         # Axum HTTP server
-│   ├── astera-export/      # Export formats
+│   ├── astera-impact/      # Change impact analysis + architecture validation
+│   ├── astera-api/         # Axum HTTP server + WebSocket + embedded frontend
+│   ├── astera-plugins/     # Plugin system (trait, registry, native loading)
+│   ├── astera-export/      # Export formats + git diff analysis
 │   ├── astera-watcher/     # File watching
-│   └── astera/             # CLI binary entry point
+│   └── astera/             # CLI binary entry point + benchmarks
 └── apps/web/        # React + Three.js frontend
 ```
 
@@ -109,14 +110,23 @@ Follow [Conventional Commits](https://www.conventionalcommits.org/):
 4. Add tests with fixture files
 5. Update README supported languages table
 
+### Adding a New Plugin
+
+1. Implement the `Plugin` trait in `crates/astera-plugins/src/lib.rs`
+2. Return `PluginMeta` from `meta()` and `PluginOutput` from `run()`
+3. Register in `PluginRegistry` (built-in) or load via native shared library
+4. Add tests with sample `PluginInput`
+
 ## Running Tests
 
 ```bash
-# All tests (104 total)
+# All tests (153 total)
 cargo test
 
 # Specific crate
 cargo test -p astera-parser
+cargo test -p astera-plugins
+cargo test -p astera-impact
 
 # Specific test
 cargo test -p astera-parser -- test_ts_extraction
@@ -128,16 +138,13 @@ cargo test -- --nocapture
 ## Running Benchmarks
 
 ```bash
-# Full benchmark suite (73 benchmarks across 11 groups)
-cargo bench --bench astera_bench
+# Full benchmark suite
+cargo bench
 
-# Specific benchmark group
-cargo bench --bench astera_bench parse_throughput
-cargo bench --bench astera_bench storage
-cargo bench --bench astera_bench metrics
-cargo bench --bench astera_bench impact_analysis
-cargo bench --bench astera_bench scalability
-cargo bench --bench astera_bench api_simulation
+# Benchmark regression tracking
+astera bench save              # Save baseline
+astera bench check             # Compare against baseline
+astera bench show              # Display saved baseline
 
 # HTML reports generated in target/criterion/
 ```
