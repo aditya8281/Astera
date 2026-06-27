@@ -34,3 +34,4 @@ clap = { version = "4", features = ["derive"] }
 rusqlite = { version = "0.32", features = ["bundled"] }
 rayon = "1"
 anyhow = "1"
+criterion = { version = "0.5", features = ["html_reports"] }
