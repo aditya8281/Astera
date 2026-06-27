@@ -37,6 +37,7 @@ export function ImpactPage() {
           value={searchName}
           onChange={(e) => setSearchName(e.target.value)}
           placeholder="Search symbol for root..."
+          aria-label="Search symbol for impact root"
           className="flex-1 px-3 py-2 rounded text-xs font-mono outline-none"
           style={{ background: COLORS.bg, color: COLORS.text, border: `1px solid ${COLORS.border}` }}
         />
@@ -45,13 +46,14 @@ export function ImpactPage() {
           value={maxDepth}
           onChange={(e) => setMaxDepth(e.target.value)}
           min={1} max={20}
+          aria-label="Max analysis depth"
           className="w-20 px-3 py-2 rounded text-xs font-mono outline-none"
           style={{ background: COLORS.bg, color: COLORS.text, border: `1px solid ${COLORS.border}` }}
-          title="Max depth"
         />
         <select
           value={direction}
           onChange={(e) => setDirection(e.target.value)}
+          aria-label="Analysis direction"
           className="px-3 py-2 rounded text-xs font-mono outline-none cursor-pointer"
           style={{ background: COLORS.bg, color: COLORS.text, border: `1px solid ${COLORS.border}` }}
         >

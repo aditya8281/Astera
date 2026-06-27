@@ -103,6 +103,7 @@ export function CommandPalette() {
             onChange={(e) => setQuery(e.target.value)}
             onKeyDown={handleKeyDown}
             placeholder="Search symbols, files, modules..."
+            aria-label="Search symbols, files, modules"
             className="flex-1 bg-transparent text-sm font-body outline-none"
             style={{ color: COLORS.text }}
           />

@@ -29,12 +29,14 @@ export function SymbolsPage() {
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           placeholder="Search symbols..."
+          aria-label="Search symbols"
           className="flex-1 px-3 py-2 rounded text-xs font-mono outline-none"
           style={{ background: COLORS.bg, color: COLORS.text, border: `1px solid ${COLORS.border}` }}
         />
         <select
           value={kind}
           onChange={(e) => setKind(e.target.value)}
+          aria-label="Filter by symbol kind"
           className="px-3 py-2 rounded text-xs font-mono outline-none cursor-pointer"
           style={{ background: COLORS.bg, color: COLORS.text, border: `1px solid ${COLORS.border}` }}
         >

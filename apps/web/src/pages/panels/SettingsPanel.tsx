@@ -13,6 +13,7 @@ export function SettingsPanel() {
         <select
           value={settings.layoutEngine}
           onChange={(e) => updateSettings({ layoutEngine: e.target.value as Settings['layoutEngine'] })}
+          aria-label="Layout engine"
           className="w-full px-2 py-1.5 rounded text-xs font-mono outline-none cursor-pointer"
           style={{ background: COLORS.bg, color: COLORS.text, border: `1px solid ${COLORS.border}` }}
         >
@@ -29,6 +30,7 @@ export function SettingsPanel() {
         <select
           value={settings.graphType}
           onChange={(e) => updateSettings({ graphType: e.target.value as Settings['graphType'] })}
+          aria-label="Graph type"
           className="w-full px-2 py-1.5 rounded text-xs font-mono outline-none cursor-pointer"
           style={{ background: COLORS.bg, color: COLORS.text, border: `1px solid ${COLORS.border}` }}
         >

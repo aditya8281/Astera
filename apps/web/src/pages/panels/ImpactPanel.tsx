@@ -34,6 +34,7 @@ export function ImpactPanel() {
         value={searchName}
         onChange={(e) => setSearchName(e.target.value)}
         placeholder="Search symbol for root..."
+        aria-label="Search symbol for impact root"
         className="w-full px-3 py-2 rounded text-xs font-mono outline-none"
         style={{ background: COLORS.bg, color: COLORS.text, border: `1px solid ${COLORS.border}` }}
       />
@@ -47,6 +48,7 @@ export function ImpactPanel() {
           onChange={(e) => setMaxDepth(e.target.value)}
           min={1}
           max={20}
+          aria-label="Max analysis depth"
           className="w-16 px-2 py-1 rounded text-xs font-mono outline-none"
           style={{ background: COLORS.bg, color: COLORS.text, border: `1px solid ${COLORS.border}` }}
         />

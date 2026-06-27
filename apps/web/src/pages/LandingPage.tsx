@@ -229,6 +229,7 @@ export function LandingPage() {
             </div>
             <button
               onClick={() => copyCmd('cargo install astera', 0)}
+              aria-label="Copy install command"
               className="px-3 py-2.5 rounded-lg text-xs transition-colors"
               style={{
                 background: COLORS.surfaceDim,
@@ -397,6 +398,7 @@ export function LandingPage() {
                 border: `1px solid ${COLORS.border}`,
               }}
               onClick={() => navigate('/graph')}
+              onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') navigate('/graph') }}
               onMouseEnter={(e) => (e.currentTarget.style.background = COLORS.surfaceHover)}
               onMouseLeave={(e) => (e.currentTarget.style.background = COLORS.surface)}
               role="button"

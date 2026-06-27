@@ -237,11 +237,12 @@ export function AIChatPanel() {
           onChange={(e) => setInput(e.target.value)}
           onKeyDown={(e) => e.key === 'Enter' && handleSubmit()}
           placeholder={configured ? 'Ask about your code...' : 'Configure AI provider first...'}
+          aria-label="Ask AI about your code"
           disabled={!configured}
           style={{
             flex: 1,
-            background: 'rgba(255,255,255,0.05)',
-            border: '1px solid rgba(255,255,255,0.1)',
+            background: COLORS.bg,
+            border: `1px solid ${COLORS.border}`,
             borderRadius: '6px',
             padding: '8px 12px',
             color: COLORS.text,

@@ -29,6 +29,7 @@ export function FilesPanel() {
         value={filter}
         onChange={(e) => setFilter(e.target.value)}
         placeholder="Filter files..."
+        aria-label="Filter files"
         className="w-full px-3 py-2 rounded text-xs font-mono outline-none"
         style={{ background: COLORS.bg, color: COLORS.text, border: `1px solid ${COLORS.border}` }}
         autoFocus
