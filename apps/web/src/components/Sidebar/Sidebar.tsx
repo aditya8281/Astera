@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect, useCallback } from 'react'
+import { useNavigate, useLocation } from 'react-router-dom'
 import { useUIStore } from '../../store'
 import { NODE_COLORS, COLORS } from '../../constants'
 import type { PanelId } from '../../types'
@@ -9,10 +10,12 @@ interface NavItem {
   icon: string
   label: string
   shortcut?: string
+  path?: string
 }
 
 const NAV_ITEMS: NavItem[] = [
-  { id: null, icon: '◆', label: 'Graph', shortcut: '1' },
+  { id: null, icon: '⌂', label: 'Home', shortcut: '0', path: '/' },
+  { id: null, icon: '◆', label: 'Graph', shortcut: '1', path: '/graph' },
   { id: 'search', icon: '🔍', label: 'Search', shortcut: '⌘K' },
   { id: 'symbols', icon: 'ƒ', label: 'Symbols', shortcut: '2' },
   { id: 'files', icon: '≡', label: 'Files', shortcut: '3' },
@@ -22,6 +25,8 @@ const NAV_ITEMS: NavItem[] = [
 ]
 
 export function Sidebar() {
+  const navigate = useNavigate()
+  const location = useLocation()
   const {
     activePanel, togglePanel, sidebarExpanded, setSidebarExpanded,
     kindFilter, toggleKind,
@@ -43,11 +48,20 @@ export function Sidebar() {
   useEffect(() => () => clearTimeout(expandTimeout.current), [])
 
   const handleNavClick = (item: NavItem) => {
+    if (item.path) {
+      navigate(item.path)
+      return
+    }
     if (item.id === 'search') {
       useUIStore.getState().setCommandPaletteOpen(true)
       return
     }
     togglePanel(item.id)
+  }
+
+  const isActive = (item: NavItem) => {
+    if (item.path) return location.pathname === item.path
+    return activePanel === item.id
   }
 
   return (
@@ -77,22 +91,22 @@ export function Sidebar() {
       {/* Nav items */}
       <div className="flex-1 w-full py-2">
         {NAV_ITEMS.map((item) => {
-          const isActive = activePanel === item.id
+          const active = isActive(item)
           return (
             <button
               key={item.id ?? 'graph'}
               onClick={() => handleNavClick(item)}
               className="w-full flex items-center gap-3 px-3 py-2.5 transition-all duration-micro ease-out-quart relative group"
               style={{
-                color: isActive ? COLORS.selection : COLORS.textMuted,
-                background: isActive ? `${COLORS.selection}10` : 'transparent',
+                color: active ? COLORS.selection : COLORS.textMuted,
+                background: active ? `${COLORS.selection}10` : 'transparent',
               }}
               title={item.label}
               aria-label={item.label}
-              aria-current={isActive ? 'page' : undefined}
+              aria-current={active ? 'page' : undefined}
             >
               {/* Active indicator */}
-              {isActive && (
+              {active && (
                 <span
                   className="absolute left-0 top-1/2 -translate-y-1/2 w-0.5 h-5 rounded-r"
                   style={{ background: COLORS.selection }}

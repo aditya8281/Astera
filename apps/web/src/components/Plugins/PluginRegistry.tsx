@@ -25,13 +25,13 @@ export interface PluginOutput {
   findings: PluginFinding[]
 }
 
-// ─── Severity colors ───
+// ─── Severity colors (on-palette) ───
 
 const SEVERITY_COLORS: Record<string, string> = {
   Info: '#60a5fa',
-  Warning: '#fbbf24',
-  Error: '#f87171',
-  Critical: '#dc2626',
+  Warning: COLORS.warning,
+  Error: COLORS.error,
+  Critical: '#DC2626',
 }
 
 const SEVERITY_ICONS: Record<string, string> = {
@@ -42,9 +42,9 @@ const SEVERITY_ICONS: Record<string, string> = {
 }
 
 const KIND_BADGES: Record<string, { bg: string; text: string }> = {
-  BuiltIn: { bg: 'rgba(96,165,250,0.15)', text: '#60a5fa' },
-  Native: { bg: 'rgba(52,211,153,0.15)', text: '#34d399' },
-  Wasm: { bg: 'rgba(251,191,36,0.15)', text: '#fbbf24' },
+  BuiltIn: { bg: 'rgba(89,246,255,0.10)', text: COLORS.accent },
+  Native: { bg: 'rgba(74,222,128,0.10)', text: COLORS.success },
+  Wasm: { bg: `${COLORS.warning}15`, text: COLORS.warning },
 }
 
 // ─── Plugin Registry Panel ───
@@ -63,7 +63,6 @@ export function PluginRegistry() {
         if (data.plugins) setPlugins(data.plugins)
       })
       .catch(() => {
-        // Plugin endpoint not available — show built-in defaults
         setPlugins([
           {
             name: 'pattern-checker',
@@ -106,24 +105,21 @@ export function PluginRegistry() {
   )
 
   return (
-    <div style={{ padding: '16px', height: '100%', overflow: 'auto' }}>
+    <div className="p-3 space-y-3">
       {/* Header */}
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px' }}>
-        <h3 style={{ margin: 0, color: COLORS.text, fontSize: '14px', fontWeight: 600 }}>
+      <div className="flex items-center justify-between">
+        <h3 className="text-sm font-heading font-semibold" style={{ color: COLORS.text }}>
           Plugin Registry
         </h3>
         <button
           onClick={runPlugins}
           disabled={running}
+          className="px-3 py-1.5 rounded text-xs font-mono transition-colors"
           style={{
-            background: running ? 'rgba(0,255,136,0.1)' : 'rgba(0,255,136,0.2)',
-            border: '1px solid rgba(0,255,136,0.3)',
-            borderRadius: '6px',
+            background: running ? `${COLORS.accent}10` : `${COLORS.accent}18`,
+            border: `1px solid ${COLORS.accent}30`,
             color: COLORS.accent,
-            padding: '4px 12px',
-            fontSize: '12px',
             cursor: running ? 'wait' : 'pointer',
-            fontFamily: 'monospace',
           }}
         >
           {running ? '⟳ Running...' : '▶ Run All'}
@@ -133,16 +129,8 @@ export function PluginRegistry() {
       {/* Summary bar */}
       {findings.length > 0 && (
         <div
-          style={{
-            display: 'flex',
-            gap: '12px',
-            marginBottom: '16px',
-            padding: '8px 12px',
-            background: 'rgba(255,255,255,0.03)',
-            borderRadius: '6px',
-            fontSize: '12px',
-            fontFamily: 'monospace',
-          }}
+          className="flex gap-3 px-3 py-2 rounded text-xs font-mono"
+          style={{ background: `${COLORS.surface}`, border: `1px solid ${COLORS.border}` }}
         >
           <span style={{ color: COLORS.text }}>{totalFindings} findings</span>
           {criticalCount > 0 && (
@@ -159,7 +147,7 @@ export function PluginRegistry() {
       )}
 
       {/* Plugin list */}
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+      <div className="space-y-2">
         {plugins.map((plugin) => {
           const badge = KIND_BADGES[plugin.kind] || KIND_BADGES.BuiltIn
           const pluginFindings = findings.find((f) => f.plugin === plugin.name)
@@ -168,108 +156,78 @@ export function PluginRegistry() {
           return (
             <div
               key={plugin.name}
-              style={{
-                background: 'rgba(255,255,255,0.03)',
-                border: '1px solid rgba(255,255,255,0.06)',
-                borderRadius: '8px',
-                overflow: 'hidden',
-              }}
+              className="rounded-lg overflow-hidden"
+              style={{ background: `${COLORS.surface}`, border: `1px solid ${COLORS.border}` }}
             >
               {/* Plugin header */}
-              <div
+              <button
                 onClick={() => setExpandedPlugin(isExpanded ? null : plugin.name)}
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '8px',
-                  padding: '10px 12px',
-                  cursor: 'pointer',
-                  transition: 'background 0.15s',
-                }}
-                onMouseEnter={(e) => (e.currentTarget.style.background = 'rgba(255,255,255,0.04)')}
+                className="w-full flex items-center gap-2 px-3 py-2.5 text-left transition-colors"
+                onMouseEnter={(e) => (e.currentTarget.style.background = COLORS.surfaceHover)}
                 onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
               >
-                <span style={{ color: COLORS.text, fontSize: '13px', fontWeight: 500, flex: 1 }}>
+                <span className="text-xs font-medium flex-1" style={{ color: COLORS.text }}>
                   {plugin.name}
                 </span>
 
                 <span
-                  style={{
-                    background: badge.bg,
-                    color: badge.text,
-                    padding: '2px 6px',
-                    borderRadius: '4px',
-                    fontSize: '10px',
-                    fontFamily: 'monospace',
-                  }}
+                  className="px-1.5 py-0.5 rounded text-[10px] font-mono"
+                  style={{ background: badge.bg, color: badge.text }}
                 >
                   {plugin.kind}
                 </span>
 
-                <span style={{ color: COLORS.muted, fontSize: '11px', fontFamily: 'monospace' }}>
+                <span className="text-[11px] font-mono" style={{ color: COLORS.textMuted }}>
                   v{plugin.version}
                 </span>
 
                 {pluginFindings && pluginFindings.findings.length > 0 && (
                   <span
-                    style={{
-                      background: 'rgba(255,255,255,0.1)',
-                      color: COLORS.text,
-                      padding: '1px 6px',
-                      borderRadius: '10px',
-                      fontSize: '11px',
-                      fontFamily: 'monospace',
-                    }}
+                    className="px-1.5 py-0.5 rounded-full text-[11px] font-mono"
+                    style={{ background: `${COLORS.surfaceDim}`, color: COLORS.text }}
                   >
                     {pluginFindings.findings.length}
                   </span>
                 )}
 
-                <span style={{ color: COLORS.muted, fontSize: '10px' }}>
+                <span className="text-[10px]" style={{ color: COLORS.textDim }}>
                   {isExpanded ? '▾' : '▸'}
                 </span>
-              </div>
+              </button>
 
               {/* Expanded: findings */}
               {isExpanded && pluginFindings && pluginFindings.findings.length > 0 && (
-                <div style={{ borderTop: '1px solid rgba(255,255,255,0.06)', padding: '8px 12px' }}>
-                  <p style={{ margin: '0 0 8px', color: COLORS.muted, fontSize: '11px' }}>
+                <div
+                  className="px-3 py-2 space-y-1"
+                  style={{ borderTop: `1px solid ${COLORS.border}` }}
+                >
+                  <p className="text-[11px] mb-2" style={{ color: COLORS.textMuted }}>
                     {plugin.description}
                   </p>
                   {pluginFindings.findings.slice(0, 20).map((finding, i) => (
                     <div
                       key={i}
-                      style={{
-                        display: 'flex',
-                        alignItems: 'flex-start',
-                        gap: '6px',
-                        padding: '4px 0',
-                        fontSize: '12px',
-                        fontFamily: 'monospace',
-                        borderBottom: '1px solid rgba(255,255,255,0.03)',
-                      }}
+                      className="flex items-start gap-1.5 py-1 text-xs font-mono"
+                      style={{ borderBottom: `1px solid ${COLORS.border}` }}
                     >
                       <span
-                        style={{
-                          color: SEVERITY_COLORS[finding.severity],
-                          minWidth: '14px',
-                          fontSize: '11px',
-                        }}
+                        className="flex-shrink-0 text-[11px]"
+                        style={{ color: SEVERITY_COLORS[finding.severity] }}
                       >
                         {SEVERITY_ICONS[finding.severity]}
                       </span>
-                      <span style={{ color: COLORS.text, flex: 1, wordBreak: 'break-word' }}>
+                      <span className="flex-1 break-words" style={{ color: COLORS.text }}>
                         {finding.message}
                       </span>
                       {finding.line && (
-                        <span style={{ color: COLORS.muted, fontSize: '10px' }}>
+                        <span className="text-[10px] flex-shrink-0" style={{ color: COLORS.textDim }}>
                           L{finding.line}
                         </span>
                       )}
                     </div>
                   ))}
                   {pluginFindings.findings.length > 20 && (
-                    <p style={{ margin: '4px 0 0', color: COLORS.muted, fontSize: '11px' }}>
+                    <p className="text-[11px] mt-1" style={{ color: COLORS.textMuted }}>
                       +{pluginFindings.findings.length - 20} more
                     </p>
                   )}
@@ -277,11 +235,14 @@ export function PluginRegistry() {
               )}
 
               {isExpanded && (!pluginFindings || pluginFindings.findings.length === 0) && (
-                <div style={{ borderTop: '1px solid rgba(255,255,255,0.06)', padding: '12px' }}>
-                  <p style={{ margin: 0, color: COLORS.muted, fontSize: '11px' }}>
+                <div
+                  className="px-3 py-3"
+                  style={{ borderTop: `1px solid ${COLORS.border}` }}
+                >
+                  <p className="text-[11px]" style={{ color: COLORS.textMuted }}>
                     {plugin.description}
                   </p>
-                  <p style={{ margin: '8px 0 0', color: COLORS.muted, fontSize: '11px', fontStyle: 'italic' }}>
+                  <p className="text-[11px] mt-2 italic" style={{ color: COLORS.textDim }}>
                     No findings yet — click "Run All" to execute
                   </p>
                 </div>

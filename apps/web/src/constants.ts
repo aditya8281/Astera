@@ -50,11 +50,11 @@ export const COLORS = {
   relationship: '#59F6FF',
   relationshipDim: '#3AA8B0',
   relationshipGlow: '#59F6FF',
-  success: '#00E676',
-  error: '#FF5252',
+  success: '#4ADE80',
+  error: '#F87171',
   ai: '#B388FF',
   inactive: '#5A6070',
-  warning: '#FFD740',
+  warning: '#FBBF24',
   muted: '#8B91A0',
 } as const
 

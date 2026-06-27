@@ -99,7 +99,7 @@ export function ContextMenu({ nodeName, nodeKind, position, onClose }: ContextMe
         left: Math.max(x, 8),
         top: Math.max(y, 8),
         width: MENU_WIDTH,
-        zIndex: 9999,
+        zIndex: 'var(--z-tooltip)',
       }}
     >
       <div

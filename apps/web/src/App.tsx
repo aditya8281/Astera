@@ -4,6 +4,7 @@ import { Layout } from './components/Layout'
 import { COLORS } from './constants'
 
 // Lazy-load pages — GraphPage pulls in Three.js (~1MB), keep it out of initial chunk
+const LandingPage = lazy(() => import('./pages/LandingPage').then(m => ({ default: m.LandingPage })))
 const GraphPage = lazy(() => import('./pages/GraphPage').then(m => ({ default: m.GraphPage })))
 const SymbolsPage = lazy(() => import('./pages/SymbolsPage').then(m => ({ default: m.SymbolsPage })))
 const FilesPage = lazy(() => import('./pages/FilesPage').then(m => ({ default: m.FilesPage })))
@@ -28,7 +29,8 @@ export default function App() {
   return (
     <Routes>
       <Route element={<Layout />}>
-        <Route path="/" element={<Suspense fallback={<PageLoader />}><GraphPage /></Suspense>} />
+        <Route path="/" element={<Suspense fallback={<PageLoader />}><LandingPage /></Suspense>} />
+        <Route path="/graph" element={<Suspense fallback={<PageLoader />}><GraphPage /></Suspense>} />
         <Route path="/symbols" element={<Suspense fallback={<PageLoader />}><SymbolsPage /></Suspense>} />
         <Route path="/files" element={<Suspense fallback={<PageLoader />}><FilesPage /></Suspense>} />
         <Route path="/metrics" element={<Suspense fallback={<PageLoader />}><MetricsPage /></Suspense>} />
