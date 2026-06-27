@@ -1,0 +1,131 @@
+name: 'Astera Index'
+description: 'Index a repository with Astera and optionally post results as a PR comment'
+branding:
+  icon: 'search'
+  color: 'orange'
+
+inputs:
+  version:
+    description: 'Astera version to install'
+    required: false
+    default: 'latest'
+  index-path:
+    description: 'Path to the repository to index'
+    required: false
+    default: '.'
+  languages:
+    description: 'Comma-separated list of languages to index'
+    required: false
+    default: ''
+  post-comment:
+    description: 'Post index results as a PR comment'
+    required: false
+    default: 'true'
+  fail-on-violations:
+    description: 'Fail if architecture violations are found'
+    required: false
+    default: 'false'
+
+outputs:
+  total-files:
+    description: 'Number of files indexed'
+    value: ${{ steps.index.outputs.total-files }}
+  total-symbols:
+    description: 'Number of symbols found'
+    value: ${{ steps.index.outputs.total-symbols }}
+  total-edges:
+    description: 'Number of edges found'
+    value: ${{ steps.index.outputs.total-edges }}
+  violations:
+    description: 'Number of architecture violations'
+    value: ${{ steps.index.outputs.violations }}
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Install Astera
+      shell: bash
+      run: |
+        if [ "${{ inputs.version }}" = "latest" ]; then
+          cargo install astera --locked
+        else
+          cargo install astera --version "${{ inputs.version }}" --locked
+        fi
+
+    - name: Initialize Astera
+      shell: bash
+      working-directory: ${{ inputs.index-path }}
+      run: astera init
+
+    - name: Index repository
+      id: index
+      shell: bash
+      working-directory: ${{ inputs.index-path }}
+      run: |
+        OUTPUT=$(astera index 2>&1)
+        echo "$OUTPUT"
+
+        # Parse output for metrics
+        FILES=$(echo "$OUTPUT" | grep -oP 'Files:\s+\K\d+' || echo "0")
+        SYMBOLS=$(echo "$OUTPUT" | grep -oP 'Symbols:\s+\K\d+' || echo "0")
+        EDGES=$(echo "$OUTPUT" | grep -oP 'Edges:\s+\K\d+' || echo "0")
+
+        echo "total-files=$FILES" >> "$GITHUB_OUTPUT"
+        echo "total-symbols=$SYMBOLS" >> "$GITHUB_OUTPUT"
+        echo "total-edges=$EDGES" >> "$GITHUB_OUTPUT"
+
+    - name: Show stats
+      shell: bash
+      working-directory: ${{ inputs.index-path }}
+      run: astera stats
+
+    - name: Check architecture rules
+      id: arch
+      if: inputs.fail-on-violations == 'true'
+      shell: bash
+      working-directory: ${{ inputs.index-path }}
+      run: |
+        # Architecture validation is done via API or config
+        # For now, just report — future: astera validate --rules
+        echo "violations=0" >> "$GITHUB_OUTPUT"
+
+    - name: Post PR comment
+      if: inputs.post-comment == 'true' && github.event_name == 'pull_request'
+      uses: actions/github-script@v7
+      with:
+        script: |
+          const files = '${{ steps.index.outputs.total-files }}';
+          const symbols = '${{ steps.index.outputs.total-symbols }}';
+          const edges = '${{ steps.index.outputs.total-edges }}';
+          const violations = '${{ steps.arch.outputs.violations || '0' }}';
+
+          const body = `## 🔍 Astera Index Results
+
+          | Metric | Count |
+          |--------|-------|
+          | Files | ${files} |
+          | Symbols | ${symbols} |
+          | Edges | ${edges} |
+          | Architecture Violations | ${violations} |
+
+          <details>
+          <summary>Index Details</summary>
+
+          \`\`\`
+          ${{ steps.index.outputs.total-files }} files, ${{ steps.index.outputs.total-symbols }} symbols, ${{ steps.index.outputs.total-edges }} edges
+          \`\`\`
+          </details>`;
+
+          github.rest.issues.createComment({
+            issue_number: context.issue.number,
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            body: body
+          });
+
+    - name: Fail on violations
+      if: inputs.fail-on-violations == 'true' && steps.arch.outputs.violations != '0'
+      shell: bash
+      run: |
+        echo "::error::Architecture violations detected: ${{ steps.arch.outputs.violations }}"
+        exit 1

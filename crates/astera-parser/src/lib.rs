@@ -930,11 +930,12 @@ impl Extractor {
                 ));
             }
             "type_definition" => {
-                let name = node
-                    .child_by_field_name("name")
-                    .map(|n| Self::node_text(n, source))
-                    .unwrap_or("anonymous")
-                    .to_string();
+                // C typedef: name is in the declarator chain
+                // Walk all children to find the name via declarator
+                let name = (0..node.child_count())
+                    .filter_map(|i| node.child(i))
+                    .find_map(|c| Self::find_c_declarator_name(c, source))
+                    .unwrap_or_else(|| "anonymous".to_string());
                 extracted = Some(Node::new(
                     NodeKind::TypeAlias,
                     &name,
@@ -1010,20 +1011,44 @@ impl Extractor {
     fn find_c_declarator_name(declarator: tree_sitter::Node, source: &[u8]) -> Option<String> {
         match declarator.kind() {
             "identifier" => Some(Self::node_text(declarator, source).to_string()),
-            "function_declarator" => {
-                declarator.child_by_field_name("declarator")
-                    .and_then(|d| Self::find_c_declarator_name(d, source))
+            "function_declarator" | "abstract_function_declarator" => {
+                if let Some(inner) = declarator.child_by_field_name("declarator") {
+                    Self::find_c_declarator_name(inner, source)
+                } else {
+                    Self::find_identifier_child(declarator, source)
+                }
             }
             "parenthesized_declarator" => {
-                declarator.child(1)
-                    .and_then(|d| Self::find_c_declarator_name(d, source))
+                (0..declarator.child_count())
+                    .filter_map(|i| declarator.child(i))
+                    .find_map(|c| Self::find_c_declarator_name(c, source))
             }
-            "pointer_declarator" => {
-                declarator.child(0)
-                    .and_then(|d| Self::find_c_declarator_name(d, source))
+            "pointer_declarator" | "type_declarator" | "array_declarator" => {
+                Self::find_identifier_child(declarator, source)
             }
-            _ => None,
+            _ => Self::find_identifier_child(declarator, source),
         }
+    }
+
+    /// Find an identifier child node (recursive DFS).
+    /// Matches both `identifier` and `type_identifier` (C/C++ type names).
+    fn find_identifier_child(node: tree_sitter::Node, source: &[u8]) -> Option<String> {
+        let mut cursor = node.walk();
+        for child in node.children(&mut cursor) {
+            if child.kind() == "identifier" || child.kind() == "type_identifier" {
+                return Some(Self::node_text(child, source).to_string());
+            }
+        }
+        // Second pass: recurse into non-identifier children
+        let mut cursor = node.walk();
+        for child in node.children(&mut cursor) {
+            if child.kind() != "identifier" && child.kind() != "type_identifier" {
+                if let Some(name) = Self::find_identifier_child(child, source) {
+                    return Some(name);
+                }
+            }
+        }
+        None
     }
 
     // ─── C++ Extractor ───
@@ -1171,11 +1196,12 @@ impl Extractor {
             _ => {}
         }
 
-        if let Some(sym) = extracted {
+        if let Some(mut sym) = extracted {
             let node_idx = nodes.len();
             // Class→method containment
             if let Some(Some(parent_idx)) = parent_stack.last() {
                 if nodes[*parent_idx].kind == NodeKind::Class && sym.kind == NodeKind::Function {
+                    sym.kind = NodeKind::Method;
                     edges.push(Edge::new(
                         *parent_idx as i64,
                         node_idx as i64,
@@ -1373,8 +1399,9 @@ impl Extractor {
             parent_stack.push(Some(node_idx));
         } else {
             if kind == "method_invocation" {
-                if let Some(obj_node) = node.child_by_field_name("object") {
-                    let (callee_name, _) = Self::extract_callee_name(obj_node, source);
+                // Java: obj.method() — we want the method name, not the object
+                if let Some(name_node) = node.child_by_field_name("name") {
+                    let callee_name = Self::node_text(name_node, source).to_string();
                     if let Some(caller_idx) =
                         Self::find_enclosing_function_idx(nodes, parent_stack)
                     {

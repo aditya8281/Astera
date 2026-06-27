@@ -1,0 +1,55 @@
+#!/usr/bin/env bash
+# Astera pre-commit hook
+# Checks fan-in of staged files and warns about high-impact changes.
+# Install: cp hooks/pre-commit .git/hooks/pre-commit && chmod +x .git/hooks/pre-commit
+
+set -euo pipefail
+
+# Check if astera binary is available
+if ! command -v astera &> /dev/null; then
+    echo "⚠ astera not found in PATH — skipping impact check"
+    exit 0
+fi
+
+# Check if astera index exists
+if [ ! -d ".astera" ]; then
+    echo "⚠ No .astera index found — run 'astera index' first"
+    exit 0
+fi
+
+# Get staged files
+STAGED_FILES=$(git diff --cached --name-only --diff-filter=ACMR)
+
+if [ -z "$STAGED_FILES" ]; then
+    exit 0
+fi
+
+echo "🔍 Astera pre-commit: checking impact of staged changes..."
+
+# Check each staged file's fan-in via the API or stats
+# If astera is serving, we can query the API; otherwise use CLI
+VIOLATIONS=0
+
+for file in $STAGED_FILES; do
+    # Check if this file is indexed
+    RESULT=$(astera query symbols --name "$(basename "$file" .ts)" 2>/dev/null || true)
+
+    # Simple heuristic: if file has a high number of symbols, it's likely important
+    SYMBOL_COUNT=$(echo "$RESULT" | grep -c "│" || echo "0")
+
+    if [ "$SYMBOL_COUNT" -gt 10 ]; then
+        echo "⚠ HIGH IMPACT: $file ($SYMBOL_COUNT symbols)"
+        VIOLATIONS=$((VIOLATIONS + 1))
+    fi
+done
+
+if [ "$VIOLATIONS" -gt 0 ]; then
+    echo ""
+    echo "⚠ $VIOLATIONS file(s) with high fan-in detected."
+    echo "  These changes may have wide-reaching impact."
+    echo "  Run 'astera impact --root <symbol_id>' to analyze impact."
+    echo ""
+    echo "  To bypass: git commit --no-verify"
+fi
+
+exit 0

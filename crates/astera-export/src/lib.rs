@@ -5,6 +5,9 @@ use std::fs::File;
 use std::io::Write;
 use std::path::Path;
 
+pub mod git_analysis;
+pub use git_analysis::{analyze_git_diff, ChangeType, GitDiff, GitFileChange};
+
 /// Export format options
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ExportFormat {
