@@ -4,6 +4,7 @@ members = [
     "crates/astera-core",
     "crates/astera-discovery",
     "crates/astera-parser",
+    "crates/astera-resolver",
     "crates/astera-storage",
     "crates/astera-api",
     "crates/astera-cli",

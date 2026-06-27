@@ -169,6 +169,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "astera-resolver"
+version = "0.1.0"
+dependencies = [
+ "astera-core",
+ "serde",
+ "serde_json",
+]
+
+[[package]]
 name = "astera-storage"
 version = "0.1.0"
 dependencies = [

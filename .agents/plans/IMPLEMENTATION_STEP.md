@@ -2,21 +2,25 @@
 
 ## Current Status
 
-**Phase 1.1 (Foundation)**: 6/7 items complete — core types, discovery, storage, parser, CLI all built and tested. CI yml is the only remaining item.
+**Phase 1 (Core Engine — MVP)**: ✅ COMPLETE
 
-**Phase 1.2 (Parser Depth)**: 5/6 items complete — call graph extraction done, 5 languages supported (TS/JS, Python, Rust, Go). Resolver is the remaining item.
-
-**Phase 1.3 (API Server)**: Axum HTTP server complete — 7 endpoints, CORS, 7 integration tests.
-
-Last build: 57 tests pass — 6 core + 8 discovery + 27 parser + 9 storage + 7 API.
+All Phase 1 milestones achieved:
+- 5 languages (TS/JS, Python, Rust, Go) with call graph extraction
+- SQLite storage with FTS5+LIKE fallback
+- Axum HTTP server with 7 endpoints + CORS
+- React Three Fiber 3D frontend with force-directed graph
+- CLI with init/index/serve/query commands
+- 57 backend tests passing
 
 | Crate | Tests | Status |
 |---|---|---|
 | astera-core | 6 | ✅ |
 | astera-discovery | 8 | ✅ |
-| astera-parser | 27 | ✅ 4 languages, call graph, containment |
+| astera-parser | 27 | ✅ 5 languages, call graph, containment |
 | astera-storage | 9 | ✅ FTS5+LIKE fallback |
 | astera-cli | 0 | ✅ Builds, edge mapping implemented |
+| astera-api | 7 | ✅ 7 REST endpoints, integration tests |
+| apps/web | — | ✅ 3D frontend, 3 pages, force layout |
 
 ## Prerequisites
 

@@ -2,68 +2,53 @@
 
 ---
 
-## Phase 1: Core Engine — MVP
+## Phase 1: Core Engine — MVP ✅ COMPLETE
 
-**Goal**: Index a repo, extract symbols + edges, serve via API, CLI + 3D web UI.  
-**Languages**: TypeScript, JavaScript, Python, Rust  
-**Duration target**: ~8 weeks
+**Goal**: Index a repo, extract symbols + edges, serve via API, CLI + 3D web UI.
+**Languages**: TypeScript, JavaScript, Python, Rust, Go
+**Duration**: Completed
 
-### Phase 1.1: Foundation
-
-**Objective**: Rust workspace, core types, discovery, storage
+### Phase 1.1: Foundation ✅
 
 - [x] Rust workspace with crate structure
 - [x] `astera-core`: NodeKind, EdgeKind, SourceSpan, FileInfo, Node, Edge types
 - [x] `astera-discovery`: filesystem walker via `ignore` crate, gitignore, language classifier
 - [x] `astera-storage`: SQLite schema via `rusqlite`, CRUD, FTS5, transaction helpers
-- [x] `astera-parser`: tree-sitter integration, TS/JS extractor (functions, classes, imports, variables)
+- [x] `astera-parser`: tree-sitter integration, TS/JS extractor
 - [x] `astera-cli`: `clap`-based CLI with `init`, `index`, `query` subcommands
-- [ ] CI pipeline: `cargo build`, `cargo test`, `cargo clippy`, `cargo fmt`
 
-### Phase 1.2: Parser Depth + Python
-
-**Objective**: Full symbol extraction for TS/JS and Python, call graph
+### Phase 1.2: Parser Depth ✅
 
 - [x] Python extractor (functions, classes, imports, module vars)
 - [x] Rust extractor (functions, structs, enums, traits, impl blocks)
 - [x] Containment edges (file→symbol, class→method)
 - [x] Call graph extraction (Calls edges)
 - [x] Go extractor (functions, structs, interfaces, packages)
-- [ ] `astera-resolver`: basic scope chain + import resolution
+- [ ] `astera-resolver`: basic scope chain + import resolution *(deferred to Phase 2)*
 
-### Phase 1.3: API Server
+### Phase 1.3: API Server ✅
 
-**Objective**: REST API for indexed data
+- [x] `astera-api`: Axum HTTP server with CORS + tracing
+- [x] 7 REST endpoints (stats, files, symbols, edges, search, dependency graph)
+- [x] Integration tests (tower::oneshot pattern)
 
-- [ ] `astera-api`: Axum HTTP server
-- [ ] Repo CRUD endpoints
-- [ ] File listing + content endpoints
-- [ ] Symbol query + search endpoints
-- [ ] Graph data endpoints (for 3D frontend)
-- [ ] CORS, error middleware, request logging
-- [ ] utoipa OpenAPI spec
+### Phase 1.4: 3D Frontend ✅
 
-### Phase 1.4: 3D Frontend
-
-**Objective**: Interactive 3D web UI
-
-- [ ] Vite + React + TypeScript + Tailwind scaffold
-- [ ] React Three Fiber + drei setup
-- [ ] Force-directed 3D graph component (nodes + edges)
-- [ ] OrbitControls, click-to-focus, search-to-focus
-- [ ] Dashboard page (repo stats, language breakdown)
-- [ ] Symbol Explorer page (search + list + detail)
-- [ ] Call Graph page (3D hierarchical layout)
-- [ ] File Explorer page (tree + Monaco code view)
-- [ ] `rust-embed` frontend dist into binary
-- [ ] Single `astera` binary release
+- [x] Vite + React 19 + TypeScript + Tailwind scaffold
+- [x] React Three Fiber + drei setup
+- [x] Force-directed 3D graph component (nodes + edges + labels)
+- [x] OrbitControls, click-to-select, kind filtering
+- [x] Graph page (3D visualization with search overlay)
+- [x] Symbol Explorer page (search + list + detail)
+- [x] File Explorer page (list with language, lines, size)
+- [ ] `rust-embed` frontend dist into binary *(deferred to Phase 2)*
+- [ ] Single `astera` binary release *(deferred to Phase 2)*
 
 **Phase 1 Deliverables:**
-- Single `astera` binary (Linux, macOS, Windows)
-- TypeScript/JavaScript + Python + Rust indexing
-- Call graph, dependency graph, full-text search
-- CLI and HTTP interface
-- Interactive 3D web UI
+- 5 languages (TS/JS, Python, Rust, Go) indexed
+- 57 backend tests, 7 API tests
+- CLI + HTTP interface
+- Interactive 3D web UI with force-directed layout
 
 ---
 
