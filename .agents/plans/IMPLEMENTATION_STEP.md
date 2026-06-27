@@ -25,7 +25,7 @@ All Phase 2 milestones achieved:
 | astera-storage | 9 | ✅ FTS5+LIKE fallback |
 | astera-metrics | 4 | ✅ cyclomatic/cognitive complexity, coupling, instability, Tarjan SCC |
 | astera-impact | 7 | ✅ BFS transitive closure, critical path, cycle detection |
-| astera-cli | 0 | ✅ Builds, edge mapping, serve with --web-dir |
+| astera | 0 | ✅ Builds, edge mapping, serve with --web-dir |
 | astera-api | 9 | ✅ 9 REST endpoints (stats, files, symbols, edges, search, graph, metrics, impact, symbol-by-id) + static file serving |
 | astera-watcher | 1 | ✅ notify v7 file watching, debounced incremental re-index |
 | apps/web | — | ✅ 3D frontend, 5 pages (Graph, Symbols, Files, Metrics, Impact) |
@@ -68,7 +68,7 @@ astera/                    # Cargo workspace (Rust backend)
 │   ├── astera-metrics/   # Complexity, coupling, instability
 │   ├── astera-impact/    # BFS impact analysis
 │   ├── astera-api/       # Axum HTTP server + static file serving
-│   ├── astera-cli/       # Clap CLI entry point
+│   ├── astera/           # CLI binary
 │   └── astera-watcher/   # File watching via notify
 ├── apps/web/             # React + Three.js frontend
 ├── tests/                # Test fixtures + integration tests

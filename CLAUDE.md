@@ -68,7 +68,7 @@ Backend organized as Cargo workspace crates under `crates/`:
 | `astera-metrics` | Complexity, coupling, cohesion (Phase 2) |
 | `astera-impact` | Change impact analysis (Phase 2) |
 | `astera-api` | Axum HTTP server, routes, middleware |
-| `astera-cli` | CLAP entry point |
+| `astera` | CLAP entry point (binary crate) |
 | `astera-watcher` | File watching via notify crate (Phase 2) |
 | `astera-export` | Export/import formats (Phase 3) |
 

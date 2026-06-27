@@ -15,7 +15,7 @@
 - [x] `astera-discovery`: filesystem walker via `ignore` crate, gitignore, language classifier
 - [x] `astera-storage`: SQLite schema via `rusqlite`, CRUD, FTS5, transaction helpers
 - [x] `astera-parser`: tree-sitter integration, TS/JS extractor
-- [x] `astera-cli`: `clap`-based CLI with `init`, `index`, `query` subcommands
+- [x] `astera`: `clap`-based CLI with `init`, `index`, `query` subcommands
 
 ### Phase 1.2: Parser Depth ✅
 

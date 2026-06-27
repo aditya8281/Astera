@@ -77,7 +77,7 @@ astera/
 │   │       │   └── search.rs
 │   │       └── middleware.rs
 │   │
-│   ├── astera-cli/            # CLI binary
+│   ├── astera/                # CLI binary
 │   │   ├── Cargo.toml
 │   │   └── src/
 │   │       ├── main.rs
@@ -181,7 +181,7 @@ astera-storage     → astera-core
 astera-metrics     → astera-core
 astera-impact      → astera-graph
 astera-api         → astera-core, astera-storage
-astera-cli         → all crates
+astera (binary)    → all crates
 astera-watcher     → astera-core, astera-storage
 astera-export      → astera-core, astera-storage
 ```

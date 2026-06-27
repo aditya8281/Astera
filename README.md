@@ -26,7 +26,7 @@ Local-first static analysis engine that parses codebases into a queryable Code P
 
 ```bash
 # Install globally (adds to ~/.cargo/bin)
-cargo install --path crates/astera-cli
+cargo install --path crates/astera
 
 # Or build locally
 cargo build --release
@@ -237,7 +237,7 @@ npm run build
 | `astera-metrics` | Cyclomatic/cognitive complexity, coupling, instability |
 | `astera-impact` | BFS impact analysis, critical path, cycle detection |
 | `astera-api` | Axum HTTP server with REST endpoints + static file serving |
-| `astera-cli` | Clap-based CLI entry point |
+| `astera` | Clap-based CLI entry point (binary crate) |
 | `astera-watcher` | File watching via notify crate |
 
 ### Frontend

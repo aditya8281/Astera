@@ -89,6 +89,27 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "2a4385e2e34eb35d6b3efe798b9eb88096925d87726c0798709bf56d9ed84af3"
 
 [[package]]
+name = "astera"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "astera-api",
+ "astera-core",
+ "astera-discovery",
+ "astera-parser",
+ "astera-storage",
+ "astera-watcher",
+ "chrono",
+ "clap",
+ "rayon",
+ "serde",
+ "serde_json",
+ "tokio",
+ "tracing",
+ "tracing-subscriber",
+]
+
+[[package]]
 name = "astera-api"
 version = "0.1.0"
 dependencies = [
@@ -106,27 +127,6 @@ dependencies = [
  "tokio",
  "tower",
  "tower-http",
- "tracing",
- "tracing-subscriber",
-]
-
-[[package]]
-name = "astera-cli"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "astera-api",
- "astera-core",
- "astera-discovery",
- "astera-parser",
- "astera-storage",
- "astera-watcher",
- "chrono",
- "clap",
- "rayon",
- "serde",
- "serde_json",
- "tokio",
  "tracing",
  "tracing-subscriber",
 ]

@@ -10,7 +10,7 @@ members = [
     "crates/astera-impact",
     "crates/astera-watcher",
     "crates/astera-api",
-    "crates/astera-cli",
+    "crates/astera",
 ]
 
 [workspace.dependencies]

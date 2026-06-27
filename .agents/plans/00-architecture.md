@@ -46,23 +46,22 @@
 | 7 | `astera-metrics` | Complexity, coupling, cohesion, maintainability | — | 2 |
 | 8 | `astera-impact` | Change impact analysis, transitive closure | — | 2 |
 | 9 | `astera-api` | REST API server, middleware | `axum`, `tower-http`, `utoipa` | 1 |
-| 10 | `astera-cli` | CLI interface, output formatting | `clap`, `serde_json` | 1 |
+| 10 | `astera` | CLI entry point, output formatting | `clap` | 1 |
 | 11 | `astera-watcher` | File watching, incremental updates | `notify` | 2 |
 | 12 | `astera-export` | Export formats (JSON, GraphML, DOT, CSV) | `serde` | 3 |
 
 ## Module Dependency Graph
 
 ```
-astera-cli
+astera (binary)
   ├── astera-discovery
   ├── astera-parser (→ astera-core)
   ├── astera-resolver (→ astera-core)
-  ├── astera-graph (→ astera-core)
-  ├── astera-metrics (→ astera-core)
-  ├── astera-impact (→ astera-graph)
   ├── astera-storage (→ astera-core)
-  ├── astera-api (→ astera-core, astera-storage)
-  ├── astera-watcher (→ astera-core)
+  ├── astera-metrics (→ astera-core)
+  ├── astera-impact (→ astera-core)
+  ├── astera-api (→ astera-core, astera-storage, astera-metrics, astera-impact)
+  ├── astera-watcher (→ astera-core, astera-storage, astera-parser, astera-discovery)
   └── astera-export (→ astera-core, astera-storage)
 ```
 
