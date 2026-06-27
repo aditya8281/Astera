@@ -246,6 +246,24 @@ export function GraphPage() {
 }
 
 function StatBadge({ label, value }: { label: string; value: number }) {
+  const [display, setDisplay] = useState(0)
+
+  useEffect(() => {
+    if (value === 0) { setDisplay(0); return }
+    const duration = 400
+    const start = performance.now()
+    const from = display
+    let raf: number
+    const tick = (now: number) => {
+      const t = Math.min((now - start) / duration, 1)
+      const eased = 1 - Math.pow(1 - t, 3) // ease-out cubic
+      setDisplay(Math.round(from + (value - from) * eased))
+      if (t < 1) raf = requestAnimationFrame(tick)
+    }
+    raf = requestAnimationFrame(tick)
+    return () => cancelAnimationFrame(raf)
+  }, [value])
+
   return (
     <div
       className="px-2.5 py-1 rounded font-mono text-xs"
@@ -255,7 +273,7 @@ function StatBadge({ label, value }: { label: string; value: number }) {
         color: COLORS.textMuted,
       }}
     >
-      <span style={{ color: COLORS.text }}>{value.toLocaleString()}</span>
+      <span style={{ color: COLORS.text }}>{display.toLocaleString()}</span>
       {' '}
       <span className="text-[10px]">{label}</span>
     </div>

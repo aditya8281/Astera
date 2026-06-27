@@ -40,6 +40,13 @@ export function GraphCanvas({ nodes, edges, isLoading, error, onNodeDoubleClick 
   const selectNode = useUIStore((s) => s.selectNode)
   const cameraTarget = useUIStore((s) => s.cameraTarget)
 
+  // Selection pulse: brief expanding ring on node select
+  const selectionPulseRef = useRef<{ id: number; startTime: number } | null>(null)
+  const prevSelectedRef = useRef<number | null>(null)
+
+  // Hover tracking for glow ring
+  const hoverNodeIdRef = useRef<number | null>(null)
+
   // Camera target follow (when selecting a node)
   useEffect(() => {
     if (!cameraTarget || !containerRef.current) return
@@ -51,6 +58,14 @@ export function GraphCanvas({ nodes, edges, isLoading, error, onNodeDoubleClick 
     transformRef.current.y = rect.height / 2 - targetY * scale
     /* trigger draw via animation loop */
   }, [cameraTarget])
+
+  // Trigger reticle pulse on selection change
+  useEffect(() => {
+    if (selectedNodeId !== null && selectedNodeId !== prevSelectedRef.current) {
+      selectionPulseRef.current = { id: selectedNodeId, startTime: performance.now() }
+    }
+    prevSelectedRef.current = selectedNodeId
+  }, [selectedNodeId])
 
   // Draw loop
   const draw = useCallback(() => {
@@ -125,6 +140,30 @@ export function GraphCanvas({ nodes, edges, isLoading, error, onNodeDoubleClick 
         ctx.stroke()
       }
 
+      // Reticle pulse — expanding ring that fades out on select
+      const pulse = selectionPulseRef.current
+      if (pulse && pulse.id === node.id) {
+        const elapsed = (performance.now() - pulse.startTime) / 600 // 600ms duration
+        if (elapsed < 1) {
+          const pulseR = r + 5 + elapsed * 20
+          const alpha = Math.round((1 - elapsed) * 60).toString(16).padStart(2, '0')
+          ctx.beginPath()
+          ctx.arc(nx, ny, pulseR, 0, Math.PI * 2)
+          ctx.strokeStyle = `${COLORS.selection}${alpha}`
+          ctx.lineWidth = 1.5
+          ctx.stroke()
+        }
+      }
+
+      // Hover glow — soft ring when cursor is near a node
+      if (hoverNodeIdRef.current === node.id && !isSelected) {
+        ctx.beginPath()
+        ctx.arc(nx, ny, r + 4, 0, Math.PI * 2)
+        ctx.strokeStyle = `${COLORS.selection}25`
+        ctx.lineWidth = 1
+        ctx.stroke()
+      }
+
       // Labels at higher zoom
       if (scale >= 1.2) {
         ctx.font = `10px 'IBM Plex Mono', monospace`
@@ -165,7 +204,26 @@ export function GraphCanvas({ nodes, edges, isLoading, error, onNodeDoubleClick 
   }, [])
 
   const handleMouseMove = useCallback((e: React.MouseEvent) => {
-    if (!dragRef.current.dragging) return
+    if (!dragRef.current.dragging) {
+      // Hover tracking for glow ring
+      const rect = canvasRef.current?.getBoundingClientRect()
+      if (rect) {
+        const mx = (e.clientX - rect.left - transformRef.current.x) / transformRef.current.scale
+        const my = (e.clientY - rect.top - transformRef.current.y) / transformRef.current.scale
+        let closest: number | null = null
+        let closestDist = Infinity
+        for (const node of nodes) {
+          const pos = positions.get(node.id)
+          if (!pos) continue
+          const dx = pos.x - mx, dy = pos.y - my
+          const dist = Math.sqrt(dx * dx + dy * dy)
+          const threshold = nodeRadius(node.kind) + 6
+          if (dist < threshold && dist < closestDist) { closest = node.id; closestDist = dist }
+        }
+        hoverNodeIdRef.current = closest
+      }
+      return
+    }
     const dx = e.clientX - dragRef.current.lastX
     const dy = e.clientY - dragRef.current.lastY
     dragRef.current.lastX = e.clientX
@@ -272,7 +330,7 @@ export function GraphCanvas({ nodes, edges, isLoading, error, onNodeDoubleClick 
         onMouseDown={handleMouseDown}
         onMouseMove={handleMouseMove}
         onMouseUp={handleMouseUp}
-        onMouseLeave={handleMouseUp}
+        onMouseLeave={() => { handleMouseUp(); hoverNodeIdRef.current = null }}
         onWheel={handleWheel}
         onClick={handleClick}
         onDoubleClick={handleDoubleClick}
