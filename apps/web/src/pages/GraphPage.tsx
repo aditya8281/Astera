@@ -174,7 +174,6 @@ export function GraphPage() {
             background: `${COLORS.surface}E8`,
             border: `1px solid ${COLORS.border}`,
             zIndex: 'var(--z-minimap)',
-            backdropFilter: 'blur(8px)',
           }}
         >
           <div className="flex items-center gap-2 mb-1">
@@ -227,7 +226,6 @@ function StatBadge({ label, value }: { label: string; value: number }) {
         background: `${COLORS.surface}D0`,
         border: `1px solid ${COLORS.border}`,
         color: COLORS.textMuted,
-        backdropFilter: 'blur(8px)',
       }}
     >
       <span style={{ color: COLORS.text }}>{value.toLocaleString()}</span>

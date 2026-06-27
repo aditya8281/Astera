@@ -56,7 +56,7 @@ export function KeyboardShortcuts() {
         style={{
           background: COLORS.surface,
           border: `1px solid ${COLORS.border}`,
-          boxShadow: '0 20px 60px rgba(0,0,0,0.5)',
+          /* no shadow — tonal depth only */
         }}
         onClick={(e) => e.stopPropagation()}
       >

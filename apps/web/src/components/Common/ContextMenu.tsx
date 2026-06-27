@@ -108,7 +108,7 @@ export function ContextMenu({ nodeName, nodeKind, position, onClose }: ContextMe
         style={{
           background: COLORS.surface,
           border: `1px solid ${COLORS.border}`,
-          boxShadow: '0 12px 40px rgba(0,0,0,0.6), 0 0 0 1px rgba(255,255,255,0.03)',
+          /* no shadow — tonal depth only */
         }}
       >
         {/* Header — node identity */}

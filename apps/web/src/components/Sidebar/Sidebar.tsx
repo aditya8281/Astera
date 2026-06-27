@@ -109,7 +109,7 @@ export function Sidebar() {
               {/* Active indicator */}
               {active && (
                 <span
-                  className="absolute left-0 top-1/2 -translate-y-1/2 w-0.5 h-5 rounded-r"
+                  className="absolute left-0 top-1/2 -translate-y-1/2 w-px h-5 rounded-r"
                   style={{ background: COLORS.selection }}
                 />
               )}
@@ -117,7 +117,7 @@ export function Sidebar() {
               <span className="flex-shrink-0 w-5 flex items-center justify-center">{item.icon}</span>
 
               {sidebarExpanded && (
-                <span className="text-xs font-medium truncate flex-1 text-left">
+                <span className="text-xs font-semibold truncate flex-1 text-left">
                   {item.label}
                 </span>
               )}
@@ -129,7 +129,7 @@ export function Sidebar() {
               {/* Tooltip when collapsed */}
               {!sidebarExpanded && (
                 <span
-                  className="absolute left-full ml-2 px-2 py-1 rounded text-xs font-medium whitespace-nowrap opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity"
+                  className="absolute left-full ml-2 px-2 py-1 rounded text-xs font-semibold whitespace-nowrap opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity"
                   style={{
                     background: COLORS.surface,
                     color: COLORS.text,

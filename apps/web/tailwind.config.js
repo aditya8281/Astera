@@ -29,6 +29,9 @@ export default {
         body: ['IBM Plex Sans', '-apple-system', 'BlinkMacSystemFont', 'sans-serif'],
         mono: ['IBM Plex Mono', 'Fira Code', 'monospace'],
       },
+      fontSize: {
+        'micro': ['0.625rem', { lineHeight: '1.4', letterSpacing: '0.02em' }],
+      },
       spacing: {
         'sidebar': '48px',
         'sidebar-expanded': '200px',

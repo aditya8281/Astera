@@ -109,7 +109,7 @@ export function PluginRegistry() {
     <div className="p-3 space-y-3">
       {/* Header */}
       <div className="flex items-center justify-between">
-        <h3 className="text-sm font-heading font-semibold" style={{ color: COLORS.text }}>
+        <h3 className="text-sm font-heading" style={{ color: COLORS.text }}>
           Plugin Registry
         </h3>
         <button
@@ -168,7 +168,7 @@ export function PluginRegistry() {
                 onMouseEnter={(e) => (e.currentTarget.style.background = COLORS.surfaceHover)}
                 onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
               >
-                <span className="text-xs font-medium flex-1" style={{ color: COLORS.text }}>
+                <span className="text-xs font-semibold flex-1" style={{ color: COLORS.text }}>
                   {plugin.name}
                 </span>
 

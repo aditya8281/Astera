@@ -206,10 +206,9 @@ export function ReindexOverlay() {
         padding: '8px 16px',
         color: '#00ff88',
         fontSize: '13px',
-        fontFamily: 'monospace',
+        fontFamily: 'var(--font-mono)',
         zIndex: 1000,
         animation: 'fadeInUp 0.3s ease-out',
-        backdropFilter: 'blur(8px)',
       }}
     >
       Graph updated — nodes refreshed

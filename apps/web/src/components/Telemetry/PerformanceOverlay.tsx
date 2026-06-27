@@ -68,7 +68,6 @@ export function PerformanceOverlay() {
         border: `1px solid ${COLORS.border}`,
         color: COLORS.textMuted,
         zIndex: 'var(--z-telemetry)',
-        backdropFilter: 'blur(8px)',
         minWidth: 160,
       }}
     >

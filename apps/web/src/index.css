@@ -21,7 +21,7 @@
   --color-border-light: #454850;
   --color-text: #E0E4EC;
   --color-text-muted: #8B91A0;
-  --color-text-dim: #5A6070;
+  --color-text-dim: #6B7080;
 
   --color-accent: #59F6FF;
   --color-accent-dim: #3AA8B0;
@@ -38,6 +38,14 @@
   --font-heading: 'Space Grotesk', system-ui, sans-serif;
   --font-body: 'IBM Plex Sans', -apple-system, BlinkMacSystemFont, sans-serif;
   --font-mono: 'IBM Plex Mono', 'JetBrains Mono', 'Fira Code', monospace;
+
+  --text-micro: 0.769rem;
+  --text-xs: 0.923rem;
+  --text-sm: 1rem;
+  --text-base: 1.077rem;
+  --text-md: 1.231rem;
+  --text-lg: 1.385rem;
+  --text-xl: 1.538rem;
 
   --sidebar-width: 48px;
   --sidebar-expanded-width: 200px;
@@ -70,7 +78,7 @@ html, body, #root {
   background: var(--color-bg);
   color: var(--color-text);
   font-family: var(--font-body);
-  font-size: 13px;
+  font-size: var(--text-sm);
   line-height: 1.5;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
@@ -84,11 +92,12 @@ h1, h2, h3 {
   font-weight: 700;
   letter-spacing: -0.01em;
   text-wrap: balance;
+  line-height: 1.2;
 }
 
-h1 { font-size: clamp(1.25rem, 2vw, 1.5rem); }
-h2 { font-size: clamp(1rem, 1.5vw, 1.25rem); }
-h3 { font-size: clamp(0.875rem, 1.2vw, 1rem); }
+h1 { font-size: var(--text-xl); }
+h2 { font-size: var(--text-lg); }
+h3 { font-size: var(--text-md); }
 
 code, pre, .mono {
   font-family: var(--font-mono);

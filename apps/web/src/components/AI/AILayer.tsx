@@ -153,7 +153,7 @@ export function AIChatPanel() {
             padding: '2px 8px',
             borderRadius: '4px',
             fontSize: '10px',
-            fontFamily: 'monospace',
+            fontFamily: 'var(--font-mono)',
           }}
         >
           {configured ? 'Connected' : 'Not Configured'}
@@ -246,7 +246,7 @@ export function AIChatPanel() {
             padding: '8px 12px',
             color: COLORS.text,
             fontSize: '12px',
-            fontFamily: 'monospace',
+            fontFamily: 'var(--font-mono)',
             outline: 'none',
           }}
         />
@@ -261,7 +261,7 @@ export function AIChatPanel() {
             padding: '8px 16px',
             fontSize: '12px',
             cursor: configured && !loading ? 'pointer' : 'not-allowed',
-            fontFamily: 'monospace',
+            fontFamily: 'var(--font-mono)',
           }}
         >
           Send
