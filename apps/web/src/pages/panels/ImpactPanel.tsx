@@ -3,6 +3,7 @@ import { useQuery } from '@tanstack/react-query'
 import { api } from '../../api'
 import { NODE_COLORS, COLORS } from '../../constants'
 import type { ImpactResponse } from '../../types'
+import { CheckIcon, AlertIcon } from '../../components/Common/Icons'
 
 export function ImpactPanel() {
   const [rootId, setRootId] = useState('')
@@ -108,7 +109,7 @@ export function ImpactPanel() {
             </div>
             <div className="px-2 py-1.5 rounded text-center" style={{ background: COLORS.bg, border: `1px solid ${COLORS.border}` }}>
               <div className="text-base font-heading font-bold" style={{ color: impact.cycle_detected ? COLORS.error : COLORS.success }}>
-                {impact.cycle_detected ? '⚠' : '✓'}
+                {impact.cycle_detected ? <AlertIcon size={16} color={COLORS.error} /> : <CheckIcon size={16} color={COLORS.success} />}
               </div>
               <div className="text-[9px] font-mono" style={{ color: COLORS.textDim }}>cycle</div>
             </div>

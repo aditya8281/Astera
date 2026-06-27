@@ -1,5 +1,6 @@
 import { useState, useCallback } from 'react'
 import { COLORS } from '../../constants'
+import { SparklesIcon } from '../Common/Icons'
 
 // ─── AI Layer — reservation for future LLM-powered features ───
 //
@@ -140,7 +141,7 @@ export function AIChatPanel() {
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%', padding: '16px' }}>
       {/* Header */}
       <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '12px' }}>
-        <span style={{ fontSize: '16px' }}>◈</span>
+        <SparklesIcon size={16} color={COLORS.accent} />
         <h3 style={{ margin: 0, color: COLORS.text, fontSize: '14px', fontWeight: 600 }}>
           AI Analysis
         </h3>
@@ -184,7 +185,7 @@ export function AIChatPanel() {
               gap: '8px',
             }}
           >
-            <span style={{ fontSize: '24px', opacity: 0.3 }}>◈</span>
+            <span style={{ opacity: 0.3 }}><SparklesIcon size={24} color={COLORS.textMuted} /></span>
             <p style={{ margin: 0 }}>Ask questions about your codebase</p>
             <p style={{ margin: 0, fontSize: '11px', opacity: 0.6 }}>
               "What does this function do?" · "What would break if I change this?"

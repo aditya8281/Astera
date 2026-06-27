@@ -212,7 +212,7 @@ export function ReindexOverlay() {
         backdropFilter: 'blur(8px)',
       }}
     >
-      ↻ Graph updated — nodes refreshed
+      Graph updated — nodes refreshed
     </div>
   )
 }

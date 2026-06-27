@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react'
 import { COLORS } from '../../constants'
+import { SeverityInfoIcon, SeverityWarningIcon, SeverityErrorIcon, AlertIcon, SpinnerIcon, PlayIcon, ChevronRightIcon, ChevronDownIcon } from '../Common/Icons'
 
 // ─── Plugin types (mirrors backend astera-plugins) ───
 
@@ -34,11 +35,11 @@ const SEVERITY_COLORS: Record<string, string> = {
   Critical: '#DC2626',
 }
 
-const SEVERITY_ICONS: Record<string, string> = {
-  Info: 'ℹ',
-  Warning: '⚠',
-  Error: '✕',
-  Critical: ' !!',
+const SEVERITY_ICON_MAP: Record<string, typeof SeverityInfoIcon> = {
+  Info: SeverityInfoIcon,
+  Warning: SeverityWarningIcon,
+  Error: SeverityErrorIcon,
+  Critical: AlertIcon,
 }
 
 const KIND_BADGES: Record<string, { bg: string; text: string }> = {
@@ -114,7 +115,7 @@ export function PluginRegistry() {
         <button
           onClick={runPlugins}
           disabled={running}
-          className="px-3 py-1.5 rounded text-xs font-mono transition-colors"
+          className="flex items-center gap-1.5 px-3 py-1.5 rounded text-xs font-mono transition-colors"
           style={{
             background: running ? `${COLORS.accent}10` : `${COLORS.accent}18`,
             border: `1px solid ${COLORS.accent}30`,
@@ -122,7 +123,8 @@ export function PluginRegistry() {
             cursor: running ? 'wait' : 'pointer',
           }}
         >
-          {running ? '⟳ Running...' : '▶ Run All'}
+          {running ? <SpinnerIcon size={12} color={COLORS.accent} /> : <PlayIcon size={10} color={COLORS.accent} />}
+          {running ? 'Running...' : 'Run All'}
         </button>
       </div>
 
@@ -130,7 +132,7 @@ export function PluginRegistry() {
       {findings.length > 0 && (
         <div
           className="flex gap-3 px-3 py-2 rounded text-xs font-mono"
-          style={{ background: `${COLORS.surface}`, border: `1px solid ${COLORS.border}` }}
+          style={{ background: COLORS.surface, border: `1px solid ${COLORS.border}` }}
         >
           <span style={{ color: COLORS.text }}>{totalFindings} findings</span>
           {criticalCount > 0 && (
@@ -157,7 +159,7 @@ export function PluginRegistry() {
             <div
               key={plugin.name}
               className="rounded-lg overflow-hidden"
-              style={{ background: `${COLORS.surface}`, border: `1px solid ${COLORS.border}` }}
+              style={{ background: COLORS.surface, border: `1px solid ${COLORS.border}` }}
             >
               {/* Plugin header */}
               <button
@@ -184,14 +186,14 @@ export function PluginRegistry() {
                 {pluginFindings && pluginFindings.findings.length > 0 && (
                   <span
                     className="px-1.5 py-0.5 rounded-full text-[11px] font-mono"
-                    style={{ background: `${COLORS.surfaceDim}`, color: COLORS.text }}
+                    style={{ background: COLORS.surfaceDim, color: COLORS.text }}
                   >
                     {pluginFindings.findings.length}
                   </span>
                 )}
 
-                <span className="text-[10px]" style={{ color: COLORS.textDim }}>
-                  {isExpanded ? '▾' : '▸'}
+                <span style={{ color: COLORS.textDim }}>
+                  {isExpanded ? <ChevronDownIcon size={10} /> : <ChevronRightIcon size={10} />}
                 </span>
               </button>
 
@@ -204,28 +206,28 @@ export function PluginRegistry() {
                   <p className="text-[11px] mb-2" style={{ color: COLORS.textMuted }}>
                     {plugin.description}
                   </p>
-                  {pluginFindings.findings.slice(0, 20).map((finding, i) => (
-                    <div
-                      key={i}
-                      className="flex items-start gap-1.5 py-1 text-xs font-mono"
-                      style={{ borderBottom: `1px solid ${COLORS.border}` }}
-                    >
-                      <span
-                        className="flex-shrink-0 text-[11px]"
-                        style={{ color: SEVERITY_COLORS[finding.severity] }}
+                  {pluginFindings.findings.slice(0, 20).map((finding, i) => {
+                    const IconComp = SEVERITY_ICON_MAP[finding.severity] || SeverityInfoIcon
+                    return (
+                      <div
+                        key={i}
+                        className="flex items-start gap-1.5 py-1 text-xs font-mono"
+                        style={{ borderBottom: `1px solid ${COLORS.border}` }}
                       >
-                        {SEVERITY_ICONS[finding.severity]}
-                      </span>
-                      <span className="flex-1 break-words" style={{ color: COLORS.text }}>
-                        {finding.message}
-                      </span>
-                      {finding.line && (
-                        <span className="text-[10px] flex-shrink-0" style={{ color: COLORS.textDim }}>
-                          L{finding.line}
+                        <span className="flex-shrink-0 mt-0.5" style={{ color: SEVERITY_COLORS[finding.severity] }}>
+                          <IconComp size={12} />
                         </span>
-                      )}
-                    </div>
-                  ))}
+                        <span className="flex-1 break-words" style={{ color: COLORS.text }}>
+                          {finding.message}
+                        </span>
+                        {finding.line && (
+                          <span className="text-[10px] flex-shrink-0" style={{ color: COLORS.textDim }}>
+                            L{finding.line}
+                          </span>
+                        )}
+                      </div>
+                    )
+                  })}
                   {pluginFindings.findings.length > 20 && (
                     <p className="text-[11px] mt-1" style={{ color: COLORS.textMuted }}>
                       +{pluginFindings.findings.length - 20} more

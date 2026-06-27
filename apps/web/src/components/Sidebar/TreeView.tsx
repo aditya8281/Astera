@@ -4,6 +4,7 @@ import { api } from '../../api'
 import { NODE_COLORS, COLORS } from '../../constants'
 import { useUIStore } from '../../store'
 import type { SymbolNode } from '../../types'
+import { ChevronRightIcon, ChevronDownIcon } from '../Common/Icons'
 
 interface TreeNode {
   symbol: SymbolNode
@@ -99,7 +100,7 @@ function TreeItem({ node, depth = 0 }: { node: TreeNode; depth?: number }) {
         {/* Expand/collapse arrow */}
         {hasChildren ? (
           <span className="text-[8px] w-3 text-center flex-shrink-0" style={{ color: COLORS.textDim }}>
-            {expanded ? '▾' : '▸'}
+            {expanded ? <ChevronDownIcon size={8} /> : <ChevronRightIcon size={8} />}
           </span>
         ) : (
           <span className="w-3 flex-shrink-0" />

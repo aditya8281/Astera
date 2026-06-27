@@ -2,6 +2,7 @@ import { useQuery } from '@tanstack/react-query'
 import { api } from '../api'
 import { COLORS } from '../constants'
 import type { MetricsResponse } from '../types'
+import { CheckIcon } from '../components/Common/Icons'
 
 export function MetricsPage() {
   const { data, isLoading, error } = useQuery({
@@ -54,7 +55,7 @@ export function MetricsPage() {
 
       {m.circular_dependencies.length > 0 && (
         <div className="mb-8">
-          <h3 className="text-sm font-heading font-bold mb-3" style={{ color: COLORS.error }}>⚠ Circular Dependencies</h3>
+          <h3 className="text-sm font-heading font-bold mb-3" style={{ color: COLORS.error }}>Circular Dependencies</h3>
           <div className="space-y-2">
             {m.circular_dependencies.map(([a, b], i) => (
               <div key={i} className="flex items-center gap-2 px-3 py-2 rounded text-xs font-mono" style={{ background: COLORS.surface, color: COLORS.error }}>
@@ -69,7 +70,7 @@ export function MetricsPage() {
 
       {m.circular_dependencies.length === 0 && (
         <div className="mb-8">
-          <h3 className="text-sm font-heading font-bold mb-3" style={{ color: COLORS.success }}>✓ No Circular Dependencies</h3>
+          <h3 className="flex items-center gap-2 text-sm font-heading font-bold mb-3" style={{ color: COLORS.success }}><CheckIcon size={14} color={COLORS.success} /> No Circular Dependencies</h3>
           <p className="text-xs" style={{ color: COLORS.textMuted }}>All module dependencies are acyclic.</p>
         </div>
       )}

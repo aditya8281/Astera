@@ -3,6 +3,7 @@ import { useQuery } from '@tanstack/react-query'
 import { api } from '../api'
 import { NODE_COLORS, COLORS } from '../constants'
 import type { ImpactResponse } from '../types'
+import { AlertIcon, ArrowRightIcon } from '../components/Common/Icons'
 
 export function ImpactPage() {
   const [rootId, setRootId] = useState('')
@@ -112,7 +113,7 @@ export function ImpactPage() {
             {impact.cycle_detected && (
               <div className="rounded px-4 py-2" style={{ background: COLORS.surface, border: `1px solid ${COLORS.error}40` }}>
                 <p className="text-[10px]" style={{ color: COLORS.error }}>Cycle Detected</p>
-                <p className="text-xl font-heading font-bold" style={{ color: COLORS.error }}>⚠</p>
+                <p className="text-xl font-heading font-bold" style={{ color: COLORS.error }}><AlertIcon size={20} color={COLORS.error} /></p>
               </div>
             )}
           </div>
@@ -127,8 +128,10 @@ export function ImpactPage() {
                   onMouseEnter={(e) => (e.currentTarget.style.background = COLORS.surfaceHover)}
                   onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
                 >
-                  <span className="text-[10px] font-mono w-8 text-right" style={{ color: COLORS.textDim }}>
-                    {'→'.repeat(Math.min(node.depth, 5))}
+                  <span className="flex items-center w-8 justify-end" style={{ color: COLORS.textDim }}>
+                    {Array.from({ length: Math.min(node.depth, 5) }, (_, i) => (
+                      <ArrowRightIcon key={i} size={8} color={COLORS.textDim} />
+                    ))}
                   </span>
                   <span className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ background: NODE_COLORS[node.kind] || COLORS.inactive }} />
                   <span className="text-xs font-mono flex-1 truncate">{node.name}</span>

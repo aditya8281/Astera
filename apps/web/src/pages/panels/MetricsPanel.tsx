@@ -2,6 +2,7 @@ import { useQuery } from '@tanstack/react-query'
 import { api } from '../../api'
 import { COLORS } from '../../constants'
 import type { MetricsResponse } from '../../types'
+import { CheckIcon } from '../../components/Common/Icons'
 
 export function MetricsPanel() {
   const { data, isLoading, error } = useQuery({
@@ -87,7 +88,7 @@ export function MetricsPanel() {
         </div>
         {m.circular_dependencies.length === 0 ? (
           <div className="flex items-center gap-2 px-2 py-1.5 rounded text-xs" style={{ background: `${COLORS.success}10`, color: COLORS.success }}>
-            ✓ None detected
+            <CheckIcon size={12} color={COLORS.success} /> None detected
           </div>
         ) : (
           <div className="space-y-1">

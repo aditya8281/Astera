@@ -1,6 +1,7 @@
-import { useEffect, useRef, useCallback } from 'react'
+import { useEffect, useRef, useCallback, type ReactNode } from 'react'
 import { useUIStore } from '../../store'
 import { COLORS } from '../../constants'
+import { ClipboardIcon, TreeIcon, ImpactIcon, MetricsIcon } from './Icons'
 
 // ─── Types ───
 
@@ -14,7 +15,7 @@ interface ContextMenuProps {
 // ─── Menu item definition ───
 
 interface MenuItem {
-  icon: string
+  icon: ReactNode
   label: string
   action: () => void
   separator?: boolean
@@ -48,11 +49,11 @@ export function ContextMenu({ nodeName, nodeKind, position, onClose }: ContextMe
   // ─── Build menu items ───
 
   const items: MenuItem[] = [
-    { icon: '📋', label: 'Copy name', action: handleCopyName },
-    { icon: '🌳', label: 'Show in tree', action: handleShowInTree },
-    { icon: '◎', label: 'Impact from here', action: handleImpactFromHere },
-    { icon: '', label: '', action: () => {}, separator: true },
-    { icon: '◈', label: 'Metrics for this', action: handleMetricsForThis },
+    { icon: <ClipboardIcon size={14} />, label: 'Copy name', action: handleCopyName },
+    { icon: <TreeIcon size={14} />, label: 'Show in tree', action: handleShowInTree },
+    { icon: <ImpactIcon size={14} />, label: 'Impact from here', action: handleImpactFromHere },
+    { icon: null as any, label: '', action: () => {}, separator: true },
+    { icon: <MetricsIcon size={14} />, label: 'Metrics for this', action: handleMetricsForThis },
   ]
 
   // ─── Close on click outside ───
@@ -154,7 +155,7 @@ export function ContextMenu({ nodeName, nodeKind, position, onClose }: ContextMe
                 e.currentTarget.style.background = 'transparent'
               }}
             >
-              <span className="w-4 text-center text-sm flex-shrink-0" style={{ lineHeight: 1 }}>
+              <span className="flex-shrink-0 w-4 flex items-center justify-center" style={{ lineHeight: 1 }}>
                 {item.icon}
               </span>
               <span className="font-body">{item.label}</span>

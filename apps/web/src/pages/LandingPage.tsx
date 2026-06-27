@@ -1,8 +1,9 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import { api } from '../api'
 import { COLORS } from '../constants'
+import { CopyIcon, CheckIcon, GraphIcon, ImpactIcon, MetricsIcon, GithubIcon, ArrowRightIcon } from '../components/Common/Icons'
 
 // ─── Language icons (SVG inline) ───
 
@@ -12,24 +13,24 @@ const LANGUAGES = [
   { name: 'Python', abbr: 'PY', color: '#3776AB' },
   { name: 'Rust', abbr: 'RS', color: '#CE412B' },
   { name: 'Go', abbr: 'GO', color: '#00ADD8' },
-  { name: 'C', abbr: 'C', color: '#555555' },
+  { name: 'C', abbr: 'C', color: '#888888' },
   { name: 'C++', abbr: 'C+', color: '#659AD2' },
   { name: 'Java', abbr: 'JV', color: '#ED8B00' },
 ]
 
-const FEATURES = [
+const FEATURES: Array<{ icon: ReactNode; title: string; desc: string }> = [
   {
-    icon: '◆',
+    icon: <GraphIcon size={20} color={COLORS.accent} />,
     title: 'Parse',
     desc: 'Tree-sitter powers symbol extraction across 8 languages. Error-tolerant, incremental, fast.',
   },
   {
-    icon: '◎',
+    icon: <ImpactIcon size={20} color={COLORS.accent} />,
     title: 'Explore',
     desc: 'Interactive 3D knowledge graph. Drill down into modules, trace call paths, find clusters.',
   },
   {
-    icon: '◈',
+    icon: <MetricsIcon size={20} color={COLORS.accent} />,
     title: 'Analyze',
     desc: 'Cyclomatic complexity, coupling metrics, circular dependency detection, change impact analysis.',
   },
@@ -56,7 +57,6 @@ function MiniGraph() {
     const w = canvas.width * 0.5
     const h = canvas.height * 0.5
 
-    // Generate nodes in clusters
     const nodes: Array<{
       x: number; y: number; vx: number; vy: number
       r: number; cluster: number; opacity: number
@@ -82,16 +82,13 @@ function MiniGraph() {
       })
     }
 
-    // Generate edges within clusters + some cross-cluster
     const edges: Array<{ from: number; to: number }> = []
     for (let i = 0; i < nodes.length; i++) {
-      // Connect to 1-2 same-cluster nodes
       for (let j = i + 1; j < nodes.length; j++) {
         if (nodes[j].cluster === nodes[i].cluster && Math.random() < 0.15) {
           edges.push({ from: i, to: j })
         }
       }
-      // Sparse cross-cluster edges
       if (Math.random() < 0.03) {
         const otherCluster = (nodes[i].cluster + 1 + Math.floor(Math.random() * 2)) % 3
         const candidates = nodes
@@ -109,7 +106,6 @@ function MiniGraph() {
       t += 0.005
       ctx.clearRect(0, 0, canvas.width, canvas.height)
 
-      // Draw edges
       ctx.lineWidth = 0.5
       for (const edge of edges) {
         const a = nodes[edge.from]
@@ -122,21 +118,17 @@ function MiniGraph() {
         ctx.stroke()
       }
 
-      // Update and draw nodes
       for (const node of nodes) {
         node.x += node.vx
         node.y += node.vy
 
-        // Bounce
         if (node.x < w * 0.1 || node.x > w * 0.9) node.vx *= -1
         if (node.y < h * 0.1 || node.y > h * 0.9) node.vy *= -1
 
-        // Subtle cluster gravity
         const center = clusterCenters[node.cluster]
         node.vx += (center.x - node.x) * 0.0001
         node.vy += (center.y - node.y) * 0.0001
 
-        // Damping
         node.vx *= 0.999
         node.vy *= 0.999
 
@@ -172,7 +164,6 @@ export function LandingPage() {
   const navigate = useNavigate()
   const [copied, setCopied] = useState<number | null>(null)
 
-  // Check if index exists
   const { data: statsData } = useQuery({
     queryKey: ['stats-check'],
     queryFn: () => api.stats(),
@@ -191,12 +182,10 @@ export function LandingPage() {
     <div className="h-full overflow-y-auto" style={{ background: COLORS.bg }}>
       {/* ─── Hero ─── */}
       <section className="relative flex flex-col items-center justify-center min-h-[70vh] px-6">
-        {/* Graph background */}
         <div className="absolute inset-0 overflow-hidden" style={{ opacity: 0.5 }}>
           <MiniGraph />
         </div>
 
-        {/* Gradient overlay */}
         <div
           className="absolute inset-0 pointer-events-none"
           style={{
@@ -205,7 +194,6 @@ export function LandingPage() {
         />
 
         <div className="relative z-10 flex flex-col items-center text-center max-w-2xl">
-          {/* Wordmark */}
           <h1
             className="font-heading font-bold tracking-tight mb-3"
             style={{
@@ -248,7 +236,7 @@ export function LandingPage() {
                 color: copied === 0 ? COLORS.accent : COLORS.textMuted,
               }}
             >
-              {copied === 0 ? '✓' : '⧉'}
+              {copied === 0 ? <CheckIcon size={14} /> : <CopyIcon size={14} />}
             </button>
           </div>
 
@@ -273,14 +261,10 @@ export function LandingPage() {
                 e.currentTarget.style.color = COLORS.textMuted
               }}
             >
-              {/* GitHub icon */}
-              <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor">
-                <path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z" />
-              </svg>
+              <GithubIcon size={14} />
               <span>github.com/astera-dev/astera</span>
             </a>
 
-            {/* License badge */}
             <span
               className="text-[10px] font-mono px-2 py-1 rounded"
               style={{
@@ -300,7 +284,7 @@ export function LandingPage() {
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           {FEATURES.map((f) => (
             <div key={f.title} className="flex flex-col gap-2">
-              <span className="text-lg" style={{ color: COLORS.accent }}>{f.icon}</span>
+              {f.icon}
               <h3
                 className="font-heading font-bold text-sm"
                 style={{ color: COLORS.text }}
@@ -396,13 +380,13 @@ export function LandingPage() {
               </div>
               <button
                 onClick={() => copyCmd(step.cmd, i + 1)}
-                className="px-2 py-1 rounded text-[10px] font-mono transition-colors flex-shrink-0"
+                className="flex items-center gap-1 px-2 py-1 rounded text-[10px] font-mono transition-colors flex-shrink-0"
                 style={{
                   color: copied === i + 1 ? COLORS.accent : COLORS.textDim,
                   background: 'transparent',
                 }}
               >
-                {copied === i + 1 ? '✓ copied' : '⧉ copy'}
+                {copied === i + 1 ? <><CheckIcon size={10} /> copied</> : <><CopyIcon size={10} /> copy</>}
               </button>
             </div>
           ))}
@@ -425,7 +409,7 @@ export function LandingPage() {
               role="button"
               tabIndex={0}
             >
-              <span className="text-xl" style={{ color: COLORS.accent }}>◆</span>
+              <GraphIcon size={20} color={COLORS.accent} />
               <div className="text-left">
                 <div className="text-sm font-heading font-bold" style={{ color: COLORS.text }}>
                   Index loaded — explore now
@@ -434,7 +418,7 @@ export function LandingPage() {
                   {stats.symbols.toLocaleString()} symbols · {stats.files.toLocaleString()} files · {stats.edges.toLocaleString()} edges
                 </div>
               </div>
-              <span className="text-sm" style={{ color: COLORS.accent }}>→</span>
+              <ArrowRightIcon size={16} color={COLORS.accent} />
             </div>
           </div>
         </section>

@@ -1,27 +1,28 @@
-import { useState, useRef, useEffect, useCallback } from 'react'
+import { useState, useRef, useEffect, useCallback, type ReactNode } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
 import { useUIStore } from '../../store'
 import { NODE_COLORS, COLORS } from '../../constants'
 import type { PanelId } from '../../types'
 import { TreeView } from './TreeView'
+import { HomeIcon, GraphIcon, SearchIcon, FunctionIcon, FilesIcon, MetricsIcon, ImpactIcon, SettingsIcon, ChevronDownIcon, ChevronRightIcon } from '../Common/Icons'
 
 interface NavItem {
   id: PanelId
-  icon: string
+  icon: ReactNode
   label: string
   shortcut?: string
   path?: string
 }
 
 const NAV_ITEMS: NavItem[] = [
-  { id: null, icon: '⌂', label: 'Home', shortcut: '0', path: '/' },
-  { id: null, icon: '◆', label: 'Graph', shortcut: '1', path: '/graph' },
-  { id: 'search', icon: '🔍', label: 'Search', shortcut: '⌘K' },
-  { id: 'symbols', icon: 'ƒ', label: 'Symbols', shortcut: '2' },
-  { id: 'files', icon: '≡', label: 'Files', shortcut: '3' },
-  { id: 'metrics', icon: '◈', label: 'Metrics', shortcut: '4' },
-  { id: 'impact', icon: '◎', label: 'Impact', shortcut: '5' },
-  { id: 'settings', icon: '⚙', label: 'Settings', shortcut: ',' },
+  { id: null, icon: <HomeIcon size={16} />, label: 'Home', shortcut: '0', path: '/' },
+  { id: null, icon: <GraphIcon size={16} />, label: 'Graph', shortcut: '1', path: '/graph' },
+  { id: 'search', icon: <SearchIcon size={16} />, label: 'Search', shortcut: '⌘K' },
+  { id: 'symbols', icon: <FunctionIcon size={16} />, label: 'Symbols', shortcut: '2' },
+  { id: 'files', icon: <FilesIcon size={16} />, label: 'Files', shortcut: '3' },
+  { id: 'metrics', icon: <MetricsIcon size={16} />, label: 'Metrics', shortcut: '4' },
+  { id: 'impact', icon: <ImpactIcon size={16} />, label: 'Impact', shortcut: '5' },
+  { id: 'settings', icon: <SettingsIcon size={16} />, label: 'Settings', shortcut: ',' },
 ]
 
 export function Sidebar() {
@@ -113,7 +114,7 @@ export function Sidebar() {
                 />
               )}
 
-              <span className="text-base flex-shrink-0 w-5 text-center">{item.icon}</span>
+              <span className="flex-shrink-0 w-5 flex items-center justify-center">{item.icon}</span>
 
               {sidebarExpanded && (
                 <span className="text-xs font-medium truncate flex-1 text-left">
@@ -154,7 +155,7 @@ export function Sidebar() {
             onClick={() => setKindExpanded(!kindExpanded)}
             className="flex items-center gap-2 w-full py-1 text-[10px] uppercase tracking-wider font-semibold text-text-dim hover:text-text-muted transition-colors"
           >
-            <span>{kindExpanded ? '▾' : '▸'}</span>
+            <span>{kindExpanded ? <ChevronDownIcon size={10} /> : <ChevronRightIcon size={10} />}</span>
             Filters
           </button>
 
@@ -169,7 +170,7 @@ export function Sidebar() {
                     type="checkbox"
                     checked={kindFilter.has(kind)}
                     onChange={() => toggleKind(kind)}
-                    className="w-3 h-3 rounded-sm border-border-subtle bg-transparent accent-accent-orange"
+                    className="w-3 h-3 rounded-sm border-border-subtle bg-transparent accent-accent"
                   />
                   <span
                     className="w-1.5 h-1.5 rounded-full flex-shrink-0"

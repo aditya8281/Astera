@@ -3,6 +3,7 @@ import { useQuery } from '@tanstack/react-query'
 import { useUIStore } from '../../store'
 import { api } from '../../api'
 import { NODE_COLORS, COLORS } from '../../constants'
+import { SearchIcon, ClockIcon } from '../Common/Icons'
 import type { SymbolNode } from '../../types'
 
 export function CommandPalette() {
@@ -94,7 +95,7 @@ export function CommandPalette() {
       >
         {/* Search input */}
         <div className="flex items-center gap-3 px-4 py-3 border-b" style={{ borderColor: COLORS.border }}>
-          <span className="text-base" style={{ color: COLORS.textMuted }}>🔍</span>
+          <span style={{ color: COLORS.textMuted }}><SearchIcon size={16} /></span>
           <input
             ref={inputRef}
             type="text"
@@ -129,7 +130,7 @@ export function CommandPalette() {
                   onMouseEnter={(e) => (e.currentTarget.style.background = `${COLORS.surfaceHover}`)}
                   onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
                 >
-                  <span>🕐</span>
+                  <span><ClockIcon size={12} color={COLORS.textDim} /></span>
                   <span className="font-mono">{s}</span>
                 </button>
               ))}

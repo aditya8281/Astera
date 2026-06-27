@@ -2,6 +2,7 @@ import { useEffect, useCallback } from 'react'
 import { useUIStore } from '../../store'
 import { COLORS } from '../../constants'
 import type { PanelId } from '../../types'
+import { CloseIcon } from '../Common/Icons'
 
 interface OverlayPanelProps {
   id: PanelId
@@ -74,7 +75,7 @@ export function OverlayPanel({ id, title, children, width = 380 }: OverlayPanelP
             onMouseLeave={(e) => (e.currentTarget.style.color = COLORS.textMuted)}
             aria-label="Close panel"
           >
-            ✕
+            <CloseIcon size={14} />
           </button>
         </div>
 
