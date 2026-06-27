@@ -9,3 +9,6 @@ target/
 # Node dependencies
 apps/web/node_modules/
 apps/web/dist/
+
+# Astera index (generated per-repo)
+.astera/
