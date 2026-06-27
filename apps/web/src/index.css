@@ -245,6 +245,25 @@ select:focus {
   }
 }
 
+/* ─── Responsive ─── */
+
+@media (max-width: 768px) {
+  :root {
+    --sidebar-width: 0px;
+    --sidebar-expanded-width: 0px;
+    --panel-width: 100vw;
+  }
+  nav[role="navigation"] {
+    display: none !important;
+  }
+}
+
+@media (min-width: 769px) and (max-width: 1024px) {
+  :root {
+    --panel-width: 320px;
+  }
+}
+
 /* ─── High contrast ─── */
 
 @media (prefers-contrast: more) {

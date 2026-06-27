@@ -48,7 +48,7 @@ export function OverlayPanel({ id, title, children, width = 380 }: OverlayPanelP
       <div
         className="fixed top-0 right-0 h-full flex flex-col animate-slide-in-right overflow-hidden"
         style={{
-          width,
+          width: window.innerWidth <= 768 ? '100vw' : width,
           background: COLORS.surfaceDim,
           borderLeft: `1px solid ${COLORS.border}`,
           zIndex: 'calc(var(--z-panel) + 1)',
