@@ -228,7 +228,7 @@ impl Database {
     fn ensure_cache(&self) -> SqlResult<()> {
         {
             let cache = self.graph_cache.borrow();
-            if let Some(ref c) = *cache {
+            if cache.is_some() {
                 return Ok(());
             }
         }
