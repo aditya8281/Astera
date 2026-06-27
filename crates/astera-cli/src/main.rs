@@ -40,6 +40,15 @@ enum Commands {
         #[arg(short, long, default_value = "8080")]
         port: u16,
     },
+    /// Watch for file changes and re-index automatically
+    Watch {
+        /// Path to repository root
+        #[arg(default_value = ".")]
+        path: String,
+        /// Port for API server (serves while watching)
+        #[arg(short, long, default_value = "8080")]
+        port: u16,
+    },
 }
 
 #[derive(Subcommand)]
@@ -354,6 +363,49 @@ async fn main() -> Result<(), anyhow::Error> {
                 return Ok(());
             }
             astera_api::serve(&db_path, port).await?;
+        }
+        Commands::Watch { path, port } => {
+            let root = std::fs::canonicalize(path)?;
+            let db_path = root.join(".astera").join("index.db");
+            if !db_path.exists() {
+                println!("No .astera directory found. Run 'astera init' first.");
+                return Ok(());
+            }
+
+            println!("Starting watcher on: {}", root.display());
+            println!("API server on port {}", port);
+
+            let (update_tx, update_rx) = std::sync::mpsc::channel::<astera_watcher::UpdateResult>();
+
+            // Start watcher in a background thread
+            let watcher_root = root.clone();
+            let watcher_db = db_path.clone();
+            let watcher_handle = std::thread::spawn(move || {
+                let watcher = astera_watcher::FileWatcher::new(watcher_root, watcher_db);
+                if let Err(e) = watcher.watch(update_tx) {
+                    eprintln!("Watcher error: {}", e);
+                }
+            });
+
+            // Start API server on the main thread
+            let api_db_path = db_path.clone();
+            let api_handle = tokio::spawn(async move {
+                if let Err(e) = astera_api::serve(&api_db_path, port).await {
+                    eprintln!("API server error: {}", e);
+                }
+            });
+
+            // Print updates as they come in
+            while let Ok(result) = update_rx.recv() {
+                println!(
+                    "Re-indexed: {} files changed, +{} nodes, -{} nodes, +{} edges ({}ms)",
+                    result.files_changed, result.nodes_added, result.nodes_removed,
+                    result.edges_added, result.elapsed_ms
+                );
+            }
+
+            watcher_handle.join().unwrap();
+            api_handle.abort();
         }
     }
 
