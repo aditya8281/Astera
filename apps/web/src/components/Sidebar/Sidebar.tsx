@@ -169,8 +169,8 @@ export function Sidebar() {
         </div>
       )}
 
-      {/* Tree view (expanded mode only) */}
-      {sidebarExpanded && activePanel === 'symbols' && (
+      {/* Tree view (expanded mode only, always visible for navigation) */}
+      {sidebarExpanded && (
         <div className="w-full border-t border-border-subtle overflow-y-auto max-h-64">
           <div className="px-3 py-1 text-[10px] uppercase tracking-wider font-semibold" style={{ color: COLORS.textDim }}>
             Tree
