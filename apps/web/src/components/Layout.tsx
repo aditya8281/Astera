@@ -3,6 +3,7 @@ import { Outlet } from 'react-router-dom'
 import { Sidebar } from './Sidebar/Sidebar'
 import { CommandPalette } from './CommandPalette/CommandPalette'
 import { PerformanceOverlay } from './Telemetry/PerformanceOverlay'
+import { KeyboardShortcuts } from './Common/KeyboardShortcuts'
 import { useKeyboard } from '../hooks/useKeyboard'
 import { useUIStore } from '../store'
 
@@ -32,6 +33,9 @@ export function Layout() {
 
       {/* Command palette overlay */}
       <CommandPalette />
+
+      {/* Keyboard shortcuts overlay */}
+      <KeyboardShortcuts />
 
       {/* Performance telemetry overlay */}
       {showTelemetry && <PerformanceOverlay />}

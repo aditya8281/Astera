@@ -15,12 +15,14 @@ export function NodeInstances({
   selectedNodeId,
   hoveredNodeId,
   onNodeDoubleClick,
+  onContextMenu,
 }: {
   nodes: GraphNode[]
   positions: Map<number, [number, number, number]>
   selectedNodeId: number | null
   hoveredNodeId: number | null
   onNodeDoubleClick: (id: number) => void
+  onContextMenu?: (id: number, screenX: number, screenY: number) => void
 }) {
   const meshRef = useRef<THREE.InstancedMesh>(null!)
   const glowMeshRef = useRef<THREE.InstancedMesh>(null!)
@@ -150,8 +152,27 @@ export function NodeInstances({
     document.body.style.cursor = 'default'
   }, [nodes, raycaster, camera, pointer, setHoveredNode])
 
+  // Right-click context menu
+  const handleContextMenu = useCallback((e: any) => {
+    if (!meshRef.current || nodes.length === 0 || !onContextMenu) return
+
+    // R3F events carry the native DOM event
+    const screenX = e?.nativeEvent?.clientX ?? 0
+    const screenY = e?.nativeEvent?.clientY ?? 0
+
+    raycaster.setFromCamera(pointer, camera)
+    const intersects = raycaster.intersectObject(meshRef.current)
+
+    if (intersects.length > 0) {
+      const instanceId = intersects[0].instanceId
+      if (instanceId !== undefined && instanceId < nodes.length) {
+        onContextMenu(nodes[instanceId].id, screenX, screenY)
+      }
+    }
+  }, [nodes, raycaster, camera, pointer, onContextMenu])
+
   return (
-    <group onClick={handleClick} onPointerMove={handlePointerMove}>
+    <group onClick={handleClick} onPointerMove={handlePointerMove} onContextMenu={handleContextMenu}>
       {/* Glow spheres behind nodes */}
       <instancedMesh
         ref={glowMeshRef}

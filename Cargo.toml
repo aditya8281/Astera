@@ -18,9 +18,9 @@ members = [
 version = "0.1.0"
 edition = "2021"
 license = "MIT"
-repository = "https://github.com/user/astera"
+repository = "https://github.com/aditya8281/astera"
 description = "Local-first static analysis engine with CLI + REST API + interactive 3D web UI"
-authors = ["Aditya"]
+authors = ["Aditya Rathod"]
 
 [workspace.dependencies]
 serde = { version = "1", features = ["derive"] }

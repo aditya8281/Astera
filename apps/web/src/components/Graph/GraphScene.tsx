@@ -1,4 +1,4 @@
-import { useRef, useMemo, useCallback } from 'react'
+import { useRef, useMemo, useCallback, useState } from 'react'
 import { Canvas, useFrame, useThree } from '@react-three/fiber'
 import { OrbitControls } from '@react-three/drei'
 import * as THREE from 'three'
@@ -10,6 +10,7 @@ import { EdgeInstances } from './EdgeInstances'
 import { NodeLabels } from './NodeLabels'
 import { ParticleField } from './ParticleField'
 import { MiniMap } from './MiniMap'
+import { ContextMenu } from '../Common/ContextMenu'
 import { useForceLayout } from '../../hooks/useForceLayout'
 
 // ─── Camera rig ───
@@ -41,7 +42,7 @@ function CameraRig() {
 
 // ─── Scene ───
 
-function Scene({ nodes, edges, onNodeDoubleClick }: { nodes: GraphNode[]; edges: GraphEdge[]; onNodeDoubleClick?: (id: number) => void }) {
+function Scene({ nodes, edges, onNodeDoubleClick, onContextMenu }: { nodes: GraphNode[]; edges: GraphEdge[]; onNodeDoubleClick?: (id: number) => void; onContextMenu?: (id: number, x: number, y: number) => void }) {
   const kindFilter = useUIStore((s) => s.kindFilter)
   const selectedNodeId = useUIStore((s) => s.selectedNodeId)
   const hoveredNodeId = useUIStore((s) => s.hoveredNodeId)
@@ -104,6 +105,7 @@ function Scene({ nodes, edges, onNodeDoubleClick }: { nodes: GraphNode[]; edges:
         selectedNodeId={selectedNodeId}
         hoveredNodeId={hoveredNodeId}
         onNodeDoubleClick={handleNodeDoubleClick}
+        onContextMenu={onContextMenu}
       />
 
       <NodeLabels
@@ -173,7 +175,25 @@ interface GraphSceneProps {
   onNodeDoubleClick?: (id: number) => void
 }
 
+interface ContextMenuState {
+  nodeId: number
+  nodeName: string
+  nodeKind: string
+  x: number
+  y: number
+}
+
 export function GraphScene({ nodes, edges, isLoading, error, onNodeDoubleClick }: GraphSceneProps) {
+  const [contextMenu, setContextMenu] = useState<ContextMenuState | null>(null)
+
+  const handleContextMenu = useCallback((id: number, x: number, y: number) => {
+    const node = nodes.find(n => n.id === id)
+    if (!node) return
+    setContextMenu({ nodeId: id, nodeName: node.name, nodeKind: node.kind, x, y })
+  }, [nodes])
+
+  const closeContextMenu = useCallback(() => setContextMenu(null), [])
+
   if (error) return <ErrorOverlay message={error} />
 
   return (
@@ -187,11 +207,21 @@ export function GraphScene({ nodes, edges, isLoading, error, onNodeDoubleClick }
         dpr={[1, 1.5]}
         onPointerMissed={() => useUIStore.getState().clearSelection()}
       >
-        <Scene nodes={nodes} edges={edges} onNodeDoubleClick={onNodeDoubleClick} />
+        <Scene nodes={nodes} edges={edges} onNodeDoubleClick={onNodeDoubleClick} onContextMenu={handleContextMenu} />
       </Canvas>
 
       {/* Breadcrumbs */}
       <Breadcrumbs />
+
+      {/* Context menu (DOM overlay, outside Canvas) */}
+      {contextMenu && (
+        <ContextMenu
+          nodeName={contextMenu.nodeName}
+          nodeKind={contextMenu.nodeKind}
+          position={{ x: contextMenu.x, y: contextMenu.y }}
+          onClose={closeContextMenu}
+        />
+      )}
     </div>
   )
 }

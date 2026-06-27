@@ -99,9 +99,18 @@ code, pre, .mono {
 
 /* ─── Focus ring ─── */
 
-:focus-visible {
+*:focus-visible {
   outline: 2px solid var(--color-selection);
   outline-offset: 2px;
+}
+
+.focus-ring {
+  outline: 2px solid var(--color-selection);
+  outline-offset: 2px;
+}
+
+.focus-ring:focus:not(:focus-visible) {
+  outline: none;
 }
 
 /* ─── Selection ─── */
@@ -194,6 +203,18 @@ code, pre, .mono {
   :root {
     --color-border: #444444;
     --color-border-light: #666666;
+    --color-text: #FFFFFF;
     --color-text-muted: #AAAAAA;
+    --color-text-dim: #999999;
+  }
+
+  *:focus-visible {
+    outline: 3px solid var(--color-selection);
+    outline-offset: 2px;
+  }
+
+  .focus-ring {
+    outline: 3px solid var(--color-selection);
+    outline-offset: 2px;
   }
 }
