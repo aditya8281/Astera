@@ -102,7 +102,7 @@ Re-running `astera index` skips unchanged files (hash comparison).
 ### 3. Query (CLI)
 
 ```bash
-# List all indexed symbols
+# List all indexed symbols (with file paths)
 astera query symbols
 
 # Filter by kind
@@ -113,12 +113,25 @@ astera query symbols --kind Import
 # Filter by name
 astera query symbols --name "handleRequest"
 
+# Full-text search across all symbols
+astera query search "handle"
+
+# List indexed files
+astera query files
+
+# Filter files by language
+astera query files --language python
+
 # List all edges (relationships)
 astera query edges
 
 # Filter edges by kind
 astera query edges --kind Calls
 astera query edges --kind Contains
+
+# Export graph to JSON, CSV, or DOT
+astera export --output graph.json
+astera export --output graph.dot
 ```
 
 ### 4. API Server + Web UI
