@@ -1,6 +1,5 @@
 #[cfg(test)]
 mod tests {
-    use super::*;
     use astera_core::{Edge, EdgeKind, FileInfo, Node, NodeKind, SourceSpan};
     use astera_storage::Database;
     use axum::body::Body;

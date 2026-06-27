@@ -39,6 +39,9 @@ enum Commands {
         /// Port to listen on
         #[arg(short, long, default_value = "8080")]
         port: u16,
+        /// Path to web UI build directory (auto-detected if not specified)
+        #[arg(long)]
+        web_dir: Option<String>,
     },
     /// Watch for file changes and re-index automatically
     Watch {
@@ -162,13 +165,14 @@ fn index_command(path: &str) -> Result<(), anyhow::Error> {
     let parse_results: Vec<Option<(String, i64, ParseOutput)>> = parse_tasks
         .par_iter()
         .map(|(rel_path, language, file_id, content)| {
-            let parsed = match parse(content, language) {
+            let mut parsed = match parse(content, language) {
                 Ok(p) => p,
                 Err(e) => {
                     tracing::warn!("Parse failed for {}: {}", rel_path, e);
                     return None;
                 }
             };
+            parsed.file_id = *file_id;
 
             let output = Extractor::extract(&parsed);
             if output.nodes.is_empty() && output.edges.is_empty() {
@@ -347,7 +351,7 @@ async fn main() -> Result<(), anyhow::Error> {
                 query_edges(kind)?;
             }
         },
-        Commands::Serve { port } => {
+        Commands::Serve { port, web_dir } => {
             let root = find_astera_root(Path::new("."));
             let root = match root {
                 Some(r) => r,
@@ -362,7 +366,26 @@ async fn main() -> Result<(), anyhow::Error> {
                 println!("Run 'astera index' first.");
                 return Ok(());
             }
-            astera_api::serve(&db_path, port).await?;
+
+            // Find the web UI build directory
+            let static_dir = web_dir
+                .map(std::path::PathBuf::from)
+                .or_else(|| {
+                    // Auto-detect: check common locations
+                    let candidates = [
+                        root.join("apps/web/dist"),
+                        root.join("web/dist"),
+                        root.join("dist"),
+                    ];
+                    for path in &candidates {
+                        if path.join("index.html").exists() {
+                            return Some(path.clone());
+                        }
+                    }
+                    None
+                });
+
+            astera_api::serve_with_static(&db_path, port, static_dir).await?;
         }
         Commands::Watch { path, port } => {
             let root = std::fs::canonicalize(path)?;
