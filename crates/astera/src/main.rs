@@ -318,8 +318,8 @@ fn query_symbols(kind: Option<String>, name: Option<String>) -> Result<(), anyho
 
     println!("Symbols ({}):", symbols.len());
     println!(
-        "{:<8} {:<20} {:<12} {:<40} {}",
-        "ID", "Name", "Kind", "File", "Line"
+        "{:<8} {:<20} {:<12} {:<40} Line",
+        "ID", "Name", "Kind", "File"
     );
     println!("{}", "-".repeat(95));
 
@@ -374,7 +374,7 @@ fn query_edges(kind: Option<String>) -> Result<(), anyhow::Error> {
     }
 
     println!("Edges ({}):", edges.len());
-    println!("{:<30} {:<8} {:<30} {}", "Source", "", "Target", "Kind");
+    println!("{:<30} {:<8} {:<30} Kind", "Source", "", "Target");
     println!("{}", "-".repeat(80));
 
     for edge in &edges {
@@ -441,7 +441,7 @@ fn stats_command() -> Result<(), anyhow::Error> {
         println!();
         println!("  Languages:");
         let mut langs: Vec<_> = lang_counts.into_iter().collect();
-        langs.sort_by(|a, b| b.1.cmp(&a.1));
+        langs.sort_by_key(|b| std::cmp::Reverse(b.1));
         for (lang, count) in &langs {
             println!("    {:<15} {}", lang, count);
         }
@@ -534,8 +534,8 @@ fn query_search(query: &str) -> Result<(), anyhow::Error> {
 
     println!("Search results for '{}' ({}):", query, results.len());
     println!(
-        "{:<8} {:<20} {:<12} {:<40} {}",
-        "ID", "Name", "Kind", "File", "Line"
+        "{:<8} {:<20} {:<12} {:<40} Line",
+        "ID", "Name", "Kind", "File"
     );
     println!("{}", "-".repeat(95));
 
