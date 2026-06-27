@@ -98,6 +98,19 @@ export interface ImpactResponse {
   affected: ImpactNode[]
 }
 
+// ─── Module summary (progressive loading) ───
+
+export interface ModuleSummary {
+  id: number
+  name: string
+  kind: string
+  file_id: number
+  start_line: number
+  end_line: number
+  child_count: number
+  importance: number
+}
+
 // ─── Graph state machine ───
 
 export type GraphState =

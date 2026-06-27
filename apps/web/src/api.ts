@@ -1,4 +1,4 @@
-import type { GraphResponse, StatsResponse, ApiResponse, SymbolNode, FileEntry, MetricsResponse, ImpactResponse } from './types'
+import type { GraphResponse, StatsResponse, ApiResponse, SymbolNode, FileEntry, MetricsResponse, ImpactResponse, ModuleSummary } from './types'
 
 const BASE = '/api'
 
@@ -24,6 +24,7 @@ export const api = {
     return get<ApiResponse<unknown[]>>(`/edges?${q}`)
   },
   search: (q: string) => get<ApiResponse<SymbolNode[]>>(`/search?q=${encodeURIComponent(q)}`),
+  modules: () => get<ApiResponse<ModuleSummary[]>>('/graph/modules'),
   dependencyGraph: () => get<GraphResponse>('/graph/dependency'),
   metrics: () => get<ApiResponse<MetricsResponse>>('/metrics'),
   impact: (rootId: number, maxDepth?: number, direction?: string) => {
