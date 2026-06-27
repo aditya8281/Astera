@@ -7,12 +7,26 @@ use axum::Router;
 use rust_embed::Embed;
 use std::path::{Path, PathBuf};
 use std::sync::Mutex;
+use tokio::sync::broadcast;
 use tower_http::cors::{Any, CorsLayer};
 use tower_http::trace::TraceLayer;
 
 use astera_storage::Database;
 
 mod routes;
+mod ws;
+
+/// Event broadcast during re-index operations
+#[derive(Debug, Clone, serde::Serialize)]
+pub struct IndexEvent {
+    pub event: String,
+    pub files_changed: u64,
+    pub nodes_added: u64,
+    pub nodes_removed: u64,
+    pub edges_added: u64,
+    pub elapsed_ms: u64,
+    pub message: String,
+}
 
 #[cfg(test)]
 mod integration_test;
@@ -28,6 +42,7 @@ pub struct AppState {
     pub db: std::sync::Arc<Mutex<Database>>,
     pub static_dir: Option<PathBuf>,
     pub use_embedded: bool,
+    pub event_tx: broadcast::Sender<String>,
 }
 
 pub fn create_router(db: Database) -> Router {
@@ -36,10 +51,12 @@ pub fn create_router(db: Database) -> Router {
 
 pub fn create_router_with_static(db: Database, static_dir: Option<PathBuf>) -> Router {
     let has_embedded = FrontendAssets::get("index.html").is_some();
+    let (event_tx, _) = broadcast::channel::<String>(64);
     let state = AppState {
         db: std::sync::Arc::new(Mutex::new(db)),
         static_dir,
         use_embedded: has_embedded,
+        event_tx,
     };
 
     let cors = CorsLayer::new()
@@ -59,6 +76,7 @@ pub fn create_router_with_static(db: Database, static_dir: Option<PathBuf>) -> R
         .route("/api/graph/dependency", get(routes::dependency_graph))
         .route("/api/metrics", get(routes::metrics))
         .route("/api/impact", get(routes::impact))
+        .route("/api/events", get(ws::ws_handler))
         .fallback(fallback_handler)
         .layer(cors)
         .layer(TraceLayer::new_for_http())
