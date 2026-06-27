@@ -1,11 +1,21 @@
 use rusqlite::{params, Connection, Result as SqlResult};
+use std::cell::{Cell, RefCell};
 use std::path::Path;
 
 use astera_core::{Edge, EdgeKind, FileInfo, Node, NodeKind, SourceSpan};
 
+/// In-memory cache for graph data that changes rarely but is expensive to compute.
+/// Wrapped in RefCell — safe because Database is behind Arc<Mutex> in AppState.
+struct GraphCache {
+    all_nodes: Vec<Node>,
+    all_edges: Vec<Edge>,
+}
+
 /// Database for Astera index
 pub struct Database {
     conn: Connection,
+    graph_cache: RefCell<Option<GraphCache>>,
+    generation: Cell<u64>,
 }
 
 impl Database {
@@ -16,7 +26,7 @@ impl Database {
         // Enable WAL mode for concurrent reads
         conn.execute_batch("PRAGMA journal_mode=WAL; PRAGMA synchronous=NORMAL;")?;
 
-        let db = Database { conn };
+        let db = Database { conn, graph_cache: RefCell::new(None), generation: Cell::new(0) };
         db.initialize_schema()?;
         Ok(db)
     }
@@ -26,7 +36,7 @@ impl Database {
         let conn = Connection::open_in_memory()?;
         conn.execute_batch("PRAGMA journal_mode=WAL; PRAGMA synchronous=NORMAL;")?;
 
-        let db = Database { conn };
+        let db = Database { conn, graph_cache: RefCell::new(None), generation: Cell::new(0) };
         db.initialize_schema()?;
         Ok(db)
     }
@@ -166,6 +176,7 @@ impl Database {
         // Edges reference nodes; nodes reference files — CASCADE handles it
         self.conn
             .execute("DELETE FROM files WHERE id = ?1", params![file_id])?;
+        self.invalidate_cache();
         Ok(())
     }
 
@@ -197,6 +208,41 @@ impl Database {
         Ok(count)
     }
 
+    // ─── Graph Cache ───
+
+    /// Invalidate the in-memory graph cache. Call after any writes.
+    fn invalidate_cache(&self) {
+        self.generation.set(self.generation.get() + 1);
+        *self.graph_cache.borrow_mut() = None;
+    }
+
+    /// Get all nodes and edges, using cache when available.
+    /// Returns cloned data — fast from in-memory cache, avoids SQLite I/O on repeat calls.
+    pub fn get_all_graph(&self) -> SqlResult<(Vec<Node>, Vec<Edge>)> {
+        self.ensure_cache()?;
+        let cache = self.graph_cache.borrow();
+        let c = cache.as_ref().unwrap();
+        Ok((c.all_nodes.clone(), c.all_edges.clone()))
+    }
+
+    fn ensure_cache(&self) -> SqlResult<()> {
+        {
+            let cache = self.graph_cache.borrow();
+            if let Some(ref c) = *cache {
+                return Ok(());
+            }
+        }
+
+        let all_nodes = self.query_nodes(None, None, None)?;
+        let all_edges = self.get_edges(None, None, None)?;
+
+        *self.graph_cache.borrow_mut() = Some(GraphCache {
+            all_nodes,
+            all_edges,
+        });
+        Ok(())
+    }
+
     // ─── Node CRUD ───
 
     pub fn insert_nodes(&self, nodes: &[Node]) -> SqlResult<Vec<i64>> {
@@ -220,6 +266,7 @@ impl Database {
             ])?;
             ids.push(self.conn.last_insert_rowid());
         }
+        self.invalidate_cache();
         Ok(ids)
     }
 
@@ -338,6 +385,7 @@ impl Database {
                 ids.push(self.conn.last_insert_rowid());
             }
         }
+        self.invalidate_cache();
         Ok(ids)
     }
 

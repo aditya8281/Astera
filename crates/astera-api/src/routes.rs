@@ -328,16 +328,7 @@ pub async fn modules(
         )
     })?;
 
-    let nodes = db.query_nodes(None, None, None).map_err(|e| {
-        (
-            StatusCode::INTERNAL_SERVER_ERROR,
-            Json(ErrorResponse {
-                error: format!("Database error: {}", e),
-            }),
-        )
-    })?;
-
-    let edges = db.get_edges(None, None, None).map_err(|e| {
+    let (nodes, edges) = db.get_all_graph().map_err(|e| {
         (
             StatusCode::INTERNAL_SERVER_ERROR,
             Json(ErrorResponse {
@@ -406,8 +397,7 @@ pub async fn dependency_graph(
         )
     })?;
 
-    // All nodes
-    let nodes = db.query_nodes(None, None, None).map_err(|e| {
+    let (nodes, edges) = db.get_all_graph().map_err(|e| {
         (
             StatusCode::INTERNAL_SERVER_ERROR,
             Json(ErrorResponse {
@@ -416,17 +406,6 @@ pub async fn dependency_graph(
         )
     })?;
 
-    // All Contains + Imports + DependsOn edges for the dependency graph
-    let edges = db.get_edges(None, None, None).map_err(|e| {
-        (
-            StatusCode::INTERNAL_SERVER_ERROR,
-            Json(ErrorResponse {
-                error: format!("Database error: {}", e),
-            }),
-        )
-    })?;
-
-    // Compute importance scores
     let importance = compute_importance(&nodes, &edges);
 
     let graph_nodes: Vec<GraphNode> = nodes
@@ -487,16 +466,7 @@ pub async fn metrics(
         )
     })?;
 
-    let nodes = db.query_nodes(None, None, None).map_err(|e| {
-        (
-            StatusCode::INTERNAL_SERVER_ERROR,
-            Json(ErrorResponse {
-                error: format!("Database error: {}", e),
-            }),
-        )
-    })?;
-
-    let edges = db.get_edges(None, None, None).map_err(|e| {
+    let (nodes, edges) = db.get_all_graph().map_err(|e| {
         (
             StatusCode::INTERNAL_SERVER_ERROR,
             Json(ErrorResponse {
@@ -558,16 +528,7 @@ pub async fn impact(
         )
     })?;
 
-    let nodes = db.query_nodes(None, None, None).map_err(|e| {
-        (
-            StatusCode::INTERNAL_SERVER_ERROR,
-            Json(ErrorResponse {
-                error: format!("Database error: {}", e),
-            }),
-        )
-    })?;
-
-    let edges = db.get_edges(None, None, None).map_err(|e| {
+    let (nodes, edges) = db.get_all_graph().map_err(|e| {
         (
             StatusCode::INTERNAL_SERVER_ERROR,
             Json(ErrorResponse {
@@ -625,17 +586,8 @@ pub async fn children(
         )
     })?;
 
-    // For importance computation we need all nodes+edges
-    let all_nodes = db.query_nodes(None, None, None).map_err(|e| {
-        (
-            StatusCode::INTERNAL_SERVER_ERROR,
-            Json(ErrorResponse {
-                error: format!("Database error: {}", e),
-            }),
-        )
-    })?;
-
-    let all_edges = db.get_edges(None, None, None).map_err(|e| {
+    // Use cached graph for importance (avoids full table scan)
+    let (all_nodes, all_edges) = db.get_all_graph().map_err(|e| {
         (
             StatusCode::INTERNAL_SERVER_ERROR,
             Json(ErrorResponse {
