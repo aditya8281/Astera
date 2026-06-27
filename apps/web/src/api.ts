@@ -1,4 +1,4 @@
-import type { GraphResponse, StatsResponse, ApiResponse, SymbolNode, FileEntry } from './types'
+import type { GraphResponse, StatsResponse, ApiResponse, SymbolNode, FileEntry, MetricsResponse, ImpactResponse } from './types'
 
 const BASE = '/api'
 
@@ -25,4 +25,11 @@ export const api = {
   },
   search: (q: string) => get<ApiResponse<SymbolNode[]>>(`/search?q=${encodeURIComponent(q)}`),
   dependencyGraph: () => get<GraphResponse>('/graph/dependency'),
+  metrics: () => get<ApiResponse<MetricsResponse>>('/metrics'),
+  impact: (rootId: number, maxDepth?: number, direction?: string) => {
+    const q = new URLSearchParams({ root_id: String(rootId) })
+    if (maxDepth) q.set('max_depth', String(maxDepth))
+    if (direction) q.set('direction', direction)
+    return get<ApiResponse<ImpactResponse>>(`/impact?${q}`)
+  },
 }

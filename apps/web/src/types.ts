@@ -84,3 +84,35 @@ export const KIND_SIZE: Record<string, number> = {
   TypeAlias: 0.3,
   Import: 0.2,
 }
+
+// ─── Metrics types ───
+
+export interface MetricsResponse {
+  total_nodes: number
+  total_edges: number
+  total_files: number
+  avg_complexity: number
+  max_complexity: number
+  function_count: number
+  module_count: number
+  circular_dependencies: [string, string][]
+}
+
+// ─── Impact types ───
+
+export interface ImpactNode {
+  node_id: number
+  name: string
+  kind: string
+  depth: number
+  edge_path: string[]
+}
+
+export interface ImpactResponse {
+  root: number
+  root_name: string
+  total_affected: number
+  max_depth: number
+  cycle_detected: boolean
+  affected: ImpactNode[]
+}

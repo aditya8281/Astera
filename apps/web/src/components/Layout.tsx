@@ -6,6 +6,8 @@ const navItems = [
   { to: '/', label: 'Graph', icon: '◆' },
   { to: '/symbols', label: 'Symbols', icon: 'ƒ' },
   { to: '/files', label: 'Files', icon: '≡' },
+  { to: '/metrics', label: 'Metrics', icon: '◈' },
+  { to: '/impact', label: 'Impact', icon: '◎' },
 ]
 
 const allKinds = [
@@ -89,7 +91,7 @@ export function Layout() {
         </div>
 
         <div className="mt-auto px-4 py-3 border-t border-border-subtle text-[10px] text-text-muted">
-          Phase 1.4 · 3D Visualization
+          Phase 2 · Metrics & Impact
         </div>
       </aside>
 
