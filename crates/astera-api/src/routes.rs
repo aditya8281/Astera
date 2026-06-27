@@ -739,6 +739,37 @@ pub async fn save_snapshot(
     }
 }
 
+/// Get a single snapshot by ID.
+pub async fn get_snapshot(
+    State(state): State<AppState>,
+    axum::extract::Path(id): axum::extract::Path<i64>,
+) -> Result<Json<astera_storage::SnapshotRow>, (StatusCode, Json<ErrorResponse>)> {
+    let db = state.db.lock().map_err(|_| {
+        (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            Json(ErrorResponse {
+                error: "Database lock poisoned".into(),
+            }),
+        )
+    })?;
+
+    match db.get_snapshot(id) {
+        Ok(Some(s)) => Ok(Json(s)),
+        Ok(None) => Err((
+            StatusCode::NOT_FOUND,
+            Json(ErrorResponse {
+                error: format!("Snapshot {} not found", id),
+            }),
+        )),
+        Err(e) => Err((
+            StatusCode::INTERNAL_SERVER_ERROR,
+            Json(ErrorResponse {
+                error: format!("Database error: {}", e),
+            }),
+        )),
+    }
+}
+
 /// List all stored metric snapshots.
 pub async fn list_snapshots(
     State(state): State<AppState>,
