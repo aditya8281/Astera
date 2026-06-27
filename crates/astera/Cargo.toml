@@ -38,3 +38,7 @@ criterion = { workspace = true }
 astera-core = { path = "../astera-core" }
 astera-parser = { path = "../astera-parser" }
 astera-storage = { path = "../astera-storage" }
+astera-metrics = { path = "../astera-metrics" }
+astera-impact = { path = "../astera-impact" }
+astera-discovery = { path = "../astera-discovery" }
+serde_json = { workspace = true }
