@@ -16,7 +16,7 @@ struct GraphCache {
 pub struct SnapshotRow {
     pub id: i64,
     pub timestamp: String,
-    pub commit_hash: Option<String>,
+    pub commit: Option<String>,
     pub total_files: u64,
     pub total_nodes: u64,
     pub total_edges: u64,
@@ -590,7 +590,7 @@ impl Database {
             Ok(SnapshotRow {
                 id: row.get(0)?,
                 timestamp: row.get(1)?,
-                commit_hash: row.get(2)?,
+                commit: row.get(2)?,
                 total_files: row.get(3)?,
                 total_nodes: row.get(4)?,
                 total_edges: row.get(5)?,
@@ -612,7 +612,7 @@ impl Database {
             Ok(SnapshotRow {
                 id: row.get(0)?,
                 timestamp: row.get(1)?,
-                commit_hash: row.get(2)?,
+                commit: row.get(2)?,
                 total_files: row.get(3)?,
                 total_nodes: row.get(4)?,
                 total_edges: row.get(5)?,
