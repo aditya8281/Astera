@@ -58,6 +58,8 @@ enum Commands {
         #[arg(short, long)]
         output: String,
     },
+    /// Show index statistics (file, symbol, edge counts)
+    Stats,
 }
 
 #[derive(Subcommand)]
@@ -356,6 +358,14 @@ fn query_edges(kind: Option<String>) -> Result<(), anyhow::Error> {
     }
 
     let db = Database::open(&db_path)?;
+
+    // Build node_id → name map
+    let all_nodes = db.query_nodes(None, None, None)?;
+    let node_map: std::collections::HashMap<i64, (String, String)> = all_nodes
+        .iter()
+        .filter_map(|n| n.id.map(|id| (id, (n.name.clone(), n.kind.to_string()))))
+        .collect();
+
     let edges = db.get_edges(kind.as_deref(), None, None)?;
 
     if edges.is_empty() {
@@ -364,11 +374,77 @@ fn query_edges(kind: Option<String>) -> Result<(), anyhow::Error> {
     }
 
     println!("Edges ({}):", edges.len());
+    println!("{:<30} {:<8} {:<30} {}", "Source", "", "Target", "Kind");
+    println!("{}", "-".repeat(80));
+
     for edge in &edges {
-        println!(
-            "  {} -> {} [{}]",
-            edge.source_node_id, edge.target_node_id, edge.kind
-        );
+        let src = node_map
+            .get(&edge.source_node_id)
+            .map(|(n, k)| format!("{} [{}]", n, k))
+            .unwrap_or_else(|| format!("id:{}", edge.source_node_id));
+        let tgt = node_map
+            .get(&edge.target_node_id)
+            .map(|(n, k)| format!("{} [{}]", n, k))
+            .unwrap_or_else(|| format!("id:{}", edge.target_node_id));
+        println!("{:<30} -> {:<30} {}", src, tgt, edge.kind);
+    }
+
+    Ok(())
+}
+
+fn stats_command() -> Result<(), anyhow::Error> {
+    let root = find_astera_root(Path::new("."));
+    let root = match root {
+        Some(r) => r,
+        None => {
+            println!("No .astera directory found in current or parent directories.");
+            return Ok(());
+        }
+    };
+
+    let db_path = root.join(".astera").join("index.db");
+    if !db_path.exists() {
+        println!("No index database found at: {}", db_path.display());
+        println!("Run 'astera index' first.");
+        return Ok(());
+    }
+
+    let db = Database::open(&db_path)?;
+
+    let files = db.file_count()?;
+    let symbols = db.symbol_count()?;
+    let edges = db.edge_count()?;
+
+    // Breakdown by kind
+    let func_count = db.query_nodes(Some("Function"), None, None)?.len() as u64;
+    let class_count = db.query_nodes(Some("Class"), None, None)?.len() as u64;
+    let import_count = db.query_nodes(Some("Import"), None, None)?.len() as u64;
+
+    // Language breakdown
+    let all_files = db.list_files()?;
+    let mut lang_counts: std::collections::HashMap<String, u64> = std::collections::HashMap::new();
+    for f in &all_files {
+        *lang_counts.entry(f.language.clone()).or_insert(0) += 1;
+    }
+
+    println!("Index: {}", root.join(".astera").display());
+    println!();
+    println!("  Files:    {}", files);
+    println!("  Symbols:  {}", symbols);
+    println!("  Edges:    {}", edges);
+    println!();
+    println!("  Breakdown:");
+    println!("    Functions:  {}", func_count);
+    println!("    Classes:    {}", class_count);
+    println!("    Imports:    {}", import_count);
+    if !lang_counts.is_empty() {
+        println!();
+        println!("  Languages:");
+        let mut langs: Vec<_> = lang_counts.into_iter().collect();
+        langs.sort_by(|a, b| b.1.cmp(&a.1));
+        for (lang, count) in &langs {
+            println!("    {:<15} {}", lang, count);
+        }
     }
 
     Ok(())
@@ -622,6 +698,9 @@ async fn main() -> Result<(), anyhow::Error> {
 
             watcher_handle.join().unwrap();
             api_handle.abort();
+        }
+        Commands::Stats => {
+            stats_command()?;
         }
     }
 
