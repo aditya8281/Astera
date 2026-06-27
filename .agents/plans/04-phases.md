@@ -24,7 +24,7 @@
 - [x] Containment edges (file→symbol, class→method)
 - [x] Call graph extraction (Calls edges)
 - [x] Go extractor (functions, structs, interfaces, packages)
-- [ ] `astera-resolver`: basic scope chain + import resolution *(deferred to Phase 2)*
+- [x] `astera-resolver`: basic scope chain + import resolution *(deferred to Phase 2 — now complete)*
 
 ### Phase 1.3: API Server ✅
 
@@ -41,8 +41,8 @@
 - [x] Graph page (3D visualization with search overlay)
 - [x] Symbol Explorer page (search + list + detail)
 - [x] File Explorer page (list with language, lines, size)
-- [ ] `rust-embed` frontend dist into binary *(deferred to Phase 2)*
-- [ ] Single `astera` binary release *(deferred to Phase 2)*
+- [ ] `rust-embed` frontend dist into binary *(deferred to Phase 2 — not yet done)*
+- [ ] Single `astera` binary release *(deferred to Phase 2 — not yet done)*
 
 **Phase 1 Deliverables:**
 - 5 languages (TS/JS, Python, Rust, Go) indexed
@@ -86,9 +86,9 @@
   - [x] Impact page (symbol search, direction toggle, depth control)
 - [x] **FTS5 full-text search** (BM25 via SQLite FTS5, LIKE fallback)
 - [ ] **3D frontend enhancements**
-  - [ ] LOD and instancing for >10K nodes
-  - [ ] MiniMap
-  - [ ] Filter panel (by kind, file, metric range)
+  - [x] LOD and instancing for >10K nodes (useLOD hook, InstancedMesh nodes/edges)
+  - [x] MiniMap (SVG minimap with click-to-navigate)
+  - [ ] Filter panel — kind filter done in Sidebar; file/metric range filters not implemented
   - [ ] WebSocket integration for re-index progress
 - [x] **Performance benchmarks** (criterion — 73 benchmarks, 11 groups)
   - [x] Parsing throughput (5 languages × multiple scales)
