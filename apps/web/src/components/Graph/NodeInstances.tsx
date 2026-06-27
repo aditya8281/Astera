@@ -3,11 +3,10 @@ import { useFrame, useThree } from '@react-three/fiber'
 import * as THREE from 'three'
 import type { GraphNode } from '../../types'
 import { useUIStore } from '../../store'
-import { NODE_COLORS } from '../../constants'
+import { COLORS } from '../../constants'
 
 const _dummy = new THREE.Object3D()
 const _color = new THREE.Color()
-const _scale = new THREE.Vector3()
 
 export function NodeInstances({
   nodes,
@@ -31,63 +30,104 @@ export function NodeInstances({
   const selectNode = useUIStore((s) => s.selectNode)
   const setHoveredNode = useUIStore((s) => s.setHoveredNode)
 
-  // Set up initial transforms and colors
+  // Smooth scale interpolation
+  const currentScales = useRef<Map<number, number>>(new Map())
+
   useFrame(() => {
     if (!meshRef.current || nodes.length === 0) return
 
     const mesh = meshRef.current
     const glowMesh = glowMeshRef.current
     const anySelected = selectedNodeId !== null
+    const anyHovered = hoveredNodeId !== null
 
     for (let i = 0; i < nodes.length; i++) {
       const node = nodes[i]
       const pos = positions.get(node.id)
+      const isSelected = node.id === selectedNodeId
+      const isHovered = node.id === hoveredNodeId
+      const importance = node.importance ?? 0.3
+
       if (!pos) {
-        _dummy.position.set(0, 0, -1000) // hide off-screen
+        _dummy.position.set(0, 0, -1000)
         _dummy.scale.set(0, 0, 0)
       } else {
-        const isSelected = node.id === selectedNodeId
-        const isHovered = node.id === hoveredNodeId
-
         _dummy.position.set(pos[0], pos[1], pos[2])
 
-        // Size by importance (base 0.3, max 0.6)
-        const importance = node.importance ?? 0.3
-        const baseScale = 0.2 + importance * 0.4
-        const targetScale = isSelected ? baseScale * 1.5 : isHovered ? baseScale * 1.2 : baseScale
-        _scale.setScalar(targetScale)
-        _dummy.scale.copy(_scale)
+        // Node radius: 4-6px based on importance (mapped to world units)
+        const baseScale = 0.25 + importance * 0.35
+        const targetScale = isSelected ? baseScale * 1.4 : isHovered ? baseScale * 1.3 : baseScale
+
+        // Smooth interpolation
+        const currentScale = currentScales.current.get(node.id) ?? baseScale
+        const newScale = currentScale + (targetScale - currentScale) * 0.12
+        currentScales.current.set(node.id, newScale)
+
+        _dummy.scale.setScalar(newScale)
       }
 
       _dummy.updateMatrix()
       mesh.setMatrixAt(i, _dummy.matrix)
 
-      // Color
-      const nodeColor = NODE_COLORS[nodes[i].kind] || '#555555'
-      _color.set(nodeColor)
+      // ─── Node color ───
+      // Default: #A7B5C9 at 92% opacity
+      // Hovered: #DCE8FF
+      // Selected: #59F6FF
+      // Connected (when something selected): brighten slightly
+      // Unrelated (when something selected): fade to 30%
 
-      const isSelected = nodes[i].id === selectedNodeId
-      const isHovered = nodes[i].id === hoveredNodeId
-      const isConnected = anySelected && !isSelected && !isHovered
+      let nodeColor: string
+      let nodeOpacity: number
 
-      if (isConnected) {
-        _color.multiplyScalar(0.4)
-      } else if (isSelected) {
-        _color.offsetHSL(0, 0.1, 0.1)
+      if (isSelected) {
+        nodeColor = COLORS.nodeSelected // #59F6FF
+        nodeOpacity = 1.0
+      } else if (isHovered) {
+        nodeColor = COLORS.nodeHover // #DCE8FF
+        nodeOpacity = 0.95
+      } else if (anySelected || anyHovered) {
+        // When something is focused, dim unrelated nodes
+        nodeColor = COLORS.nodeDefault
+        nodeOpacity = 0.3
+      } else {
+        nodeColor = COLORS.nodeDefault // #A7B5C9
+        nodeOpacity = 0.92
       }
 
+      _color.set(nodeColor)
+      _color.multiplyScalar(nodeOpacity)
       mesh.setColorAt(i, _color)
 
-      // Glow mesh
+      // ─── Glow mesh ───
       if (glowMesh) {
-        _dummy.scale.multiplyScalar(1.4)
+        _dummy.scale.setScalar((currentScales.current.get(node.id) ?? 0.3) * 1.6)
         _dummy.updateMatrix()
         glowMesh.setMatrixAt(i, _dummy.matrix)
 
-        _color.set(nodes[i].id === selectedNodeId ? '#E65100' : '#00E5FF')
-        const glowOpacity = isSelected ? 0.3 : isHovered ? 0.15 : 0.05
-        _color.multiplyScalar(glowOpacity)
-        glowMesh.setColorAt(i, _color)
+        // Glow color
+        let glowColor: THREE.Color
+        let glowOpacity: number
+
+        if (isSelected) {
+          // #59F6FF glow — 0 0 22px rgba(89,246,255,.45)
+          glowColor = new THREE.Color('#59F6FF')
+          glowOpacity = 0.35
+        } else if (isHovered) {
+          // #DCE8FF glow — 0 0 18px rgba(180,210,255,.25)
+          glowColor = new THREE.Color('#B4D2FF')
+          glowOpacity = 0.2
+        } else {
+          // Subtle default glow — rgba(180,200,255,.08)
+          glowColor = new THREE.Color('#B4C8FF')
+          glowOpacity = 0.04
+        }
+
+        if (anySelected && !isSelected && !isHovered) {
+          glowOpacity *= 0.2
+        }
+
+        glowColor.multiplyScalar(glowOpacity)
+        glowMesh.setColorAt(i, glowColor)
       }
     }
 
@@ -115,13 +155,10 @@ export function NodeInstances({
       const lastClick = lastClickTime.current.get(nodeId) ?? 0
 
       if (now - lastClick < 300) {
-        // Double click
         onNodeDoubleClick(nodeId)
         lastClickTime.current.delete(nodeId)
       } else {
-        // Single click
         lastClickTime.current.set(nodeId, now)
-
         const e = window.event as MouseEvent | undefined
         if (e?.ctrlKey || e?.metaKey) {
           useUIStore.getState().toggleMultiSelect(nodeId)
@@ -156,7 +193,6 @@ export function NodeInstances({
   const handleContextMenu = useCallback((e: any) => {
     if (!meshRef.current || nodes.length === 0 || !onContextMenu) return
 
-    // R3F events carry the native DOM event
     const screenX = e?.nativeEvent?.clientX ?? 0
     const screenY = e?.nativeEvent?.clientY ?? 0
 
@@ -173,28 +209,33 @@ export function NodeInstances({
 
   return (
     <group onClick={handleClick} onPointerMove={handlePointerMove} onContextMenu={handleContextMenu}>
-      {/* Glow spheres behind nodes */}
+      {/* Glow layer — soft diffuse behind nodes */}
       <instancedMesh
         ref={glowMeshRef}
         args={[undefined, undefined, Math.max(nodes.length, 1)]}
         frustumCulled={false}
       >
-        <sphereGeometry args={[1, 8, 8]} />
-        <meshBasicMaterial transparent opacity={0.1} depthWrite={false} />
+        <sphereGeometry args={[1, 12, 12]} />
+        <meshBasicMaterial
+          transparent
+          opacity={0.15}
+          depthWrite={false}
+          blending={THREE.AdditiveBlending}
+        />
       </instancedMesh>
 
-      {/* Main node spheres */}
+      {/* Main node circles */}
       <instancedMesh
         ref={meshRef}
         args={[undefined, undefined, Math.max(nodes.length, 1)]}
         frustumCulled={false}
       >
-        <sphereGeometry args={[1, 12, 12]} />
+        <sphereGeometry args={[1, 16, 16]} />
         <meshStandardMaterial
-          roughness={0.4}
-          metalness={0.2}
+          roughness={0.6}
+          metalness={0.1}
           transparent
-          opacity={0.95}
+          opacity={0.92}
         />
       </instancedMesh>
     </group>

@@ -62,9 +62,9 @@ function Scene({ nodePositions, visibleNodes, visibleEdges, rawPositions, onNode
 
   return (
     <>
-      <ambientLight intensity={0.4} />
-      <pointLight position={[10, 10, 10]} intensity={0.6} />
-      <pointLight position={[-10, -10, -10]} intensity={0.3} color="#B388FF" />
+      <ambientLight intensity={0.3} />
+      <pointLight position={[10, 10, 10]} intensity={0.4} />
+      <pointLight position={[-10, -10, -10]} intensity={0.2} color="#59F6FF" />
 
       {!settings.reducedMotion && <ParticleField />}
 
@@ -72,6 +72,7 @@ function Scene({ nodePositions, visibleNodes, visibleEdges, rawPositions, onNode
         edges={visibleEdges}
         positions={nodePositions}
         selectedNodeId={selectedNodeId}
+        hoveredNodeId={hoveredNodeId}
         animation={settings.edgeAnimation}
       />
 
@@ -96,11 +97,15 @@ function Scene({ nodePositions, visibleNodes, visibleEdges, rawPositions, onNode
 
       <OrbitControls
         enableDamping
-        dampingFactor={0.05}
-        rotateSpeed={0.8}
-        zoomSpeed={1.2}
+        dampingFactor={0.08}
+        rotateSpeed={0.6}
+        zoomSpeed={0.8}
+        panSpeed={0.5}
         minDistance={2}
         maxDistance={100}
+        enablePan
+        enableRotate
+        enableZoom
         onStart={() => useUIStore.getState().setCameraTarget(null)}
       />
     </>
@@ -200,7 +205,9 @@ export function GraphScene({ nodes, edges, isLoading, error, onNodeDoubleClick }
 
       <Canvas
         camera={{ position: [0, 5, 15], fov: 50 }}
-        style={{ background: COLORS.bg }}
+        style={{
+          background: `radial-gradient(ellipse at center, ${COLORS.bgGradientTop} 0%, ${COLORS.bg} 50%, ${COLORS.bgGradientBottom} 100%)`,
+        }}
         gl={{ antialias: true, alpha: false, powerPreference: 'high-performance' }}
         dpr={[1, 1.5]}
         onPointerMissed={() => useUIStore.getState().clearSelection()}

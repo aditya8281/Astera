@@ -8,32 +8,36 @@
 @tailwind components;
 @tailwind utilities;
 
-/* ─── CSS Custom Properties ─── */
+/* ─── CSS Custom Properties (Warm Charcoal + Electric Cyan) ─── */
 
 :root {
-  --color-selection: #E65100;
-  --color-selection-dim: #BF360C;
-  --color-selection-glow: #FF6D00;
-  --color-relationship: #00E5FF;
-  --color-relationship-dim: #00B8D4;
-  --color-success: #00E676;
-  --color-error: #FF1744;
-  --color-ai: #B388FF;
-  --color-inactive: #555555;
-  --color-warning: #FFD740;
-  --color-bg: #0D0D0D;
-  --color-surface: #151515;
-  --color-surface-dim: #111111;
-  --color-surface-hover: #1A1A1A;
-  --color-border: #222222;
-  --color-border-light: #333333;
-  --color-text: #F0F0F0;
-  --color-text-muted: #888888;
-  --color-text-dim: #555555;
+  --color-bg: #1F2128;
+  --color-bg-gradient-top: #23252D;
+  --color-bg-gradient-bottom: #1B1D23;
+  --color-surface: #2A2D35;
+  --color-surface-dim: #252830;
+  --color-surface-hover: #32353D;
+  --color-border: #3A3D45;
+  --color-border-light: #454850;
+  --color-text: #E0E4EC;
+  --color-text-muted: #8B91A0;
+  --color-text-dim: #5A6070;
+
+  --color-accent: #59F6FF;
+  --color-accent-dim: #3AA8B0;
+
+  --color-node-default: #A7B5C9;
+  --color-node-hover: #DCE8FF;
+  --color-node-selected: #59F6FF;
+
+  --color-edge-default: rgba(180,190,210,0.22);
+  --color-edge-hover: #59F6FF;
+
+  --color-label: #AEB8C7;
 
   --font-heading: 'Space Grotesk', system-ui, sans-serif;
   --font-body: 'IBM Plex Sans', -apple-system, BlinkMacSystemFont, sans-serif;
-  --font-mono: 'IBM Plex Mono', 'Fira Code', monospace;
+  --font-mono: 'IBM Plex Mono', 'JetBrains Mono', 'Fira Code', monospace;
 
   --sidebar-width: 48px;
   --sidebar-expanded-width: 200px;
@@ -66,7 +70,7 @@ html, body, #root {
   background: var(--color-bg);
   color: var(--color-text);
   font-family: var(--font-body);
-  font-size: 14px;
+  font-size: 13px;
   line-height: 1.5;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
@@ -82,9 +86,9 @@ h1, h2, h3 {
   text-wrap: balance;
 }
 
-h1 { font-size: clamp(1.5rem, 3vw, 2rem); }
-h2 { font-size: clamp(1.125rem, 2vw, 1.5rem); }
-h3 { font-size: clamp(1rem, 1.5vw, 1.25rem); }
+h1 { font-size: clamp(1.25rem, 2vw, 1.5rem); }
+h2 { font-size: clamp(1rem, 1.5vw, 1.25rem); }
+h3 { font-size: clamp(0.875rem, 1.2vw, 1rem); }
 
 code, pre, .mono {
   font-family: var(--font-mono);
@@ -92,7 +96,7 @@ code, pre, .mono {
 
 /* ─── Scrollbar ─── */
 
-::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar { width: 5px; height: 5px; }
 ::-webkit-scrollbar-track { background: transparent; }
 ::-webkit-scrollbar-thumb { background: var(--color-border); border-radius: 3px; }
 ::-webkit-scrollbar-thumb:hover { background: var(--color-border-light); }
@@ -100,12 +104,12 @@ code, pre, .mono {
 /* ─── Focus ring ─── */
 
 *:focus-visible {
-  outline: 2px solid var(--color-selection);
+  outline: 2px solid var(--color-accent);
   outline-offset: 2px;
 }
 
 .focus-ring {
-  outline: 2px solid var(--color-selection);
+  outline: 2px solid var(--color-accent);
   outline-offset: 2px;
 }
 
@@ -116,7 +120,7 @@ code, pre, .mono {
 /* ─── Selection ─── */
 
 ::selection {
-  background: rgba(230, 81, 0, 0.3);
+  background: rgba(89, 246, 255, 0.15);
 }
 
 /* ─── Utility animations ─── */
@@ -124,6 +128,11 @@ code, pre, .mono {
 @keyframes fadeIn {
   from { opacity: 0; }
   to { opacity: 1; }
+}
+
+@keyframes fadeInUp {
+  from { transform: translateX(-50%) translateY(8px); opacity: 0; }
+  to { transform: translateX(-50%) translateY(0); opacity: 1; }
 }
 
 @keyframes slideInRight {
@@ -201,20 +210,20 @@ code, pre, .mono {
 
 @media (prefers-contrast: more) {
   :root {
-    --color-border: #444444;
-    --color-border-light: #666666;
+    --color-border: #5A6070;
+    --color-border-light: #6B7280;
     --color-text: #FFFFFF;
-    --color-text-muted: #AAAAAA;
-    --color-text-dim: #999999;
+    --color-text-muted: #B0BAC9;
+    --color-text-dim: #8B91A0;
   }
 
   *:focus-visible {
-    outline: 3px solid var(--color-selection);
+    outline: 3px solid var(--color-accent);
     outline-offset: 2px;
   }
 
   .focus-ring {
-    outline: 3px solid var(--color-selection);
+    outline: 3px solid var(--color-accent);
     outline-offset: 2px;
   }
 }

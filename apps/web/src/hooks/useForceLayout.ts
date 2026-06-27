@@ -3,13 +3,14 @@ import * as THREE from 'three'
 import type { GraphNode, GraphEdge } from '../types'
 
 /**
- * Force-directed layout using a Web Worker.
- * Returns positions reactively — starts as empty, fills when worker completes.
- * Falls back to synchronous layout if worker fails.
+ * Force-directed layout simulation.
+ * Runs synchronously with velocity verlet integration.
+ * Returns positions reactively — starts empty, fills when simulation stabilizes.
  */
 export function useForceLayout(nodes: GraphNode[], edges: GraphEdge[]): Map<number, THREE.Vector3> {
   const [positions, setPositions] = useState<Map<number, THREE.Vector3>>(new Map())
   const prevNodesRef = useRef<string>('')
+  const simRef = useRef<ForceSimulation | null>(null)
 
   useEffect(() => {
     if (nodes.length === 0) {
@@ -18,114 +19,239 @@ export function useForceLayout(nodes: GraphNode[], edges: GraphEdge[]): Map<numb
     }
 
     // Skip if same node set
-    const key = `${nodes.length}:${edges.length}`
+    const key = nodes.map(n => n.id).sort().join(',')
     if (key === prevNodesRef.current) return
     prevNodesRef.current = key
 
-    // For very small graphs, skip worker overhead
-    if (nodes.length < 50) {
-      setPositions(computeSync(nodes, edges))
-      return
+    // Cancel previous simulation
+    if (simRef.current) {
+      simRef.current.cancelled = true
     }
 
-    let cancelled = false
+    const sim = new ForceSimulation(nodes, edges)
+    simRef.current = sim
 
-    const worker = new Worker(
-      new URL('../workers/forceLayout.worker.ts', import.meta.url),
-      { type: 'module' }
-    )
+    let frame = 0
+    const tick = () => {
+      if (sim.cancelled) return
 
-    worker.onmessage = (e) => {
-      if (cancelled) return
-      if (e.data.type === 'result') {
-        const raw = e.data.positions as Record<number, [number, number, number]>
+      sim.step()
+
+      // Update positions every 3 frames for perf
+      frame++
+      if (frame % 3 === 0) {
         const map = new Map<number, THREE.Vector3>()
-        for (const [id, [x, y, z]] of Object.entries(raw)) {
-          map.set(Number(id), new THREE.Vector3(x, y, z))
+        for (const p of sim.positions) {
+          map.set(p.id, new THREE.Vector3(p.x, p.y, p.z))
         }
         setPositions(map)
       }
-      worker.terminate()
-    }
 
-    worker.onerror = () => {
-      // Fallback to sync
-      if (!cancelled) {
-        setPositions(computeSync(nodes, edges))
+      if (sim.alpha > 0.001) {
+        requestAnimationFrame(tick)
+      } else {
+        // Final positions
+        const map = new Map<number, THREE.Vector3>()
+        for (const p of sim.positions) {
+          map.set(p.id, new THREE.Vector3(p.x, p.y, p.z))
+        }
+        setPositions(map)
       }
-      worker.terminate()
     }
 
-    worker.postMessage({
-      type: 'compute',
-      nodes: nodes.map(n => ({ id: n.id })),
-      edges: edges.map(e => ({ source: e.source, target: e.target })),
-    })
+    requestAnimationFrame(tick)
 
     return () => {
-      cancelled = true
-      worker.terminate()
+      sim.cancelled = true
     }
   }, [nodes, edges])
 
   return positions
 }
 
-/** Synchronous fallback for small graphs or worker failure */
-function computeSync(nodes: GraphNode[], edges: GraphEdge[]): Map<number, THREE.Vector3> {
-  const positions = new Map<number, THREE.Vector3>()
-  const N = nodes.length
+interface Particle {
+  id: number
+  x: number
+  y: number
+  z: number
+  vx: number
+  vy: number
+  vz: number
+}
 
-  nodes.forEach((n) => {
-    const phi = Math.acos(2 * Math.random() - 1)
-    const theta = 2 * Math.PI * Math.random()
-    const r = 3 + Math.cbrt(N) * 0.5
-    positions.set(n.id, new THREE.Vector3(
-      r * Math.sin(phi) * Math.cos(theta),
-      r * Math.sin(phi) * Math.sin(theta),
-      r * Math.cos(phi)
-    ))
-  })
+interface Link {
+  source: number
+  target: number
+}
 
-  const iterations = N < 200 ? 100 : N < 1000 ? 60 : 20
-  const rep = N < 500 ? 1.0 : 0.5
+class ForceSimulation {
+  positions: Particle[]
+  links: Link[]
+  alpha = 1.0
+  alphaDecay = 0.02
+  cancelled = false
+  private nodeMap: Map<number, Particle>
+  private connectedMap: Map<number, Set<number>>
 
-  for (let iter = 0; iter < iterations; iter++) {
-    const temp = 1.0 - iter / iterations
+  constructor(nodes: GraphNode[], edges: GraphEdge[]) {
+    // Initialize positions with some spread
+    const spread = Math.max(5, Math.sqrt(nodes.length) * 2)
+    this.positions = nodes.map((n) => ({
+      id: n.id,
+      x: (Math.random() - 0.5) * spread,
+      y: (Math.random() - 0.5) * spread * 0.5,
+      z: (Math.random() - 0.5) * spread,
+      vx: 0,
+      vy: 0,
+      vz: 0,
+    }))
 
-    if (N < 2000) {
-      for (let i = 0; i < N; i++) {
-        for (let j = i + 1; j < N; j++) {
-          const a = positions.get(nodes[i].id)!
-          const b = positions.get(nodes[j].id)!
-          const dx = a.x - b.x, dy = a.y - b.y, dz = a.z - b.z
-          const distSq = dx * dx + dy * dy + dz * dz
-          const dist = Math.max(Math.sqrt(distSq), 0.01)
-          const force = rep / distSq * temp
-          const fx = (dx / dist) * force, fy = (dy / dist) * force, fz = (dz / dist) * force
-          a.x += fx; a.y += fy; a.z += fz
-          b.x -= fx; b.y -= fy; b.z -= fz
+    this.nodeMap = new Map(this.positions.map(p => [p.id, p]))
+
+    this.links = edges
+      .filter(e => this.nodeMap.has(e.source) && this.nodeMap.has(e.target))
+      .map(e => ({ source: e.source, target: e.target }))
+
+    // Build adjacency for clustering
+    this.connectedMap = new Map()
+    for (const p of this.positions) {
+      this.connectedMap.set(p.id, new Set())
+    }
+    for (const link of this.links) {
+      this.connectedMap.get(link.source)?.add(link.target)
+      this.connectedMap.get(link.target)?.add(link.source)
+    }
+  }
+
+  step() {
+    this.alpha *= (1 - this.alphaDecay)
+    if (this.alpha < 0.001) return
+
+    const n = this.positions.length
+    if (n === 0) return
+
+    const chargeStrength = -120 / Math.sqrt(n || 1)
+    const linkDistance = Math.max(30, 120 / Math.sqrt(n || 1))
+    const centerStrength = 0.01
+
+    // Reset forces
+    for (const p of this.positions) {
+      p.vx = 0
+      p.vy = 0
+      p.vz = 0
+    }
+
+    // Charge repulsion (Barnes-Hut approximation for large n)
+    if (n <= 200) {
+      // O(n²) for small graphs
+      for (let i = 0; i < n; i++) {
+        for (let j = i + 1; j < n; j++) {
+          const a = this.positions[i]
+          const b = this.positions[j]
+          let dx = b.x - a.x
+          let dy = b.y - a.y
+          let dz = b.z - a.z
+          let dist = Math.sqrt(dx * dx + dy * dy + dz * dz)
+          if (dist < 0.1) dist = 0.1
+
+          const force = (chargeStrength * this.alpha) / (dist * dist)
+          const fx = (dx / dist) * force
+          const fy = (dy / dist) * force
+          const fz = (dz / dist) * force
+
+          a.vx -= fx
+          a.vy -= fy
+          a.vz -= fz
+          b.vx += fx
+          b.vy += fy
+          b.vz += fz
+        }
+      }
+    } else {
+      // Approximate: only repel from neighbors + random subset
+      const step = Math.max(1, Math.floor(n / 100))
+      for (let i = 0; i < n; i += step) {
+        const a = this.positions[i]
+        for (let j = 0; j < n; j++) {
+          if (i === j) continue
+          const b = this.positions[j]
+          let dx = b.x - a.x
+          let dy = b.y - a.y
+          let dz = b.z - a.z
+          let dist = Math.sqrt(dx * dx + dy * dy + dz * dz)
+          if (dist < 0.1) dist = 0.1
+
+          const force = (chargeStrength * this.alpha * 0.3) / (dist * dist)
+          const fx = (dx / dist) * force
+          const fy = (dy / dist) * force
+          const fz = (dz / dist) * force
+
+          a.vx -= fx
+          a.vy -= fy
+          a.vz -= fz
         }
       }
     }
 
-    for (const edge of edges) {
-      const a = positions.get(edge.source)
-      const b = positions.get(edge.target)
+    // Link attraction (springs)
+    for (const link of this.links) {
+      const a = this.nodeMap.get(link.source)
+      const b = this.nodeMap.get(link.target)
       if (!a || !b) continue
-      const dx = b.x - a.x, dy = b.y - a.y, dz = b.z - a.z
-      const dist = Math.sqrt(dx * dx + dy * dy + dz * dz)
-      if (dist < 0.01) continue
-      const force = (dist - 2.0) * 0.02 * temp
-      const fx = (dx / dist) * force, fy = (dy / dist) * force, fz = (dz / dist) * force
-      a.x += fx; a.y += fy; a.z += fz
-      b.x -= fx; b.y -= fy; b.z -= fz
+
+      let dx = b.x - a.x
+      let dy = b.y - a.y
+      let dz = b.z - a.z
+      let dist = Math.sqrt(dx * dx + dy * dy + dz * dz)
+      if (dist < 0.1) dist = 0.1
+
+      const force = (dist - linkDistance) * 0.05 * this.alpha
+      const fx = (dx / dist) * force
+      const fy = (dy / dist) * force
+      const fz = (dz / dist) * force
+
+      a.vx += fx
+      a.vy += fy
+      a.vz += fz
+      b.vx -= fx
+      b.vy -= fy
+      b.vz -= fz
     }
 
-    for (const pos of positions.values()) {
-      pos.x *= 0.99; pos.y *= 0.99; pos.z *= 0.99
+    // Cluster gravity — connected nodes attract toward each other's centroid
+    for (const p of this.positions) {
+      const neighbors = this.connectedMap.get(p.id)
+      if (!neighbors || neighbors.size === 0) continue
+
+      let cx = 0, cy = 0, cz = 0, count = 0
+      for (const nid of neighbors) {
+        const n = this.nodeMap.get(nid)
+        if (n) { cx += n.x; cy += n.y; cz += n.z; count++ }
+      }
+      if (count > 0) {
+        cx /= count; cy /= count; cz /= count
+        p.vx += (cx - p.x) * 0.003 * this.alpha
+        p.vy += (cy - p.y) * 0.003 * this.alpha
+        p.vz += (cz - p.z) * 0.003 * this.alpha
+      }
+    }
+
+    // Center gravity
+    for (const p of this.positions) {
+      p.vx -= p.x * centerStrength * this.alpha
+      p.vy -= p.y * centerStrength * this.alpha
+      p.vz -= p.z * centerStrength * this.alpha
+    }
+
+    // Integrate
+    const velocityDecay = 0.6
+    for (const p of this.positions) {
+      p.vx *= velocityDecay
+      p.vy *= velocityDecay
+      p.vz *= velocityDecay
+      p.x += p.vx
+      p.y += p.vy
+      p.z += p.vz
     }
   }
-
-  return positions
 }

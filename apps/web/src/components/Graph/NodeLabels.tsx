@@ -48,11 +48,11 @@ export function NodeLabels({
               className="font-mono whitespace-nowrap select-none"
               style={{
                 fontSize: isSelected ? '11px' : '9px',
-                color: isSelected ? '#E65100' : isHovered ? '#F0F0F0' : '#888888',
-                textShadow: '0 0 4px rgba(0,0,0,0.8)',
-                opacity: isSelected || isHovered ? 1 : 0.8,
+                color: isSelected ? '#59F6FF' : isHovered ? '#DCE8FF' : '#8B91A0',
+                textShadow: '0 0 6px rgba(0,0,0,0.9)',
+                opacity: isSelected || isHovered ? 1 : 0.7,
                 fontWeight: isSelected ? 600 : 400,
-                background: isSelected ? 'rgba(230,81,0,0.12)' : 'transparent',
+                background: isSelected ? 'rgba(89,246,255,0.10)' : 'transparent',
                 padding: isSelected ? '0 3px' : '0',
                 borderRadius: '2px',
               }}

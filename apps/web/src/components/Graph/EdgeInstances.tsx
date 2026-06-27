@@ -5,49 +5,65 @@ import type { GraphEdge } from '../../types'
 import { COLORS } from '../../constants'
 
 const MAX_EDGES = 20_000
+const CURVE_SEGMENTS = 8 // segments per curved edge
+const TOTAL_VERTS = MAX_EDGES * (CURVE_SEGMENTS + 1)
 
-// Pre-allocated geometry for all edges
-function createEdgeGeometry() {
-  const positions = new Float32Array(MAX_EDGES * 6) // 2 vertices * 3 components * MAX_EDGES
-  const colors = new Float32Array(MAX_EDGES * 6) // 2 vertices * 3 components * MAX_EDGES
+// Pre-allocated geometry for curved edges
+function createCurvedEdgeGeometry() {
+  const positions = new Float32Array(TOTAL_VERTS * 3)
+  const colors = new Float32Array(TOTAL_VERTS * 3)
   const geo = new THREE.BufferGeometry()
   geo.setAttribute('position', new THREE.BufferAttribute(positions, 3))
   geo.setAttribute('color', new THREE.BufferAttribute(colors, 3))
   return geo
 }
 
+// Quadratic bezier point
+function bezierPoint(
+  t: number,
+  x0: number, y0: number, z0: number,
+  cx: number, cy: number, cz: number,
+  x1: number, y1: number, z1: number,
+): [number, number, number] {
+  const mt = 1 - t
+  return [
+    mt * mt * x0 + 2 * mt * t * cx + t * t * x1,
+    mt * mt * y0 + 2 * mt * t * cy + t * t * y1,
+    mt * mt * z0 + 2 * mt * t * cz + t * t * z1,
+  ]
+}
+
 export function EdgeInstances({
   edges,
   positions,
   selectedNodeId,
+  hoveredNodeId,
   animation,
 }: {
   edges: GraphEdge[]
   positions: Map<number, [number, number, number]>
   selectedNodeId: number | null
-  animation: 'dots' | 'glow' | 'both' | 'none'
+  hoveredNodeId: number | null
+  animation: 'pulse' | 'dots' | 'glow' | 'both' | 'none'
 }) {
   const lineRef = useRef<THREE.LineSegments>(null!)
-  const glowLineRef = useRef<THREE.LineSegments>(null!)
-  const edgeGeometry = useMemo(() => createEdgeGeometry(), [])
-  const glowGeometry = useMemo(() => createEdgeGeometry(), [])
+  const edgeGeometry = useMemo(() => createCurvedEdgeGeometry(), [])
   const timeRef = useRef(0)
 
   useFrame((_, delta) => {
     if (!lineRef.current) return
-
     timeRef.current += delta
 
     const posAttr = edgeGeometry.attributes.position as THREE.BufferAttribute
     const colAttr = edgeGeometry.attributes.color as THREE.BufferAttribute
-    const glowPosAttr = glowGeometry.attributes.position as THREE.BufferAttribute
-    const glowColAttr = glowGeometry.attributes.color as THREE.BufferAttribute
 
-    const anySelected = selectedNodeId !== null
-    const cyanColor = new THREE.Color(COLORS.relationship)
-    const dimColor = new THREE.Color(COLORS.border)
-    const selectedColor = new THREE.Color(COLORS.relationshipGlow)
-    const glowCyan = new THREE.Color(COLORS.relationship).multiplyScalar(0.15)
+    const anyFocused = selectedNodeId !== null || hoveredNodeId !== null
+
+    const defaultColor = new THREE.Color(COLORS.edgeDefault)
+    const hoverColor = new THREE.Color(COLORS.edgeHover)
+    const dimColor = new THREE.Color(COLORS.edgeDefault).multiplyScalar(0.3)
+
+    let vertIndex = 0
 
     for (let i = 0; i < edges.length && i < MAX_EDGES; i++) {
       const edge = edges[i]
@@ -55,91 +71,98 @@ export function EdgeInstances({
       const to = positions.get(edge.target)
 
       if (!from || !to) {
-        // Hide off-screen
-        posAttr.setXYZ(i * 2, 0, 0, -1000)
-        posAttr.setXYZ(i * 2 + 1, 0, 0, -1000)
-        glowPosAttr.setXYZ(i * 2, 0, 0, -1000)
-        glowPosAttr.setXYZ(i * 2 + 1, 0, 0, -1000)
+        // Skip: write degenerate segment
+        for (let s = 0; s <= CURVE_SEGMENTS; s++) {
+          posAttr.setXYZ(vertIndex, 0, 0, -1000)
+          colAttr.setXYZ(vertIndex, 0, 0, 0)
+          vertIndex++
+        }
         continue
       }
 
-      const isConnected = anySelected && (edge.source === selectedNodeId || edge.target === selectedNodeId)
+      const isSource = edge.source === selectedNodeId || edge.source === hoveredNodeId
+      const isTarget = edge.target === selectedNodeId || edge.target === hoveredNodeId
+      const isConnected = isSource || isTarget
 
-      // Position
-      posAttr.setXYZ(i * 2, from[0], from[1], from[2])
-      posAttr.setXYZ(i * 2 + 1, to[0], to[1], to[2])
+      // Compute bezier control point (arc perpendicular to midpoint)
+      const midX = (from[0] + to[0]) / 2
+      const midY = (from[1] + to[1]) / 2
+      const midZ = (from[2] + to[2]) / 2
+      const dx = to[0] - from[0]
+      const dy = to[1] - from[1]
+      const dz = to[2] - from[2]
+      const dist = Math.sqrt(dx * dx + dy * dy + dz * dz)
 
-      // Glow (slightly wider)
-      glowPosAttr.setXYZ(i * 2, from[0], from[1], from[2])
-      glowPosAttr.setXYZ(i * 2 + 1, to[0], to[1], to[2])
+      // Curve amount proportional to distance (subtle arc)
+      const curveAmount = Math.min(dist * 0.1, 2.0)
+      // Perpendicular direction (cross with up vector)
+      const nx = -dy * curveAmount / (dist || 1)
+      const ny = dx * curveAmount / (dist || 1)
+      const nz = 0
 
-      // Color with optional animation
-      let color: THREE.Color
-      let opacity: number
+      const cx = midX + nx
+      const cy = midY + ny
+      const cz = midZ + nz
 
-      if (isConnected) {
-        color = selectedColor.clone()
-        opacity = 0.9
+      // Write curved edge vertices
+      for (let s = 0; s <= CURVE_SEGMENTS; s++) {
+        const t = s / CURVE_SEGMENTS
+        const [px, py, pz] = bezierPoint(
+          t,
+          from[0], from[1], from[2],
+          cx, cy, cz,
+          to[0], to[1], to[2],
+        )
+        posAttr.setXYZ(vertIndex, px, py, pz)
 
-        // Glow pulse for connected edges
-        if (animation === 'glow' || animation === 'both') {
-          const pulse = 0.7 + 0.3 * Math.sin(timeRef.current * 3 + i * 0.5)
-          opacity *= pulse
+        // Color
+        let color: THREE.Color
+        let opacity: number
+
+        if (isConnected) {
+          color = hoverColor.clone()
+          opacity = 0.5
+
+          // Animated pulse along the edge
+          if (animation === 'pulse' || animation === 'both' || animation === 'glow') {
+            // Pulse travels from source to target in 1.5s
+            const pulseT = (timeRef.current * 0.67) % 1.0 // 1/1.5 = 0.67
+            const distFromPulse = Math.abs(t - pulseT)
+            const pulseBrightness = Math.max(0, 1 - distFromPulse * 4)
+            opacity += pulseBrightness * 0.5
+          }
+        } else if (anyFocused) {
+          color = dimColor.clone()
+          opacity = 0.08
+        } else {
+          color = defaultColor.clone()
+          opacity = 0.22
         }
-      } else {
-        color = dimColor.clone()
-        opacity = 0.12
+
+        colAttr.setXYZ(vertIndex, color.r * opacity, color.g * opacity, color.b * opacity)
+        vertIndex++
       }
-
-      // Apply traveling dots effect via color modulation
-      if ((animation === 'dots' || animation === 'both') && isConnected) {
-        const t = (timeRef.current * 0.5 + i * 0.3) % 1.0
-        if (t < 0.1) {
-          color = cyanColor.clone().lerp(selectedColor, t / 0.1)
-        }
-      }
-
-      colAttr.setXYZ(i * 2, color.r * opacity, color.g * opacity, color.b * opacity)
-      colAttr.setXYZ(i * 2 + 1, color.r * opacity, color.g * opacity, color.b * opacity)
-
-      // Glow line
-      glowColAttr.setXYZ(i * 2, glowCyan.r, glowCyan.g, glowCyan.b)
-      glowColAttr.setXYZ(i * 2 + 1, glowCyan.r, glowCyan.g, glowCyan.b)
     }
 
     // Clear remaining slots
-    for (let i = edges.length; i < MAX_EDGES; i++) {
-      posAttr.setXYZ(i * 2, 0, 0, -1000)
-      posAttr.setXYZ(i * 2 + 1, 0, 0, -1000)
-      glowPosAttr.setXYZ(i * 2, 0, 0, -1000)
-      glowPosAttr.setXYZ(i * 2 + 1, 0, 0, -1000)
+    for (let i = vertIndex; i < TOTAL_VERTS; i++) {
+      posAttr.setXYZ(i, 0, 0, -1000)
+      colAttr.setXYZ(i, 0, 0, 0)
     }
 
     posAttr.needsUpdate = true
     colAttr.needsUpdate = true
-    glowPosAttr.needsUpdate = true
-    glowColAttr.needsUpdate = true
-    edgeGeometry.setDrawRange(0, edges.length * 2)
-    glowGeometry.setDrawRange(0, edges.length * 2)
+    edgeGeometry.setDrawRange(0, Math.min(edges.length, MAX_EDGES) * (CURVE_SEGMENTS + 1))
   })
 
   return (
-    <group>
-      {/* Glow layer */}
-      <lineSegments ref={glowLineRef} geometry={glowGeometry} frustumCulled={false}>
-        <lineBasicMaterial
-          vertexColors
-          transparent
-          opacity={0.3}
-          depthWrite={false}
-          blending={THREE.AdditiveBlending}
-        />
-      </lineSegments>
-
-      {/* Main edges */}
-      <lineSegments ref={lineRef} geometry={edgeGeometry} frustumCulled={false}>
-        <lineBasicMaterial vertexColors transparent depthWrite={false} />
-      </lineSegments>
-    </group>
+    <lineSegments ref={lineRef} geometry={edgeGeometry} frustumCulled={false}>
+      <lineBasicMaterial
+        vertexColors
+        transparent
+        depthWrite={false}
+        linewidth={1}
+      />
+    </lineSegments>
   )
 }

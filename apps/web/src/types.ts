@@ -151,7 +151,7 @@ export type PanelId =
 // ─── Settings ───
 
 export interface Settings {
-  edgeAnimation: 'dots' | 'glow' | 'both' | 'none'
+  edgeAnimation: 'pulse' | 'dots' | 'glow' | 'both' | 'none'
   particleDensity: 'off' | 'light' | 'medium' | 'heavy'
   showLabels: boolean
   lodThreshold: 'low' | 'medium' | 'high'
@@ -164,7 +164,7 @@ export interface Settings {
 }
 
 export const DEFAULT_SETTINGS: Settings = {
-  edgeAnimation: 'glow',
+  edgeAnimation: 'pulse',
   particleDensity: 'medium',
   showLabels: true,
   lodThreshold: 'medium',
