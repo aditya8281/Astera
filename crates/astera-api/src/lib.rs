@@ -45,6 +45,7 @@ pub fn create_router_with_static(db: Database, static_dir: Option<PathBuf>) -> R
         .route("/api/edges", get(routes::list_edges))
         .route("/api/search", get(routes::search))
         .route("/api/graph/modules", get(routes::modules))
+        .route("/api/graph/children/{id}", get(routes::children))
         .route("/api/graph/dependency", get(routes::dependency_graph))
         .route("/api/metrics", get(routes::metrics))
         .route("/api/impact", get(routes::impact))

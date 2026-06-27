@@ -25,6 +25,7 @@ export const api = {
   },
   search: (q: string) => get<ApiResponse<SymbolNode[]>>(`/search?q=${encodeURIComponent(q)}`),
   modules: () => get<ApiResponse<ModuleSummary[]>>('/graph/modules'),
+  children: (nodeId: number) => get<GraphResponse>(`/graph/children/${nodeId}`),
   dependencyGraph: () => get<GraphResponse>('/graph/dependency'),
   metrics: () => get<ApiResponse<MetricsResponse>>('/metrics'),
   impact: (rootId: number, maxDepth?: number, direction?: string) => {

@@ -331,4 +331,61 @@ mod tests {
         // main calls helper, so helper should be affected
         assert_eq!(json["data"]["total_affected"], 1);
     }
+
+    #[tokio::test]
+    async fn test_children_endpoint() {
+        let app = super::super::create_router(setup_db());
+
+        // Config class is node 3, has 1 child (Contains edge to main function)
+        let resp = app
+            .oneshot(
+                Request::builder()
+                    .uri("/api/graph/children/3")
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(resp.status(), StatusCode::OK);
+
+        let body = axum::body::to_bytes(resp.into_body(), usize::MAX)
+            .await
+            .unwrap();
+        let json: serde_json::Value = serde_json::from_slice(&body).unwrap();
+        // Parent node + 1 child = 2 nodes
+        assert_eq!(json["nodes"].as_array().unwrap().len(), 2);
+        // Parent should be first
+        assert_eq!(json["nodes"][0]["name"], "Config");
+        assert_eq!(json["nodes"][0]["kind"], "Class");
+        // Child should be main function
+        assert_eq!(json["nodes"][1]["name"], "main");
+        assert_eq!(json["nodes"][1]["kind"], "Function");
+        // Edge connecting parent to child
+        assert!(!json["edges"].as_array().unwrap().is_empty());
+    }
+
+    #[tokio::test]
+    async fn test_children_endpoint_leaf() {
+        let app = super::super::create_router(setup_db());
+
+        // main function (node 1) has no children
+        let resp = app
+            .oneshot(
+                Request::builder()
+                    .uri("/api/graph/children/1")
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(resp.status(), StatusCode::OK);
+
+        let body = axum::body::to_bytes(resp.into_body(), usize::MAX)
+            .await
+            .unwrap();
+        let json: serde_json::Value = serde_json::from_slice(&body).unwrap();
+        // Just the parent node, no children
+        assert_eq!(json["nodes"].as_array().unwrap().len(), 1);
+        assert_eq!(json["edges"].as_array().unwrap().len(), 0);
+    }
 }

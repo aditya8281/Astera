@@ -584,3 +584,100 @@ pub async fn impact(
         },
     }))
 }
+
+// ─── Children endpoint (progressive drill-down) ───
+
+pub async fn children(
+    State(state): State<AppState>,
+    axum::extract::Path(node_id): axum::extract::Path<i64>,
+) -> Result<Json<GraphResponse>, (StatusCode, Json<ErrorResponse>)> {
+    let db = state.db.lock().map_err(|_| {
+        (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            Json(ErrorResponse {
+                error: "Database lock poisoned".into(),
+            }),
+        )
+    })?;
+
+    // Fetch children from storage
+    let (child_nodes, child_edges) = db.get_children_of(node_id).map_err(|e| {
+        (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            Json(ErrorResponse {
+                error: format!("Database error: {}", e),
+            }),
+        )
+    })?;
+
+    // For importance computation we need all nodes+edges
+    let all_nodes = db.query_nodes(None, None, None).map_err(|e| {
+        (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            Json(ErrorResponse {
+                error: format!("Database error: {}", e),
+            }),
+        )
+    })?;
+
+    let all_edges = db.get_edges(None, None, None).map_err(|e| {
+        (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            Json(ErrorResponse {
+                error: format!("Database error: {}", e),
+            }),
+        )
+    })?;
+
+    let importance = compute_importance(&all_nodes, &all_edges);
+
+    // Include the parent node itself
+    let parent = db.get_node(node_id).map_err(|e| {
+        (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            Json(ErrorResponse {
+                error: format!("Database error: {}", e),
+            }),
+        )
+    })?;
+
+    let mut graph_nodes: Vec<GraphNode> = Vec::with_capacity(child_nodes.len() + 1);
+    if let Some(p) = parent {
+        let pid = p.id.unwrap_or(0);
+        graph_nodes.push(GraphNode {
+            id: pid,
+            kind: p.kind.to_string(),
+            name: p.name,
+            file_id: p.file_id,
+            start_line: p.span.start_line,
+            end_line: p.span.end_line,
+            importance: importance.get(&pid).copied().unwrap_or(0.3),
+        });
+    }
+    for n in child_nodes {
+        let nid = n.id.unwrap_or(0);
+        graph_nodes.push(GraphNode {
+            id: nid,
+            kind: n.kind.to_string(),
+            name: n.name,
+            file_id: n.file_id,
+            start_line: n.span.start_line,
+            end_line: n.span.end_line,
+            importance: importance.get(&nid).copied().unwrap_or(0.3),
+        });
+    }
+
+    let graph_edges: Vec<GraphEdge> = child_edges
+        .into_iter()
+        .map(|e| GraphEdge {
+            source: e.source_node_id,
+            target: e.target_node_id,
+            kind: e.kind.to_string(),
+        })
+        .collect();
+
+    Ok(Json(GraphResponse {
+        nodes: graph_nodes,
+        edges: graph_edges,
+    }))
+}
