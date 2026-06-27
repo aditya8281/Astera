@@ -10,6 +10,7 @@ import { ImpactPanel } from './panels/ImpactPanel'
 import { SettingsPanel } from './panels/SettingsPanel'
 import { useUIStore } from '../store'
 import { COLORS } from '../constants'
+import { EmptyState } from '../components/Common/EmptyState'
 import type { GraphNode, GraphEdge } from '../types'
 
 // Container kinds that support drill-down
@@ -128,9 +129,20 @@ export function GraphPage() {
 
   const selectedNode = visibleNodes.find(n => n.id === selectedNodeId)
   const isLoading = modulesLoading && visibleNodes.length === 0
+  const isEmpty = !isLoading && visibleNodes.length === 0
 
   return (
     <div className="h-full relative">
+      {/* Empty state: no index yet */}
+      {isEmpty && (
+        <EmptyState
+          iconKey="graph"
+          title="No index found"
+          description="Run astera index to parse your codebase into a queryable graph."
+          action={{ label: 'Open CLI', onClick: () => window.open('https://github.com/astera/astera#usage', '_blank') }}
+        />
+      )}
+
       {/* Graph */}
       <GraphCanvas
         nodes={filteredNodes}
@@ -205,6 +217,21 @@ export function GraphPage() {
               </div>
             )}
           </div>
+        </div>
+      )}
+
+      {/* Keyboard shortcut hint */}
+      {visibleNodes.length > 0 && (
+        <div
+          className="absolute bottom-3 right-3 px-2 py-1 rounded text-[10px] font-mono"
+          style={{
+            background: `${COLORS.surface}C0`,
+            border: `1px solid ${COLORS.border}`,
+            color: COLORS.textDim,
+            zIndex: 'var(--z-minimap)',
+          }}
+        >
+          Press <kbd className="mx-0.5 px-1 py-0.5 rounded" style={{ background: COLORS.surfaceDim, border: `1px solid ${COLORS.border}` }}>?</kbd> for shortcuts
         </div>
       )}
 

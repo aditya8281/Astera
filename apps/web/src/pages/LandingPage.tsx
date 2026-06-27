@@ -425,7 +425,7 @@ export function LandingPage() {
         style={{ borderTop: `1px solid ${COLORS.border}` }}
       >
         <div className="max-w-3xl mx-auto flex items-center justify-between text-[10px] font-mono" style={{ color: COLORS.textDim }}>
-          <span>Built with Rust + React Three Fiber</span>
+          <span>Built with Rust + React</span>
           <span>Astera v0.1.0</span>
         </div>
       </footer>

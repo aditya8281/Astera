@@ -1,5 +1,6 @@
-import React from 'react'
+import type { ReactNode } from 'react'
 import { COLORS } from '../../constants'
+import { GraphIcon, SearchIcon, FilesIcon, AlertIcon } from './Icons'
 
 interface EmptyStateAction {
   label: string
@@ -7,18 +8,21 @@ interface EmptyStateAction {
 }
 
 interface EmptyStateProps {
-  icon: string
+  icon?: ReactNode
+  iconKey?: 'graph' | 'search' | 'files' | 'alert'
   title: string
   description: string
   action?: EmptyStateAction
 }
 
-export const EmptyState: React.FC<EmptyStateProps> = ({
-  icon,
-  title,
-  description,
-  action,
-}) => {
+const ICON_MAP = {
+  graph: <GraphIcon size={32} color={COLORS.textDim} />,
+  search: <SearchIcon size={32} color={COLORS.textDim} />,
+  files: <FilesIcon size={32} color={COLORS.textDim} />,
+  alert: <AlertIcon size={32} color={COLORS.textDim} />,
+}
+
+export function EmptyState({ icon, iconKey, title, description, action }: EmptyStateProps) {
   return (
     <div
       style={{
@@ -32,17 +36,9 @@ export const EmptyState: React.FC<EmptyStateProps> = ({
         userSelect: 'none',
       }}
     >
-      <span
-        style={{
-          fontSize: 32,
-          lineHeight: 1,
-          opacity: 0.4,
-        }}
-        role="img"
-        aria-hidden="true"
-      >
-        {icon}
-      </span>
+      <div style={{ opacity: 0.5 }}>
+        {icon ?? (iconKey ? ICON_MAP[iconKey] : <GraphIcon size={32} color={COLORS.textDim} />)}
+      </div>
 
       <h3
         style={{
