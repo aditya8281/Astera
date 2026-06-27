@@ -61,6 +61,8 @@ astera query symbols         List indexed symbols
 astera query edges           List indexed edges
   --kind <KIND>              Filter by kind (Calls, Contains, etc.)
 astera serve --port <PORT>   Start HTTP API server (default: 8080)
+astera watch [PATH]          Watch for changes + auto re-index + serve API
+  --port <PORT>              API port while watching (default: 8080)
 ```
 
 ## API Endpoints
@@ -76,6 +78,8 @@ All endpoints return `{ data, meta: { count, elapsed_ms } }`.
 | GET | `/api/edges` | List edges (query: `?kind=`, `?source_node_id=`, `?target_node_id=`) |
 | GET | `/api/search?q=` | Full-text search across symbols |
 | GET | `/api/graph/dependency` | Dependency graph data (nodes + edges) |
+| GET | `/api/metrics` | Code metrics (complexity, coupling, circular deps) |
+| GET | `/api/impact?root_id=` | Impact analysis (query: `?root_id=`, `?max_depth=`, `?direction=reverse`) |
 
 ### Example
 
@@ -113,13 +117,15 @@ npm run build
 - **Graph** — Interactive 3D force-directed graph with node selection, kind filtering, search
 - **Symbols** — Searchable symbol list with kind filter
 - **Files** — Indexed file listing with language, line count, size
+- **Metrics** — Cyclomatic/cognitive complexity, coupling, circular dependency detection
+- **Impact** — What-if change impact analysis via BFS transitive closure
 
 ## Architecture
 
 ```
 ┌──────────────────────────────────────────────────┐
 │                   CLI (astera)                    │
-│          init | index | query | serve             │
+│       init | index | query | serve | watch        │
 └────────────┬─────────────────────┬───────────────┘
              │                     │
              ▼                     ▼
