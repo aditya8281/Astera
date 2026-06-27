@@ -84,18 +84,25 @@
 - [x] **Frontend pages**
   - [x] Metrics page (summary cards, circular deps, complexity legend)
   - [x] Impact page (symbol search, direction toggle, depth control)
-- [ ] **FTS5 full-text search** improvements
-  - [ ] BM25 relevance ranking
-  - [ ] Prefix matching for typeahead
+- [x] **FTS5 full-text search** (BM25 via SQLite FTS5, LIKE fallback)
 - [ ] **3D frontend enhancements**
   - [ ] LOD and instancing for >10K nodes
   - [ ] MiniMap
   - [ ] Filter panel (by kind, file, metric range)
   - [ ] WebSocket integration for re-index progress
-- [ ] **Performance benchmarks** (criterion)
-  - [ ] Parsing throughput
-  - [ ] Query latency
-  - [ ] Memory profiling
+- [x] **Performance benchmarks** (criterion — 73 benchmarks, 11 groups)
+  - [x] Parsing throughput (5 languages × multiple scales)
+  - [x] Symbol extraction + full pipeline
+  - [x] Storage ops (insert, query, search, FTS5, children)
+  - [x] Metrics computation (complexity, importance)
+  - [x] Impact analysis (forward, reverse, depth-limited, critical path)
+  - [x] Discovery utilities (hash, line count, classification)
+  - [x] End-to-end pipeline (parse → extract → store)
+  - [x] Scalability curves (50–10K nodes)
+  - [x] Parse edge cases (empty, malformed, nested, long lines, unicode)
+  - [x] Concurrent storage reads + API response simulation
+  - [ ] Memory profiling (deferred)
+  - [ ] Benchmark regression tracking (deferred)
 
 **Phase 2 Deliverables:**
 - 5 languages (TS/JS, Python, Rust, Go)
@@ -105,7 +112,8 @@
 - File watching + incremental re-index
 - Frontend with Metrics and Impact pages
 - Single-command serve (API + web UI)
-- 96 backend tests
+- 104 backend tests
+- 73 criterion benchmarks
 
 ---
 
@@ -124,13 +132,18 @@
 - [ ] **C grammar + extractor** (functions, structs, #include)
 - [ ] **C++ grammar + extractor** (classes, functions, templates)
 - [ ] **Java grammar + extractor** (classes, interfaces, packages)
+- [ ] **WASM-based plugin system** for custom analyzers
+- [ ] **Benchmark regression tracking** — compare against baselines
+- [ ] **Frontend embedding** — rust-embed static files into binary
 
 **Phase 3 Deliverables:**
-- 4 export formats
+- 3 export formats (JSON, CSV, DOT — already done)
 - GitHub Action
 - Architecture rule engine
 - Pre-commit hook
 - 8+ languages
+- WASM plugin system
+- Benchmark CI integration
 
 ---
 

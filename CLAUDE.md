@@ -63,14 +63,13 @@ Backend organized as Cargo workspace crates under `crates/`:
 | `astera-discovery` | Filesystem walk, gitignore, language classification |
 | `astera-parser` | Tree-sitter integration, symbol extraction |
 | `astera-resolver` | Reference resolution, import resolution |
-| `astera-graph` | CPG builder, graph algorithms |
 | `astera-storage` | SQLite + FTS5 via rusqlite |
-| `astera-metrics` | Complexity, coupling, cohesion (Phase 2) |
-| `astera-impact` | Change impact analysis (Phase 2) |
-| `astera-api` | Axum HTTP server, routes, middleware |
+| `astera-metrics` | Complexity, coupling, importance scoring |
+| `astera-impact` | BFS impact analysis, critical path, cycle detection |
+| `astera-api` | Axum HTTP server (11 REST endpoints) + static file serving |
+| `astera-export` | JSON, CSV, DOT export |
+| `astera-watcher` | File watching via notify crate |
 | `astera` | CLAP entry point (binary crate) |
-| `astera-watcher` | File watching via notify crate (Phase 2) |
-| `astera-export` | Export/import formats (Phase 3) |
 
 Key libs: tree-sitter (parsing), rusqlite (storage), axum/tokio (HTTP), serde (JSON), rayon (parallel), tracing (logging), clap (CLI).
 

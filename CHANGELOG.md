@@ -13,12 +13,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Code Property Graph with symbols, call graphs, dependency graphs, containment hierarchy
 - SQLite storage with FTS5 full-text search
 - CLI with init, index, query, serve, watch, export, stats commands
-- REST API with 9 endpoints (stats, files, symbols, edges, search, graph, metrics, impact)
+- REST API with 11 endpoints (stats, files, symbols, edges, search, modules, children, dependency, metrics, impact)
 - Interactive 3D web UI with React Three Fiber force-directed graph
 - Code metrics: cyclomatic complexity, cognitive complexity, fan-in/fan-out coupling
 - Change impact analysis via BFS transitive closure
 - Circular dependency detection via Tarjan's SCC
 - Export to JSON, CSV, DOT (Graphviz)
 - File watching with incremental re-indexing
+- Comprehensive benchmark suite (73 benchmarks across 11 groups, criterion)
 - GitHub Actions CI (check, test, fmt, clippy)
 - GitHub Actions release workflow (cross-platform binaries)

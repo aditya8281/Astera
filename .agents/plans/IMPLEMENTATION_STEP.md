@@ -27,7 +27,7 @@ Infrastructure complete:
 - Workspace metadata (version, license, repository)
 - README with badges and comprehensive documentation
 
-**101 tests passing** — 6 core + 8 discovery + 27 parser + 25 resolver + 9 storage + 4 metrics + 7 impact + 9 API + 1 watcher + 5 export.
+**104 tests passing** — 6 core + 8 discovery + 27 parser + 25 resolver + 9 storage + 4 metrics + 7 impact + 12 API + 1 watcher + 5 export.
 
 | Crate | Tests | Status |
 |---|---|---|
@@ -39,7 +39,7 @@ Infrastructure complete:
 | astera-metrics | 4 | ✅ cyclomatic/cognitive complexity, coupling, instability, Tarjan SCC |
 | astera-impact | 7 | ✅ BFS transitive closure, critical path, cycle detection |
 | astera | 0 | ✅ Builds, all commands work |
-| astera-api | 9 | ✅ 9 REST endpoints + static file serving |
+| astera-api | 12 | ✅ 11 REST endpoints + static file serving |
 | astera-watcher | 1 | ✅ notify v7 file watching, debounced incremental re-index |
 | astera-export | 5 | ✅ JSON, CSV, DOT export |
 | apps/web | — | ✅ 3D frontend, 5 pages (Graph, Symbols, Files, Metrics, Impact) |
@@ -135,7 +135,7 @@ cd apps/web && npm install && npm run dev
 
 - [x] 5 languages (TS/JS, Python, Rust, Go)
 - [x] CLI: init, index, query, serve, watch, export, stats
-- [x] REST API: 9 endpoints
+- [x] REST API: 11 endpoints (stats, files, symbols, edges, search, modules, children, dependency, metrics, impact)
 - [x] 3D web UI: Graph, Symbols, Files, Metrics, Impact pages
 - [x] Reference resolution (scope chain + imports)
 - [x] Code metrics (complexity, coupling, circular deps)
@@ -147,6 +147,18 @@ cd apps/web && npm install && npm run dev
 - [x] Professional docs (LICENSE, CONTRIBUTING, SECURITY, CHANGELOG)
 - [x] README with badges, install options, complete reference
 - [x] Cross-platform safe (Path::join everywhere, bundled SQLite)
+- [x] Comprehensive benchmark suite (73 benchmarks, 11 groups, criterion)
+  - [x] Parsing throughput per language (5 languages × 3 scales)
+  - [x] Symbol extraction per language
+  - [x] Storage ops (insert, query, search, FTS5, children)
+  - [x] Metrics computation (complexity, importance)
+  - [x] Impact analysis (forward, reverse, depth-limited, critical path)
+  - [x] Discovery utilities (hash, line count, language classification)
+  - [x] End-to-end pipeline (parse → extract → store)
+  - [x] Scalability curves (50 to 10K nodes)
+  - [x] Parse edge cases (empty, malformed, nested, long lines, unicode)
+  - [x] Concurrent storage reads
+  - [x] API response simulation
 
 ## What's Next (Phase 3)
 
@@ -156,8 +168,9 @@ cd apps/web && npm install && npm run dev
 - [ ] C/C++/Java grammar + extractors
 - [ ] Multi-repo workspace support
 - [ ] Frontend: LOD for large graphs, MiniMap, filter panel
-- [ ] Performance benchmarks (criterion)
 - [ ] Frontend embedding into binary (rust-embed)
+- [ ] Benchmark regression tracking (compare against baseline)
+- [ ] Daemon mode (long-lived server with incremental re-indexing)
 
 ## Language Support
 

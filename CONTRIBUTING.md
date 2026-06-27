@@ -112,7 +112,7 @@ Follow [Conventional Commits](https://www.conventionalcommits.org/):
 ## Running Tests
 
 ```bash
-# All tests
+# All tests (104 total)
 cargo test
 
 # Specific crate
@@ -123,6 +123,23 @@ cargo test -p astera-parser -- test_ts_extraction
 
 # With output
 cargo test -- --nocapture
+```
+
+## Running Benchmarks
+
+```bash
+# Full benchmark suite (73 benchmarks across 11 groups)
+cargo bench --bench astera_bench
+
+# Specific benchmark group
+cargo bench --bench astera_bench parse_throughput
+cargo bench --bench astera_bench storage
+cargo bench --bench astera_bench metrics
+cargo bench --bench astera_bench impact_analysis
+cargo bench --bench astera_bench scalability
+cargo bench --bench astera_bench api_simulation
+
+# HTML reports generated in target/criterion/
 ```
 
 ## Building for Release

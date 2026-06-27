@@ -170,6 +170,8 @@ All endpoints return `{ data, meta: { count, elapsed_ms } }`.
 | GET | `/api/symbols/{id}` | Get a single symbol by ID |
 | GET | `/api/edges` | List edges (query: `?kind=`, `?source_node_id=`, `?target_node_id=`) |
 | GET | `/api/search?q=` | Full-text search across symbols |
+| GET | `/api/graph/modules` | Module-level summary (container kinds + child counts + importance) |
+| GET | `/api/graph/children/{id}` | Children of a node (for drill-down navigation) |
 | GET | `/api/graph/dependency` | Dependency graph data (nodes + edges) |
 | GET | `/api/metrics` | Code metrics (complexity, coupling, circular deps) |
 | GET | `/api/impact?root_id=` | Impact analysis (query: `?root_id=`, `?max_depth=`, `?direction=reverse`) |
@@ -291,7 +293,7 @@ npm run build
 ## Testing
 
 ```bash
-# Run all tests (96 total)
+# Run all tests (104 total)
 cargo test
 
 # Test a specific crate
@@ -301,6 +303,9 @@ cargo test -p astera-impact
 
 # Run a specific test
 cargo test -p astera-parser -- test_ts_call_graph
+
+# Run benchmarks (73 benchmarks, 11 groups)
+cargo bench --bench astera_bench
 ```
 
 ## Data Model
