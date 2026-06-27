@@ -1,9 +1,9 @@
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use std::time::Instant;
 
 use clap::{Parser, Subcommand};
 
-use astera_core::IndexReport;
+use astera_core::{IndexReport, RepoConfig, WorkspaceConfig};
 use astera_discovery::FileWalker;
 use astera_parser::{parse, Extractor, ParseOutput};
 use astera_storage::Database;
@@ -60,6 +60,11 @@ enum Commands {
     },
     /// Show index statistics (file, symbol, edge counts)
     Stats,
+    /// Manage workspace (multi-repo)
+    Workspace {
+        #[command(subcommand)]
+        workspace: WorkspaceCommands,
+    },
 }
 
 #[derive(Subcommand)]
@@ -90,6 +95,384 @@ enum QueryCommands {
         /// Search query
         query: String,
     },
+}
+
+#[derive(Subcommand)]
+enum WorkspaceCommands {
+    /// Initialize a workspace at current directory
+    Init {
+        /// Workspace name
+        #[arg(short, long)]
+        name: String,
+    },
+    /// Add a repository to the workspace
+    Add {
+        /// Repository path
+        path: String,
+        /// Name for the repository
+        #[arg(short, long)]
+        name: Option<String>,
+    },
+    /// Remove a repository from the workspace
+    Remove {
+        /// Repository name or path
+        target: String,
+    },
+    /// List repositories in the workspace
+    List,
+    /// Index all repositories in the workspace
+    Index,
+    /// Show aggregate statistics across all repos
+    Stats,
+}
+
+fn workspace_config_path(workspace_dir: &Path) -> PathBuf {
+    workspace_dir.join(".astera").join("workspace.toml")
+}
+
+fn load_workspace_config(workspace_dir: &Path) -> Result<WorkspaceConfig, anyhow::Error> {
+    let config_path = workspace_config_path(workspace_dir);
+    if !config_path.exists() {
+        anyhow::bail!("No workspace found. Run 'astera workspace init' first.");
+    }
+    let content = std::fs::read_to_string(&config_path)?;
+    let config: WorkspaceConfig = toml::from_str(&content)?;
+    Ok(config)
+}
+
+fn save_workspace_config(workspace_dir: &Path, config: &WorkspaceConfig) -> Result<(), anyhow::Error> {
+    let config_path = workspace_config_path(workspace_dir);
+    let content = toml::to_string_pretty(config)?;
+    std::fs::write(&config_path, content)?;
+    Ok(())
+}
+
+fn workspace_init(name: &str) -> Result<(), anyhow::Error> {
+    let root = std::fs::canonicalize(".")?;
+    let astera_dir = root.join(".astera");
+
+    if astera_dir.join("workspace.toml").exists() {
+        println!("Workspace already exists at: {}", astera_dir.display());
+        return Ok(());
+    }
+
+    std::fs::create_dir_all(&astera_dir)?;
+
+    // Also create single-repo index for the workspace root itself
+    let db_path = astera_dir.join("index.db");
+    if !db_path.exists() {
+        let _ = Database::open(&db_path);
+    }
+
+    let config = WorkspaceConfig::new(name);
+    save_workspace_config(&root, &config)?;
+
+    println!("Initialized workspace '{}' at: {}", name, astera_dir.display());
+    Ok(())
+}
+
+fn workspace_add(path: &str, name: Option<String>) -> Result<(), anyhow::Error> {
+    let root = std::fs::canonicalize(".")?;
+    let mut config = load_workspace_config(&root)?;
+
+    let repo_path = std::fs::canonicalize(path)?;
+    let repo_name = name.unwrap_or_else(|| {
+        repo_path
+            .file_name()
+            .unwrap_or_default()
+            .to_string_lossy()
+            .to_string()
+    });
+
+    // Ensure the repo has an .astera directory
+    let astera_dir = repo_path.join(".astera");
+    if !astera_dir.exists() {
+        std::fs::create_dir_all(&astera_dir)?;
+    }
+
+    // Create DB for the repo
+    let db_path = astera_dir.join("index.db");
+    let _ = Database::open(&db_path);
+
+    config.add_repo(RepoConfig {
+        name: repo_name.clone(),
+        path: repo_path.to_string_lossy().to_string(),
+        exclude_patterns: vec![],
+        languages: vec![],
+    });
+
+    save_workspace_config(&root, &config)?;
+    println!("Added repo '{}' ({})", repo_name, repo_path.display());
+    Ok(())
+}
+
+fn workspace_remove(target: &str) -> Result<(), anyhow::Error> {
+    let root = std::fs::canonicalize(".")?;
+    let mut config = load_workspace_config(&root)?;
+
+    // Try matching by name first, then by path
+    let removed = config.remove_repo(target);
+    if !removed {
+        // Try canonicalized path
+        if let Ok(abs) = std::fs::canonicalize(target) {
+            let removed = config.remove_repo(&abs.to_string_lossy());
+            if !removed {
+                anyhow::bail!("Repository '{}' not found in workspace", target);
+            }
+        } else {
+            anyhow::bail!("Repository '{}' not found in workspace", target);
+        }
+    }
+
+    save_workspace_config(&root, &config)?;
+    println!("Removed repository '{}'", target);
+    Ok(())
+}
+
+fn workspace_list() -> Result<(), anyhow::Error> {
+    let root = std::fs::canonicalize(".")?;
+    let config = load_workspace_config(&root)?;
+
+    println!("Workspace: {}", config.name);
+    println!();
+
+    if config.repos.is_empty() {
+        println!("No repositories. Add one with: astera workspace add <path>");
+        return Ok(());
+    }
+
+    println!("{:<20} {:<60} Languages", "Name", "Path");
+    println!("{}", "-".repeat(100));
+
+    for repo in &config.repos {
+        let langs = if repo.languages.is_empty() {
+            "(all)".to_string()
+        } else {
+            repo.languages.join(", ")
+        };
+
+        // Check if repo has been indexed
+        let indexed = Path::new(&repo.path)
+            .join(".astera")
+            .join("index.db")
+            .exists();
+
+        let status = if indexed { "✓" } else { "—" };
+        println!(
+            "{:<20} {:<60} {} {}",
+            repo.name, repo.path, langs, status
+        );
+    }
+
+    if !config.rules.is_empty() {
+        println!();
+        println!("Architecture rules: {}", config.rules.len());
+    }
+
+    Ok(())
+}
+
+fn workspace_index() -> Result<(), anyhow::Error> {
+    let root = std::fs::canonicalize(".")?;
+    let config = load_workspace_config(&root)?;
+
+    if config.repos.is_empty() {
+        println!("No repositories in workspace. Add one with: astera workspace add <path>");
+        return Ok(());
+    }
+
+    println!("Indexing workspace '{}' ({} repos)", config.name, config.repos.len());
+    println!();
+
+    let mut total_files = 0u64;
+    let mut total_symbols = 0u64;
+    let mut total_edges = 0u64;
+    let start = Instant::now();
+
+    for repo in &config.repos {
+        let repo_path = Path::new(&repo.path);
+        if !repo_path.exists() {
+            println!("⚠  {} — path not found, skipping", repo.name);
+            continue;
+        }
+
+        let astera_dir = repo_path.join(".astera");
+        if !astera_dir.exists() {
+            std::fs::create_dir_all(&astera_dir)?;
+        }
+        let db_path = astera_dir.join("index.db");
+        let db = Database::open(&db_path)?;
+
+        print!("Indexing '{}' ... ", repo.name);
+
+        let walker = FileWalker::new(repo_path.to_str().unwrap());
+        let files = walker.discover_with_content();
+        let file_count = files.len() as u64;
+
+        // Phase 1: insert files
+        let mut parse_tasks = Vec::with_capacity(file_count as usize);
+        for (rel_path, language, content, hash) in &files {
+            let needs_index = match db.file_has_changed(rel_path, hash) {
+                Ok(true) | Err(_) => true,
+                Ok(false) => false,
+            };
+            if !needs_index {
+                continue;
+            }
+
+            let file_info = astera_core::FileInfo {
+                id: None,
+                repo_root: repo.path.clone(),
+                relative_path: rel_path.clone(),
+                language: language.clone(),
+                hash: hash.clone(),
+                size: content.len() as u64,
+                line_count: content.iter().filter(|&&b| b == b'\n').count() as u64,
+                indexed_at: None,
+                last_modified: String::new(),
+            };
+
+            let file_id = db.insert_file(&file_info)?;
+            parse_tasks.push((rel_path.clone(), language.clone(), file_id, content.clone()));
+        }
+
+        // Phase 2: parse & extract
+        use rayon::prelude::*;
+        let parse_results: Vec<Option<(String, i64, ParseOutput)>> = parse_tasks
+            .par_iter()
+            .map(|(rel_path, language, file_id, content)| {
+                let mut parsed = match parse(content, language) {
+                    Ok(p) => p,
+                    Err(_) => return None,
+                };
+                parsed.file_id = *file_id;
+                let output = Extractor::extract(&parsed);
+                if output.nodes.is_empty() && output.edges.is_empty() {
+                    return None;
+                }
+                Some((rel_path.clone(), *file_id, output))
+            })
+            .collect();
+
+        // Phase 3: store
+        let mut repo_symbols = 0u64;
+        let mut repo_edges = 0u64;
+
+        for result in parse_results.iter().flatten() {
+            let (_, file_id, output) = result;
+            let node_ids = match db.insert_nodes(&output.nodes) {
+                Ok(ids) => ids,
+                Err(_) => continue,
+            };
+
+            let mapped_edges: Vec<astera_core::Edge> = output
+                .edges
+                .iter()
+                .filter_map(|e| {
+                    let src = e.source_node_id as usize;
+                    let tgt = e.target_node_id as usize;
+                    if src < node_ids.len() && tgt < node_ids.len() {
+                        let mut edge = astera_core::Edge::new(node_ids[src], node_ids[tgt], e.kind.clone());
+                        edge.file_id = Some(*file_id);
+                        Some(edge)
+                    } else {
+                        None
+                    }
+                })
+                .collect();
+            if !mapped_edges.is_empty() {
+                if let Ok(ids) = db.insert_edges(&mapped_edges) {
+                    repo_edges += ids.len() as u64;
+                }
+            }
+            repo_symbols += output.nodes.len() as u64;
+        }
+
+        total_files += file_count;
+        total_symbols += repo_symbols;
+        total_edges += repo_edges;
+
+        println!(
+            "{} files, {} symbols, {} edges",
+            file_count, repo_symbols, repo_edges
+        );
+    }
+
+    let elapsed = start.elapsed();
+    println!();
+    println!("Workspace index complete:");
+    println!("  Files:   {}", total_files);
+    println!("  Symbols: {}", total_symbols);
+    println!("  Edges:   {}", total_edges);
+    println!("  Time:    {}ms", elapsed.as_millis());
+
+    Ok(())
+}
+
+fn workspace_stats() -> Result<(), anyhow::Error> {
+    let root = std::fs::canonicalize(".")?;
+    let config = load_workspace_config(&root)?;
+
+    if config.repos.is_empty() {
+        println!("No repositories in workspace.");
+        return Ok(());
+    }
+
+    println!("Workspace: {}", config.name);
+    println!();
+
+    let mut total_files = 0u64;
+    let mut total_symbols = 0u64;
+    let mut total_edges = 0u64;
+
+    println!("{:<20} {:>8} {:>10} {:>8} {:>10}", "Repo", "Files", "Symbols", "Edges", "Languages");
+    println!("{}", "-".repeat(60));
+
+    for repo in &config.repos {
+        let db_path = Path::new(&repo.path).join(".astera").join("index.db");
+        if !db_path.exists() {
+            println!("{:<20} {:>8} {:>10} {:>8} {:>10}", repo.name, "—", "—", "—", "not indexed");
+            continue;
+        }
+
+        match Database::open(&db_path) {
+            Ok(db) => {
+                let files = db.file_count().unwrap_or(0);
+                let symbols = db.symbol_count().unwrap_or(0);
+                let edges = db.edge_count().unwrap_or(0);
+
+                // Get language breakdown
+                let all_files = db.list_files().unwrap_or_default();
+                let mut langs: Vec<String> = all_files
+                    .iter()
+                    .map(|f| f.language.clone())
+                    .collect::<std::collections::HashSet<_>>()
+                    .into_iter()
+                    .collect();
+                langs.sort();
+
+                total_files += files;
+                total_symbols += symbols;
+                total_edges += edges;
+
+                println!(
+                    "{:<20} {:>8} {:>10} {:>8} {:>10}",
+                    repo.name, files, symbols, edges, langs.join(", ")
+                );
+            }
+            Err(_) => {
+                println!("{:<20} {:>8} {:>10} {:>8} {:>10}", repo.name, "—", "—", "—", "db error");
+            }
+        }
+    }
+
+    println!("{}", "-".repeat(60));
+    println!(
+        "{:<20} {:>8} {:>10} {:>8}",
+        "TOTAL", total_files, total_symbols, total_edges
+    );
+
+    Ok(())
 }
 
 fn find_astera_root(start: &Path) -> Option<std::path::PathBuf> {
@@ -702,6 +1085,26 @@ async fn main() -> Result<(), anyhow::Error> {
         Commands::Stats => {
             stats_command()?;
         }
+        Commands::Workspace { workspace } => match workspace {
+            WorkspaceCommands::Init { name } => {
+                workspace_init(&name)?;
+            }
+            WorkspaceCommands::Add { path, name } => {
+                workspace_add(&path, name)?;
+            }
+            WorkspaceCommands::Remove { target } => {
+                workspace_remove(&target)?;
+            }
+            WorkspaceCommands::List => {
+                workspace_list()?;
+            }
+            WorkspaceCommands::Index => {
+                workspace_index()?;
+            }
+            WorkspaceCommands::Stats => {
+                workspace_stats()?;
+            }
+        },
     }
 
     Ok(())

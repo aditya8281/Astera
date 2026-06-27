@@ -283,6 +283,44 @@ pub struct ArchitectureRule {
     pub patterns: Vec<String>,
 }
 
+/// Workspace configuration for multi-repo support
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct WorkspaceConfig {
+    /// Workspace name
+    pub name: String,
+    /// Repositories in this workspace
+    pub repos: Vec<RepoConfig>,
+    /// Shared architecture rules
+    #[serde(default)]
+    pub rules: Vec<ArchitectureRule>,
+}
+
+impl WorkspaceConfig {
+    pub fn new(name: &str) -> Self {
+        WorkspaceConfig {
+            name: name.to_string(),
+            repos: vec![],
+            rules: vec![],
+        }
+    }
+
+    pub fn add_repo(&mut self, repo: RepoConfig) {
+        if !self.repos.iter().any(|r| r.path == repo.path) {
+            self.repos.push(repo);
+        }
+    }
+
+    pub fn remove_repo(&mut self, path: &str) -> bool {
+        let len_before = self.repos.len();
+        self.repos.retain(|r| r.path != path);
+        self.repos.len() < len_before
+    }
+
+    pub fn find_repo(&self, name: &str) -> Option<&RepoConfig> {
+        self.repos.iter().find(|r| r.name == name)
+    }
+}
+
 impl Default for AsteraConfig {
     fn default() -> Self {
         AsteraConfig {
@@ -391,5 +429,95 @@ mod tests {
         let config = AsteraConfig::default();
         assert!(config.exclude_patterns.contains(&".git".to_string()));
         assert!(config.languages.contains(&"typescript".to_string()));
+    }
+
+    #[test]
+    fn test_workspace_add_repo() {
+        let mut ws = WorkspaceConfig::new("test");
+        assert!(ws.repos.is_empty());
+
+        ws.add_repo(RepoConfig {
+            name: "frontend".into(),
+            path: "/app/frontend".into(),
+            exclude_patterns: vec![],
+            languages: vec!["typescript".into()],
+        });
+
+        assert_eq!(ws.repos.len(), 1);
+        assert_eq!(ws.repos[0].name, "frontend");
+
+        // Duplicate path should not be added
+        ws.add_repo(RepoConfig {
+            name: "frontend2".into(),
+            path: "/app/frontend".into(),
+            exclude_patterns: vec![],
+            languages: vec![],
+        });
+        assert_eq!(ws.repos.len(), 1);
+    }
+
+    #[test]
+    fn test_workspace_remove_repo() {
+        let mut ws = WorkspaceConfig::new("test");
+        ws.add_repo(RepoConfig {
+            name: "a".into(),
+            path: "/a".into(),
+            exclude_patterns: vec![],
+            languages: vec![],
+        });
+        ws.add_repo(RepoConfig {
+            name: "b".into(),
+            path: "/b".into(),
+            exclude_patterns: vec![],
+            languages: vec![],
+        });
+
+        assert!(ws.remove_repo("/a"));
+        assert_eq!(ws.repos.len(), 1);
+        assert_eq!(ws.repos[0].name, "b");
+
+        assert!(!ws.remove_repo("/nonexistent"));
+        assert_eq!(ws.repos.len(), 1);
+    }
+
+    #[test]
+    fn test_workspace_find_repo() {
+        let mut ws = WorkspaceConfig::new("test");
+        ws.add_repo(RepoConfig {
+            name: "frontend".into(),
+            path: "/app/frontend".into(),
+            exclude_patterns: vec![],
+            languages: vec![],
+        });
+
+        assert!(ws.find_repo("frontend").is_some());
+        assert!(ws.find_repo("backend").is_none());
+    }
+
+    #[test]
+    fn test_workspace_serialization() {
+        let mut ws = WorkspaceConfig::new("my-workspace");
+        ws.add_repo(RepoConfig {
+            name: "frontend".into(),
+            path: "/app/frontend".into(),
+            exclude_patterns: vec![],
+            languages: vec!["typescript".into()],
+        });
+        ws.rules.push(ArchitectureRule {
+            name: "layering".into(),
+            description: "UI must not depend on storage".into(),
+            layer: "ui".into(),
+            allowed_dependencies: vec!["service".into()],
+            patterns: vec!["src/ui/**".into()],
+        });
+
+        let toml_str = toml::to_string_pretty(&ws).unwrap();
+        assert!(toml_str.contains("my-workspace"));
+        assert!(toml_str.contains("frontend"));
+
+        let deserialized: WorkspaceConfig = toml::from_str(&toml_str).unwrap();
+        assert_eq!(deserialized.name, "my-workspace");
+        assert_eq!(deserialized.repos.len(), 1);
+        assert_eq!(deserialized.rules.len(), 1);
     }
 }

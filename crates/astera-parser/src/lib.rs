@@ -878,6 +878,7 @@ impl Extractor {
         ParseOutput { nodes, edges }
     }
 
+    #[allow(clippy::only_used_in_recursion)]
     fn walk_c(
         node: tree_sitter::Node,
         source: &[u8],
