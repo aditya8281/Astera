@@ -11,6 +11,7 @@ members = [
   "crates/astera-watcher",
   "crates/astera-api",
   "crates/astera-export",
+  "crates/astera-plugins",
   "crates/astera",
 ]
 
