@@ -22,15 +22,27 @@ Local-first static analysis engine that parses codebases into a queryable Code P
 | Node.js | 20+ | Only needed for frontend dev |
 | clang/LLVM | Any recent | Required by tree-sitter grammar builds |
 
-## Install from Source
+## Install
 
 ```bash
-git clone https://github.com/your-username/astera.git
-cd astera
+# Install globally (adds to ~/.cargo/bin)
+cargo install --path crates/astera-cli
+
+# Or build locally
 cargo build --release
 ```
 
-The binary will be at `target/release/astera`.
+## Uninstall
+
+```bash
+cargo uninstall astera
+```
+
+To also remove the index data, delete the `.astera/` directory from any repo you indexed:
+
+```bash
+rm -rf /path/to/your/project/.astera
+```
 
 ## Quick Start
 
