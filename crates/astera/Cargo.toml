@@ -43,3 +43,4 @@ astera-metrics = { path = "../astera-metrics" }
 astera-impact = { path = "../astera-impact" }
 astera-discovery = { path = "../astera-discovery" }
 serde_json = { workspace = true }
+tempfile = "3"

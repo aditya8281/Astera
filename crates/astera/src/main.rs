@@ -8,6 +8,8 @@ use astera_discovery::FileWalker;
 use astera_parser::{parse, Extractor, ParseOutput};
 use astera_storage::Database;
 
+mod benchmarks;
+
 #[derive(Parser)]
 #[command(name = "astera", version, about = "Local-first static analysis engine")]
 struct Cli {
@@ -60,6 +62,11 @@ enum Commands {
     },
     /// Show index statistics (file, symbol, edge counts)
     Stats,
+    /// Benchmark regression tracking
+    Bench {
+        #[command(subcommand)]
+        bench: BenchCommands,
+    },
     /// Manage workspace (multi-repo)
     Workspace {
         #[command(subcommand)]
@@ -471,6 +478,133 @@ fn workspace_stats() -> Result<(), anyhow::Error> {
         "{:<20} {:>8} {:>10} {:>8}",
         "TOTAL", total_files, total_symbols, total_edges
     );
+
+    Ok(())
+}
+
+#[derive(Subcommand)]
+enum BenchCommands {
+    /// Save current benchmark results as the baseline
+    Save {
+        /// Path to criterion output directory
+        #[arg(long, default_value = "target/criterion")]
+        criterion_dir: String,
+    },
+    /// Compare current results against the saved baseline
+    Check {
+        /// Regression threshold percentage (default: 10%)
+        #[arg(long, default_value_t = 10.0)]
+        threshold: f64,
+        /// Path to criterion output directory
+        #[arg(long, default_value = "target/criterion")]
+        criterion_dir: String,
+    },
+    /// Show saved baseline
+    Show,
+}
+
+fn bench_save(criterion_dir: &str) -> Result<(), anyhow::Error> {
+    let root = find_astera_root(Path::new("."))
+        .unwrap_or_else(|| std::env::current_dir().expect("cwd"));
+
+    let criterion_path = Path::new(criterion_dir);
+    if !criterion_path.exists() {
+        println!("Criterion output not found at: {}", criterion_dir);
+        println!("Run `cargo bench` first to generate benchmark data.");
+        return Ok(());
+    }
+
+    // Parse criterion JSON output files
+    let results = benchmarks::parse_criterion_json(criterion_path)?;
+
+    if results.is_empty() {
+        println!("No benchmark results found in {}", criterion_dir);
+        println!("Ensure criterion is configured to output JSON.");
+        return Ok(());
+    }
+
+    benchmarks::save_baseline(&root, results.clone())?;
+    println!(
+        "Saved baseline with {} benchmarks to .astera/bench-baseline.json",
+        results.len()
+    );
+    println!(
+        "Commit: {}",
+        benchmarks::get_git_commit().unwrap_or_else(|| "unknown".into())
+    );
+
+    Ok(())
+}
+
+fn bench_check(threshold: f64, criterion_dir: &str) -> Result<(), anyhow::Error> {
+    let root = find_astera_root(Path::new("."))
+        .unwrap_or_else(|| std::env::current_dir().expect("cwd"));
+
+    let baseline = benchmarks::load_baseline(&root)?;
+
+    let criterion_path = Path::new(criterion_dir);
+    if !criterion_path.exists() {
+        println!("Criterion output not found at: {}", criterion_dir);
+        println!("Run `cargo bench` first to generate benchmark data.");
+        return Ok(());
+    }
+
+    let current = benchmarks::parse_criterion_json(criterion_path)?;
+    if current.is_empty() {
+        println!("No current benchmark results found.");
+        return Ok(());
+    }
+
+    let regressions = benchmarks::detect_regressions(&baseline, &current, threshold);
+    benchmarks::print_regression_report(&baseline, &regressions);
+
+    // Exit with error code if critical regressions found
+    let has_critical = regressions
+        .iter()
+        .any(|r| r.severity == benchmarks::RegressionSeverity::Critical);
+    let has_significant = regressions
+        .iter()
+        .any(|r| r.severity == benchmarks::RegressionSeverity::Significant);
+
+    if has_critical {
+        std::process::exit(2);
+    } else if has_significant {
+        std::process::exit(1);
+    }
+
+    Ok(())
+}
+
+fn bench_show() -> Result<(), anyhow::Error> {
+    let root = find_astera_root(Path::new("."))
+        .unwrap_or_else(|| std::env::current_dir().expect("cwd"));
+
+    let baseline = benchmarks::load_baseline(&root)?;
+
+    println!("Benchmark Baseline");
+    println!("═══════════════════════════════════════════════════════════════");
+    println!("Version:   {}", baseline.version);
+    println!("Commit:    {}", baseline.commit);
+    println!("Timestamp: {}", baseline.timestamp);
+    println!("Benchmarks: {}", baseline.results.len());
+    println!();
+
+    let mut results: Vec<_> = baseline.results.values().collect();
+    results.sort_by(|a, b| a.name.cmp(&b.name));
+
+    println!(
+        "{:<55} {:>12} {:>8}",
+        "Benchmark", "Mean", "Iters"
+    );
+    println!("{}", "─".repeat(78));
+
+    for r in results {
+        let mean_str = benchmarks::format_ns(r.mean_ns);
+        println!(
+            "{:<55} {:>12} {:>8}",
+            r.name, mean_str, r.iterations
+        );
+    }
 
     Ok(())
 }
@@ -1085,6 +1219,20 @@ async fn main() -> Result<(), anyhow::Error> {
         Commands::Stats => {
             stats_command()?;
         }
+        Commands::Bench { bench } => match bench {
+            BenchCommands::Save { criterion_dir } => {
+                bench_save(&criterion_dir)?;
+            }
+            BenchCommands::Check {
+                threshold,
+                criterion_dir,
+            } => {
+                bench_check(threshold, &criterion_dir)?;
+            }
+            BenchCommands::Show => {
+                bench_show()?;
+            }
+        },
         Commands::Workspace { workspace } => match workspace {
             WorkspaceCommands::Init { name } => {
                 workspace_init(&name)?;
