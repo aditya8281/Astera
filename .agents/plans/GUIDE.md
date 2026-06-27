@@ -59,4 +59,4 @@ Astera's job is to continuously understand all of the above and expose it throug
 | Query latency | <50ms symbol lookup, <500ms impact analysis |
 | Storage overhead | <5× source size on disk |
 | Call graph accuracy | >90% precision/recall for statically-typed languages |
-| Language coverage | 4 in Phase 1, 6 in Phase 2, 10+ in Phase 3 |
+| Language coverage | 5 in Phase 1, 5+ in Phase 3 |

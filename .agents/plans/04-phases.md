@@ -115,7 +115,7 @@
 
 ### Tasks
 
-- [ ] **Export formats** (JSON, GraphML, DOT, CSV) via `serde`
+- [x] **Export formats** (JSON, CSV, DOT) via `astera-export` crate
 - [ ] **Multi-repo workspace** — multiple repos served from one daemon
 - [ ] **Git-aware analysis** — diff-based change impact
 - [ ] **Architecture rule validation** — layer constraints in config
