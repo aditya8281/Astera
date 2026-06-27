@@ -77,6 +77,17 @@ enum QueryCommands {
         #[arg(short, long)]
         kind: Option<String>,
     },
+    /// List indexed files
+    Files {
+        /// Filter by language (rust, python, typescript, etc.)
+        #[arg(short, long)]
+        language: Option<String>,
+    },
+    /// Full-text search across all symbols
+    Search {
+        /// Search query
+        query: String,
+    },
 }
 
 fn find_astera_root(start: &Path) -> Option<std::path::PathBuf> {
@@ -288,6 +299,14 @@ fn query_symbols(kind: Option<String>, name: Option<String>) -> Result<(), anyho
     }
 
     let db = Database::open(&db_path)?;
+
+    // Build file_id → relative_path map
+    let files = db.list_files()?;
+    let file_map: std::collections::HashMap<i64, String> = files
+        .into_iter()
+        .filter_map(|f| f.id.map(|id| (id, f.relative_path)))
+        .collect();
+
     let symbols = db.query_nodes(kind.as_deref(), name.as_deref(), None)?;
 
     if symbols.is_empty() {
@@ -297,18 +316,22 @@ fn query_symbols(kind: Option<String>, name: Option<String>) -> Result<(), anyho
 
     println!("Symbols ({}):", symbols.len());
     println!(
-        "{:<8} {:<20} {:<12} {:<12} {:<30}",
-        "ID", "Name", "Kind", "File", "Span"
+        "{:<8} {:<20} {:<12} {:<40} {}",
+        "ID", "Name", "Kind", "File", "Line"
     );
-    println!("{}", "-".repeat(90));
+    println!("{}", "-".repeat(95));
 
     for sym in &symbols {
+        let file = file_map
+            .get(&sym.file_id)
+            .map(|s| s.as_str())
+            .unwrap_or("?");
         println!(
-            "{:<8} {:<20} {:<12} file_id:{}:{}",
+            "{:<8} {:<20} {:<12} {:<40} {}",
             sym.id.unwrap_or(0),
             sym.name,
             sym.kind.to_string(),
-            sym.file_id,
+            file,
             sym.span.start_line,
         );
     }
@@ -351,6 +374,113 @@ fn query_edges(kind: Option<String>) -> Result<(), anyhow::Error> {
     Ok(())
 }
 
+fn query_files(language: Option<String>) -> Result<(), anyhow::Error> {
+    let root = find_astera_root(Path::new("."));
+    let root = match root {
+        Some(r) => r,
+        None => {
+            println!("No .astera directory found in current or parent directories.");
+            return Ok(());
+        }
+    };
+
+    let db_path = root.join(".astera").join("index.db");
+    if !db_path.exists() {
+        println!("No index database found at: {}", db_path.display());
+        return Ok(());
+    }
+
+    let db = Database::open(&db_path)?;
+    let files = db.list_files()?;
+
+    let filtered: Vec<_> = match &language {
+        Some(lang) => files.into_iter().filter(|f| f.language == *lang).collect(),
+        None => files,
+    };
+
+    if filtered.is_empty() {
+        println!("No files found.");
+        return Ok(());
+    }
+
+    println!("Files ({}):", filtered.len());
+    println!(
+        "{:<6} {:<45} {:<15} {:>10} {:>8}",
+        "ID", "Path", "Language", "Size", "Lines"
+    );
+    println!("{}", "-".repeat(90));
+
+    for f in &filtered {
+        println!(
+            "{:<6} {:<45} {:<15} {:>10} {:>8}",
+            f.id.unwrap_or(0),
+            f.relative_path,
+            f.language,
+            f.size,
+            f.line_count,
+        );
+    }
+
+    Ok(())
+}
+
+fn query_search(query: &str) -> Result<(), anyhow::Error> {
+    let root = find_astera_root(Path::new("."));
+    let root = match root {
+        Some(r) => r,
+        None => {
+            println!("No .astera directory found in current or parent directories.");
+            return Ok(());
+        }
+    };
+
+    let db_path = root.join(".astera").join("index.db");
+    if !db_path.exists() {
+        println!("No index database found at: {}", db_path.display());
+        return Ok(());
+    }
+
+    let db = Database::open(&db_path)?;
+
+    // Build file_id → path map
+    let files = db.list_files()?;
+    let file_map: std::collections::HashMap<i64, String> = files
+        .into_iter()
+        .filter_map(|f| f.id.map(|id| (id, f.relative_path)))
+        .collect();
+
+    let results = db.search_nodes(query)?;
+
+    if results.is_empty() {
+        println!("No results for '{}'.", query);
+        return Ok(());
+    }
+
+    println!("Search results for '{}' ({}):", query, results.len());
+    println!(
+        "{:<8} {:<20} {:<12} {:<40} {}",
+        "ID", "Name", "Kind", "File", "Line"
+    );
+    println!("{}", "-".repeat(95));
+
+    for sym in &results {
+        let file = file_map
+            .get(&sym.file_id)
+            .map(|s| s.as_str())
+            .unwrap_or("?");
+        println!(
+            "{:<8} {:<20} {:<12} {:<40} {}",
+            sym.id.unwrap_or(0),
+            sym.name,
+            sym.kind.to_string(),
+            file,
+            sym.span.start_line,
+        );
+    }
+
+    Ok(())
+}
+
 #[tokio::main]
 async fn main() -> Result<(), anyhow::Error> {
     tracing_subscriber::fmt::init();
@@ -370,6 +500,12 @@ async fn main() -> Result<(), anyhow::Error> {
             }
             QueryCommands::Edges { kind } => {
                 query_edges(kind)?;
+            }
+            QueryCommands::Files { language } => {
+                query_files(language)?;
+            }
+            QueryCommands::Search { query } => {
+                query_search(&query)?;
             }
         },
         Commands::Serve { port, web_dir } => {
