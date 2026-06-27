@@ -341,6 +341,68 @@ impl Database {
         Ok(ids)
     }
 
+    /// Get direct children of a node (via Contains edges) plus all their edges
+    pub fn get_children_of(&self, parent_id: i64) -> SqlResult<(Vec<Node>, Vec<Edge>)> {
+        // Find child node IDs via Contains edges where source = parent
+        let child_ids: Vec<i64> = {
+            let mut stmt = self.conn.prepare(
+                "SELECT target_node_id FROM edges WHERE source_node_id = ?1 AND kind = 'Contains'",
+            )?;
+            let rows = stmt.query_map(params![parent_id], |row| row.get(0))?;
+            rows.collect::<SqlResult<Vec<_>>>()?
+        };
+
+        if child_ids.is_empty() {
+            return Ok((vec![], vec![]));
+        }
+
+        // Fetch child nodes
+        let placeholders: Vec<String> = child_ids.iter().map(|_| "?".to_string()).collect();
+        let in_clause = placeholders.join(",");
+        let nodes_sql = format!(
+            "SELECT id, kind, name, file_id, start_line, start_col, end_line, end_col, doc_comment, properties
+             FROM nodes WHERE id IN ({}) ORDER BY name",
+            in_clause
+        );
+        let params_refs: Vec<&dyn rusqlite::types::ToSql> =
+            child_ids.iter().map(|id| id as &dyn rusqlite::types::ToSql).collect();
+        let mut stmt = self.conn.prepare(&nodes_sql)?;
+        let nodes = stmt.query_map(params_refs.as_slice(), Self::map_node)?.collect::<SqlResult<Vec<_>>>()?;
+
+        // Fetch edges that connect to/from children
+        let edges_sql = format!(
+            "SELECT id, source_node_id, target_node_id, kind, file_id, properties
+             FROM edges
+             WHERE source_node_id IN ({in_clause}) OR target_node_id IN ({in_clause})",
+            in_clause = in_clause
+        );
+        // Build params: child_ids for source, then again for target
+        let mut all_params: Vec<Box<dyn rusqlite::types::ToSql>> = Vec::with_capacity(child_ids.len() * 2);
+        for id in &child_ids {
+            all_params.push(Box::new(*id));
+        }
+        for id in &child_ids {
+            all_params.push(Box::new(*id));
+        }
+        let params_refs2: Vec<&dyn rusqlite::types::ToSql> =
+            all_params.iter().map(|p| p.as_ref()).collect();
+        let mut stmt2 = self.conn.prepare(&edges_sql)?;
+        let edges = stmt2.query_map(params_refs2.as_slice(), |row| {
+            let props_str: String = row.get(5)?;
+            Ok(Edge {
+                id: Some(row.get(0)?),
+                source_node_id: row.get(1)?,
+                target_node_id: row.get(2)?,
+                kind: EdgeKind::parse_from_str(&row.get::<_, String>(3)?)
+                    .unwrap_or(EdgeKind::References),
+                file_id: row.get(4)?,
+                properties: serde_json::from_str(&props_str).unwrap_or_default(),
+            })
+        })?.collect::<SqlResult<Vec<_>>>()?;
+
+        Ok((nodes, edges))
+    }
+
     pub fn get_edges(
         &self,
         kind: Option<&str>,

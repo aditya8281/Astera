@@ -1,3 +1,5 @@
+// ─── Graph types ───
+
 export interface GraphNode {
   id: number
   kind: string
@@ -5,6 +7,7 @@ export interface GraphNode {
   file_id: number
   start_line: number
   end_line: number
+  importance?: number
 }
 
 export interface GraphEdge {
@@ -18,6 +21,8 @@ export interface GraphResponse {
   edges: GraphEdge[]
 }
 
+// ─── Stats ───
+
 export interface StatsResponse {
   data: {
     files: number
@@ -25,6 +30,8 @@ export interface StatsResponse {
     edges: number
   }
 }
+
+// ─── Symbols ───
 
 export interface SymbolNode {
   id: number | null
@@ -41,6 +48,8 @@ export interface SymbolNode {
   properties: Record<string, unknown>
 }
 
+// ─── Files ───
+
 export interface FileEntry {
   id: number
   relative_path: string
@@ -50,42 +59,14 @@ export interface FileEntry {
   line_count: number
 }
 
+// ─── API response wrapper ───
+
 export interface ApiResponse<T> {
   data: T
   meta: { count: number; elapsed_ms: number }
 }
 
-export const NODE_COLORS: Record<string, string> = {
-  Function: '#06b6d4',
-  Method: '#0ea5e9',
-  Class: '#8b5cf6',
-  Interface: '#a78bfa',
-  Enum: '#f59e0b',
-  Module: '#10b981',
-  Variable: '#f43f5e',
-  Field: '#fb923c',
-  Parameter: '#94a3b8',
-  TypeAlias: '#c084fc',
-  Import: '#6b7280',
-  File: '#374151',
-  Macro: '#e879f9',
-  Anonymous: '#64748b',
-}
-
-export const KIND_SIZE: Record<string, number> = {
-  File: 0.6,
-  Module: 0.5,
-  Function: 0.35,
-  Method: 0.3,
-  Class: 0.45,
-  Interface: 0.4,
-  Enum: 0.35,
-  Variable: 0.25,
-  TypeAlias: 0.3,
-  Import: 0.2,
-}
-
-// ─── Metrics types ───
+// ─── Metrics ───
 
 export interface MetricsResponse {
   total_nodes: number
@@ -98,7 +79,7 @@ export interface MetricsResponse {
   circular_dependencies: [string, string][]
 }
 
-// ─── Impact types ───
+// ─── Impact ───
 
 export interface ImpactNode {
   node_id: number
@@ -115,4 +96,82 @@ export interface ImpactResponse {
   max_depth: number
   cycle_detected: boolean
   affected: ImpactNode[]
+}
+
+// ─── Module summary (progressive loading) ───
+
+export interface ModuleSummary {
+  id: number
+  name: string
+  kind: string
+  file_id: number
+  start_line: number
+  end_line: number
+  child_count: number
+  importance: number
+}
+
+// ─── Graph state machine ───
+
+export type GraphState =
+  | { phase: 'loading' }
+  | { phase: 'overview' }
+  | { phase: 'moduleFocused'; moduleId: number; moduleName: string }
+  | { phase: 'classFocused'; classId: number; className: string; parentId: number }
+  | { phase: 'functionFocused'; functionId: number; functionName: string; parentId: number }
+  | { phase: 'searchFocused'; query: string }
+  | { phase: 'impactFocused'; rootId: number }
+  | { phase: 'selectionLocked'; nodeIds: number[] }
+
+// ─── Camera state ───
+
+export type CameraState =
+  | { mode: 'idle' }
+  | { mode: 'transitioning'; from: [number, number, number]; to: [number, number, number]; progress: number }
+  | { mode: 'userControlled' }
+  | { mode: 'autoFocus'; target: [number, number, number]; lookAt: [number, number, number] }
+  | { mode: 'overviewReset' }
+
+// ─── Layout engine ───
+
+export type LayoutEngine = 'force' | 'hierarchical' | 'radial' | 'dagre' | 'circular'
+export type GraphType = 'dependency' | 'call' | 'tree' | 'circular-deps'
+
+// ─── Overlay panel ───
+
+export type PanelId =
+  | 'symbols'
+  | 'files'
+  | 'metrics'
+  | 'impact'
+  | 'settings'
+  | 'search'
+  | null
+
+// ─── Settings ───
+
+export interface Settings {
+  edgeAnimation: 'dots' | 'glow' | 'both' | 'none'
+  particleDensity: 'off' | 'light' | 'medium' | 'heavy'
+  showLabels: boolean
+  lodThreshold: 'low' | 'medium' | 'high'
+  edgeHighlightOnSelect: boolean
+  cameraSpeed: 'slow' | 'normal' | 'fast'
+  reducedMotion: boolean
+  showPerformanceTelemetry: boolean
+  layoutEngine: LayoutEngine
+  graphType: GraphType
+}
+
+export const DEFAULT_SETTINGS: Settings = {
+  edgeAnimation: 'glow',
+  particleDensity: 'medium',
+  showLabels: true,
+  lodThreshold: 'medium',
+  edgeHighlightOnSelect: true,
+  cameraSpeed: 'normal',
+  reducedMotion: false,
+  showPerformanceTelemetry: false,
+  layoutEngine: 'force',
+  graphType: 'dependency',
 }

@@ -201,6 +201,64 @@ pub fn compute_metrics(nodes: &[Node], edges: &[Edge]) -> AggregateMetrics {
     }
 }
 
+/// Compute importance score (0.0–1.0) for each node.
+/// Weights: degree 0.3, fan-in 0.2, line count 0.15, complexity 0.15, fan-out 0.1, kind weight 0.1
+pub fn compute_importance(nodes: &[Node], edges: &[Edge]) -> HashMap<i64, f64> {
+    let mut result: HashMap<i64, f64> = HashMap::new();
+
+    // Build adjacency
+    let mut fan_out: HashMap<i64, u32> = HashMap::new();
+    let mut fan_in: HashMap<i64, u32> = HashMap::new();
+    for edge in edges {
+        *fan_out.entry(edge.source_node_id).or_insert(0) += 1;
+        *fan_in.entry(edge.target_node_id).or_insert(0) += 1;
+    }
+
+    let max_nodes = nodes.len().max(1) as f64;
+    let max_fan_in = fan_in.values().copied().max().unwrap_or(1).max(1) as f64;
+    let max_lines = nodes
+        .iter()
+        .map(|n| n.span.end_line.saturating_sub(n.span.start_line))
+        .max()
+        .unwrap_or(1)
+        .max(1) as f64;
+
+    for node in nodes {
+        let nid = match node.id {
+            Some(id) => id,
+            None => continue,
+        };
+
+        let degree = fan_out.get(&nid).copied().unwrap_or(0)
+            + fan_in.get(&nid).copied().unwrap_or(0);
+        let fi = fan_in.get(&nid).copied().unwrap_or(0) as f64;
+        let fo = fan_out.get(&nid).copied().unwrap_or(0) as f64;
+        let lines = (node.span.end_line.saturating_sub(node.span.start_line)) as f64;
+
+        // Kind weight: modules and classes score higher
+        let kind_weight = match node.kind {
+            NodeKind::Module => 1.0,
+            NodeKind::Class | NodeKind::Interface => 0.9,
+            NodeKind::Function | NodeKind::Method => 0.7,
+            NodeKind::Enum => 0.6,
+            NodeKind::Variable | NodeKind::Field => 0.3,
+            NodeKind::Import | NodeKind::File => 0.1,
+            _ => 0.5,
+        };
+
+        let score = (degree as f64 / max_nodes) * 0.3
+            + (fi / max_fan_in) * 0.2
+            + (lines / max_lines) * 0.15
+            + (fo / max_fan_in) * 0.15
+            + kind_weight * 0.1
+            + (if degree > 0 { 0.1 } else { 0.0 });
+
+        result.insert(nid, score.clamp(0.0, 1.0));
+    }
+
+    result
+}
+
 /// Tarjan's SCC to detect circular dependencies between files
 fn detect_circular_deps(edges: &[Edge], nodes: &[Node]) -> Vec<(String, String)> {
     // Build file dependency graph (DependsOn edges)

@@ -2,11 +2,12 @@ use axum::extract::{Query, State};
 use axum::http::StatusCode;
 use axum::Json;
 use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
 
 use crate::AppState;
-use astera_core::{Edge, Node};
+use astera_core::{Edge, EdgeKind, Node, NodeKind};
 use astera_impact::ImpactAnalyzer;
-use astera_metrics::compute_metrics;
+use astera_metrics::{compute_importance, compute_metrics};
 
 // ─── Response types ───
 
@@ -66,6 +67,7 @@ pub struct GraphNode {
     pub file_id: i64,
     pub start_line: u32,
     pub end_line: u32,
+    pub importance: f64,
 }
 
 #[derive(Serialize)]
@@ -299,6 +301,84 @@ pub async fn search(
     }))
 }
 
+// ─── Modules endpoint (for progressive loading) ───
+
+#[derive(Serialize)]
+pub struct ModuleSummary {
+    pub id: i64,
+    pub name: String,
+    pub kind: String,
+    pub file_id: i64,
+    pub start_line: u32,
+    pub end_line: u32,
+    pub child_count: u32,
+    pub importance: f64,
+}
+
+pub async fn modules(
+    State(state): State<AppState>,
+) -> Result<Json<ApiResponse<Vec<ModuleSummary>>>, (StatusCode, Json<ErrorResponse>)> {
+    let start = std::time::Instant::now();
+    let db = state.db.lock().map_err(|e| {
+        (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            Json(ErrorResponse { error: format!("Database lock: {}", e) }),
+        )
+    })?;
+
+    let nodes = db.query_nodes(None, None, None).map_err(|e| {
+        (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            Json(ErrorResponse { error: format!("Database error: {}", e) }),
+        )
+    })?;
+
+    let edges = db.get_edges(None, None, None).map_err(|e| {
+        (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            Json(ErrorResponse { error: format!("Database error: {}", e) }),
+        )
+    })?;
+
+    let importance = compute_importance(&nodes, &edges);
+
+    // Count children per node (Contains edges)
+    let mut child_counts: HashMap<i64, u32> = HashMap::new();
+    for edge in &edges {
+        if edge.kind == EdgeKind::Contains {
+            *child_counts.entry(edge.source_node_id).or_insert(0) += 1;
+        }
+    }
+
+    // Filter to container types: Module, Class, Interface, Enum, File
+    let modules: Vec<ModuleSummary> = nodes
+        .iter()
+        .filter(|n| matches!(n.kind, NodeKind::Module | NodeKind::Class | NodeKind::Interface | NodeKind::Enum | NodeKind::File))
+        .map(|n| {
+            let nid = n.id.unwrap_or(0);
+            ModuleSummary {
+                id: nid,
+                name: n.name.clone(),
+                kind: n.kind.to_string(),
+                file_id: n.file_id,
+                start_line: n.span.start_line,
+                end_line: n.span.end_line,
+                child_count: child_counts.get(&nid).copied().unwrap_or(0),
+                importance: importance.get(&nid).copied().unwrap_or(0.3),
+            }
+        })
+        .collect();
+
+    let count = modules.len();
+    Ok(Json(ApiResponse {
+        data: modules,
+        meta: ResponseMeta {
+            count,
+            elapsed_ms: start.elapsed().as_millis() as u64,
+        },
+    }))
+}
+
 pub async fn dependency_graph(
     State(state): State<AppState>,
 ) -> Result<Json<GraphResponse>, (StatusCode, Json<ErrorResponse>)> {
@@ -331,15 +411,22 @@ pub async fn dependency_graph(
         )
     })?;
 
+    // Compute importance scores
+    let importance = compute_importance(&nodes, &edges);
+
     let graph_nodes: Vec<GraphNode> = nodes
         .into_iter()
-        .map(|n| GraphNode {
-            id: n.id.unwrap_or(0),
-            kind: n.kind.to_string(),
-            name: n.name,
-            file_id: n.file_id,
-            start_line: n.span.start_line,
-            end_line: n.span.end_line,
+        .map(|n| {
+            let nid = n.id.unwrap_or(0);
+            GraphNode {
+                id: nid,
+                kind: n.kind.to_string(),
+                name: n.name,
+                file_id: n.file_id,
+                start_line: n.span.start_line,
+                end_line: n.span.end_line,
+                importance: importance.get(&nid).copied().unwrap_or(0.3),
+            }
         })
         .collect();
 
@@ -495,5 +582,102 @@ pub async fn impact(
             count: 1,
             elapsed_ms: start.elapsed().as_millis() as u64,
         },
+    }))
+}
+
+// ─── Children endpoint (progressive drill-down) ───
+
+pub async fn children(
+    State(state): State<AppState>,
+    axum::extract::Path(node_id): axum::extract::Path<i64>,
+) -> Result<Json<GraphResponse>, (StatusCode, Json<ErrorResponse>)> {
+    let db = state.db.lock().map_err(|_| {
+        (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            Json(ErrorResponse {
+                error: "Database lock poisoned".into(),
+            }),
+        )
+    })?;
+
+    // Fetch children from storage
+    let (child_nodes, child_edges) = db.get_children_of(node_id).map_err(|e| {
+        (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            Json(ErrorResponse {
+                error: format!("Database error: {}", e),
+            }),
+        )
+    })?;
+
+    // For importance computation we need all nodes+edges
+    let all_nodes = db.query_nodes(None, None, None).map_err(|e| {
+        (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            Json(ErrorResponse {
+                error: format!("Database error: {}", e),
+            }),
+        )
+    })?;
+
+    let all_edges = db.get_edges(None, None, None).map_err(|e| {
+        (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            Json(ErrorResponse {
+                error: format!("Database error: {}", e),
+            }),
+        )
+    })?;
+
+    let importance = compute_importance(&all_nodes, &all_edges);
+
+    // Include the parent node itself
+    let parent = db.get_node(node_id).map_err(|e| {
+        (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            Json(ErrorResponse {
+                error: format!("Database error: {}", e),
+            }),
+        )
+    })?;
+
+    let mut graph_nodes: Vec<GraphNode> = Vec::with_capacity(child_nodes.len() + 1);
+    if let Some(p) = parent {
+        let pid = p.id.unwrap_or(0);
+        graph_nodes.push(GraphNode {
+            id: pid,
+            kind: p.kind.to_string(),
+            name: p.name,
+            file_id: p.file_id,
+            start_line: p.span.start_line,
+            end_line: p.span.end_line,
+            importance: importance.get(&pid).copied().unwrap_or(0.3),
+        });
+    }
+    for n in child_nodes {
+        let nid = n.id.unwrap_or(0);
+        graph_nodes.push(GraphNode {
+            id: nid,
+            kind: n.kind.to_string(),
+            name: n.name,
+            file_id: n.file_id,
+            start_line: n.span.start_line,
+            end_line: n.span.end_line,
+            importance: importance.get(&nid).copied().unwrap_or(0.3),
+        });
+    }
+
+    let graph_edges: Vec<GraphEdge> = child_edges
+        .into_iter()
+        .map(|e| GraphEdge {
+            source: e.source_node_id,
+            target: e.target_node_id,
+            kind: e.kind.to_string(),
+        })
+        .collect();
+
+    Ok(Json(GraphResponse {
+        nodes: graph_nodes,
+        edges: graph_edges,
     }))
 }

@@ -280,6 +280,35 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn test_modules_endpoint() {
+        let app = super::super::create_router(setup_db());
+
+        let resp = app
+            .oneshot(
+                Request::builder()
+                    .uri("/api/graph/modules")
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(resp.status(), StatusCode::OK);
+
+        let body = axum::body::to_bytes(resp.into_body(), usize::MAX)
+            .await
+            .unwrap();
+        let json: serde_json::Value = serde_json::from_slice(&body).unwrap();
+        // Should include the Class node (Config) — Functions are filtered out
+        assert!(json["meta"]["count"].as_u64().unwrap() >= 1);
+        // The Config class should have 1 child (Contains edge)
+        let modules = json["data"].as_array().unwrap();
+        let config = modules.iter().find(|m| m["name"] == "Config");
+        assert!(config.is_some(), "Config module should be in response");
+        assert_eq!(config.unwrap()["child_count"], 1);
+        assert!(config.unwrap()["importance"].as_f64().unwrap() > 0.0);
+    }
+
+    #[tokio::test]
     async fn test_impact_endpoint() {
         let app = super::super::create_router(setup_db());
 
@@ -301,5 +330,62 @@ mod tests {
         let json: serde_json::Value = serde_json::from_slice(&body).unwrap();
         // main calls helper, so helper should be affected
         assert_eq!(json["data"]["total_affected"], 1);
+    }
+
+    #[tokio::test]
+    async fn test_children_endpoint() {
+        let app = super::super::create_router(setup_db());
+
+        // Config class is node 3, has 1 child (Contains edge to main function)
+        let resp = app
+            .oneshot(
+                Request::builder()
+                    .uri("/api/graph/children/3")
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(resp.status(), StatusCode::OK);
+
+        let body = axum::body::to_bytes(resp.into_body(), usize::MAX)
+            .await
+            .unwrap();
+        let json: serde_json::Value = serde_json::from_slice(&body).unwrap();
+        // Parent node + 1 child = 2 nodes
+        assert_eq!(json["nodes"].as_array().unwrap().len(), 2);
+        // Parent should be first
+        assert_eq!(json["nodes"][0]["name"], "Config");
+        assert_eq!(json["nodes"][0]["kind"], "Class");
+        // Child should be main function
+        assert_eq!(json["nodes"][1]["name"], "main");
+        assert_eq!(json["nodes"][1]["kind"], "Function");
+        // Edge connecting parent to child
+        assert!(!json["edges"].as_array().unwrap().is_empty());
+    }
+
+    #[tokio::test]
+    async fn test_children_endpoint_leaf() {
+        let app = super::super::create_router(setup_db());
+
+        // main function (node 1) has no children
+        let resp = app
+            .oneshot(
+                Request::builder()
+                    .uri("/api/graph/children/1")
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(resp.status(), StatusCode::OK);
+
+        let body = axum::body::to_bytes(resp.into_body(), usize::MAX)
+            .await
+            .unwrap();
+        let json: serde_json::Value = serde_json::from_slice(&body).unwrap();
+        // Just the parent node, no children
+        assert_eq!(json["nodes"].as_array().unwrap().len(), 1);
+        assert_eq!(json["edges"].as_array().unwrap().len(), 0);
     }
 }

@@ -1,9 +1,220 @@
+@import '@fontsource/space-grotesk/700.css';
+@import '@fontsource/ibm-plex-sans/400.css';
+@import '@fontsource/ibm-plex-sans/600.css';
+@import '@fontsource/ibm-plex-mono/400.css';
+@import '@fontsource/ibm-plex-mono/500.css';
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
-* { box-sizing: border-box; }
+/* ─── CSS Custom Properties ─── */
 
-::-webkit-scrollbar { width: 6px; }
-::-webkit-scrollbar-track { background: #111118; }
-::-webkit-scrollbar-thumb { background: #2a2a3a; border-radius: 3px; }
+:root {
+  --color-selection: #E65100;
+  --color-selection-dim: #BF360C;
+  --color-selection-glow: #FF6D00;
+  --color-relationship: #00E5FF;
+  --color-relationship-dim: #00B8D4;
+  --color-success: #00E676;
+  --color-error: #FF1744;
+  --color-ai: #B388FF;
+  --color-inactive: #555555;
+  --color-warning: #FFD740;
+  --color-bg: #0D0D0D;
+  --color-surface: #151515;
+  --color-surface-dim: #111111;
+  --color-surface-hover: #1A1A1A;
+  --color-border: #222222;
+  --color-border-light: #333333;
+  --color-text: #F0F0F0;
+  --color-text-muted: #888888;
+  --color-text-dim: #555555;
+
+  --font-heading: 'Space Grotesk', system-ui, sans-serif;
+  --font-body: 'IBM Plex Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+  --font-mono: 'IBM Plex Mono', 'Fira Code', monospace;
+
+  --sidebar-width: 48px;
+  --sidebar-expanded-width: 200px;
+  --panel-width: 380px;
+  --topbar-height: 0px;
+
+  --z-graph: 0;
+  --z-minimap: 10;
+  --z-sidebar: 20;
+  --z-panel: 30;
+  --z-command-palette: 40;
+  --z-toast: 50;
+  --z-tooltip: 60;
+  --z-telemetry: 15;
+
+  color-scheme: dark;
+}
+
+/* ─── Base ─── */
+
+*, *::before, *::after {
+  box-sizing: border-box;
+}
+
+html, body, #root {
+  margin: 0;
+  padding: 0;
+  width: 100%;
+  height: 100%;
+  background: var(--color-bg);
+  color: var(--color-text);
+  font-family: var(--font-body);
+  font-size: 14px;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  overflow: hidden;
+}
+
+/* ─── Typography ─── */
+
+h1, h2, h3 {
+  font-family: var(--font-heading);
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  text-wrap: balance;
+}
+
+h1 { font-size: clamp(1.5rem, 3vw, 2rem); }
+h2 { font-size: clamp(1.125rem, 2vw, 1.5rem); }
+h3 { font-size: clamp(1rem, 1.5vw, 1.25rem); }
+
+code, pre, .mono {
+  font-family: var(--font-mono);
+}
+
+/* ─── Scrollbar ─── */
+
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--color-border); border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: var(--color-border-light); }
+
+/* ─── Focus ring ─── */
+
+*:focus-visible {
+  outline: 2px solid var(--color-selection);
+  outline-offset: 2px;
+}
+
+.focus-ring {
+  outline: 2px solid var(--color-selection);
+  outline-offset: 2px;
+}
+
+.focus-ring:focus:not(:focus-visible) {
+  outline: none;
+}
+
+/* ─── Selection ─── */
+
+::selection {
+  background: rgba(230, 81, 0, 0.3);
+}
+
+/* ─── Utility animations ─── */
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes slideInRight {
+  from { transform: translateX(100%); opacity: 0; }
+  to { transform: translateX(0); opacity: 1; }
+}
+
+@keyframes slideInLeft {
+  from { transform: translateX(-100%); opacity: 0; }
+  to { transform: translateX(0); opacity: 1; }
+}
+
+@keyframes slideUp {
+  from { transform: translateY(8px); opacity: 0; }
+  to { transform: translateY(0); opacity: 1; }
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
+}
+
+@keyframes shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+
+/* ─── Skeleton loading ─── */
+
+.skeleton {
+  background: linear-gradient(
+    90deg,
+    var(--color-surface) 25%,
+    var(--color-surface-dim) 50%,
+    var(--color-surface) 75%
+  );
+  background-size: 200% 100%;
+  animation: shimmer 1.5s ease-in-out infinite;
+  border-radius: 4px;
+}
+
+/* ─── Panel backdrop ─── */
+
+.panel-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.4);
+  z-index: calc(var(--z-panel) - 1);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity var(--panel-duration, 250ms) ease-out;
+}
+
+.panel-backdrop.active {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+/* ─── Reduced motion ─── */
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+
+  .skeleton {
+    animation: none;
+    background: var(--color-surface);
+  }
+}
+
+/* ─── High contrast ─── */
+
+@media (prefers-contrast: more) {
+  :root {
+    --color-border: #444444;
+    --color-border-light: #666666;
+    --color-text: #FFFFFF;
+    --color-text-muted: #AAAAAA;
+    --color-text-dim: #999999;
+  }
+
+  *:focus-visible {
+    outline: 3px solid var(--color-selection);
+    outline-offset: 2px;
+  }
+
+  .focus-ring {
+    outline: 3px solid var(--color-selection);
+    outline-offset: 2px;
+  }
+}
