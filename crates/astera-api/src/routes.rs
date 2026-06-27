@@ -6,7 +6,7 @@ use serde::{Deserialize, Serialize};
 use crate::AppState;
 use astera_core::{Edge, Node};
 use astera_impact::ImpactAnalyzer;
-use astera_metrics::compute_metrics;
+use astera_metrics::{compute_metrics, compute_importance};
 
 // ─── Response types ───
 
@@ -66,6 +66,7 @@ pub struct GraphNode {
     pub file_id: i64,
     pub start_line: u32,
     pub end_line: u32,
+    pub importance: f64,
 }
 
 #[derive(Serialize)]
@@ -331,15 +332,22 @@ pub async fn dependency_graph(
         )
     })?;
 
+    // Compute importance scores
+    let importance = compute_importance(&nodes, &edges);
+
     let graph_nodes: Vec<GraphNode> = nodes
         .into_iter()
-        .map(|n| GraphNode {
-            id: n.id.unwrap_or(0),
-            kind: n.kind.to_string(),
-            name: n.name,
-            file_id: n.file_id,
-            start_line: n.span.start_line,
-            end_line: n.span.end_line,
+        .map(|n| {
+            let nid = n.id.unwrap_or(0);
+            GraphNode {
+                id: nid,
+                kind: n.kind.to_string(),
+                name: n.name,
+                file_id: n.file_id,
+                start_line: n.span.start_line,
+                end_line: n.span.end_line,
+                importance: importance.get(&nid).copied().unwrap_or(0.3),
+            }
         })
         .collect();
 
