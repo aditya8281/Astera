@@ -5,8 +5,8 @@ use serde::{Deserialize, Serialize};
 
 use crate::AppState;
 use astera_core::{Edge, Node};
-use astera_metrics::compute_metrics;
 use astera_impact::ImpactAnalyzer;
+use astera_metrics::compute_metrics;
 
 // ─── Response types ───
 
@@ -106,7 +106,11 @@ pub async fn stats(
     let edges = db.edge_count().unwrap_or(0);
 
     Ok(Json(ApiResponse {
-        data: StatsResponse { files, symbols, edges },
+        data: StatsResponse {
+            files,
+            symbols,
+            edges,
+        },
         meta: ResponseMeta {
             count: 1,
             elapsed_ms: start.elapsed().as_millis() as u64,
@@ -173,11 +177,7 @@ pub async fn list_symbols(
     })?;
 
     let symbols = db
-        .query_nodes(
-            query.kind.as_deref(),
-            query.name.as_deref(),
-            query.file_id,
-        )
+        .query_nodes(query.kind.as_deref(), query.name.as_deref(), query.file_id)
         .map_err(|e| {
             (
                 StatusCode::INTERNAL_SERVER_ERROR,

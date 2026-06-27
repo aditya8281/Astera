@@ -47,12 +47,19 @@ pub struct AggregateMetrics {
 
 /// Compute all metrics from a set of nodes and edges
 pub fn compute_metrics(nodes: &[Node], edges: &[Edge]) -> AggregateMetrics {
-    let function_nodes: Vec<&Node> = nodes.iter()
+    let function_nodes: Vec<&Node> = nodes
+        .iter()
         .filter(|n| matches!(n.kind, NodeKind::Function | NodeKind::Method))
         .collect();
 
-    let module_nodes: Vec<&Node> = nodes.iter()
-        .filter(|n| matches!(n.kind, NodeKind::Class | NodeKind::Interface | NodeKind::Module))
+    let module_nodes: Vec<&Node> = nodes
+        .iter()
+        .filter(|n| {
+            matches!(
+                n.kind,
+                NodeKind::Class | NodeKind::Interface | NodeKind::Module
+            )
+        })
         .collect();
 
     // Build adjacency for calls
@@ -82,70 +89,100 @@ pub fn compute_metrics(nodes: &[Node], edges: &[Edge]) -> AggregateMetrics {
     }
 
     // Compute function metrics
-    let func_metrics: Vec<FunctionMetrics> = function_nodes.iter().map(|f| {
-        let line_count = f.span.end_line.saturating_sub(f.span.start_line) + 1;
-        // Rough cyclomatic: base 1 + branching children (Contains to if/for/while/etc)
-        let child_count = children_count.get(&f.id.unwrap_or(0)).copied().unwrap_or(0);
-        let cyclomatic = std::cmp::max(1, 1 + child_count);
-        // Cognitive: nesting-aware approximation
-        let cognitive = std::cmp::max(1, child_count + line_count / 10);
-        // Parameter count from properties
-        let param_count = f.properties.get("parameters")
-            .and_then(|v| v.as_array())
-            .map(|a| a.len() as u32)
-            .unwrap_or(0);
+    let func_metrics: Vec<FunctionMetrics> = function_nodes
+        .iter()
+        .map(|f| {
+            let line_count = f.span.end_line.saturating_sub(f.span.start_line) + 1;
+            // Rough cyclomatic: base 1 + branching children (Contains to if/for/while/etc)
+            let child_count = children_count.get(&f.id.unwrap_or(0)).copied().unwrap_or(0);
+            let cyclomatic = std::cmp::max(1, 1 + child_count);
+            // Cognitive: nesting-aware approximation
+            let cognitive = std::cmp::max(1, child_count + line_count / 10);
+            // Parameter count from properties
+            let param_count = f
+                .properties
+                .get("parameters")
+                .and_then(|v| v.as_array())
+                .map(|a| a.len() as u32)
+                .unwrap_or(0);
 
-        FunctionMetrics {
-            node_id: f.id.unwrap_or(0),
-            name: f.name.clone(),
-            file_id: f.file_id,
-            start_line: f.span.start_line,
-            end_line: f.span.end_line,
-            line_count,
-            cyclomatic_complexity: cyclomatic,
-            cognitive_complexity: cognitive,
-            parameter_count: param_count,
-        }
-    }).collect();
+            FunctionMetrics {
+                node_id: f.id.unwrap_or(0),
+                name: f.name.clone(),
+                file_id: f.file_id,
+                start_line: f.span.start_line,
+                end_line: f.span.end_line,
+                line_count,
+                cyclomatic_complexity: cyclomatic,
+                cognitive_complexity: cognitive,
+                parameter_count: param_count,
+            }
+        })
+        .collect();
 
     // Compute module metrics
-    let mod_metrics: Vec<ModuleMetrics> = module_nodes.iter().map(|m| {
-        let nid = m.id.unwrap_or(0);
-        let fan_in = calls_in.get(&nid).copied().unwrap_or(0);
-        let fan_out = calls_out.get(&nid).copied().unwrap_or(0);
-        let afferent = deps_in.get(&nid).copied().unwrap_or(0);
-        let efferent = deps_out.get(&nid).copied().unwrap_or(0);
-        let total = afferent + efferent;
-        let instability = if total > 0 { efferent as f64 / total as f64 } else { 0.0 };
+    let mod_metrics: Vec<ModuleMetrics> = module_nodes
+        .iter()
+        .map(|m| {
+            let nid = m.id.unwrap_or(0);
+            let fan_in = calls_in.get(&nid).copied().unwrap_or(0);
+            let fan_out = calls_out.get(&nid).copied().unwrap_or(0);
+            let afferent = deps_in.get(&nid).copied().unwrap_or(0);
+            let efferent = deps_out.get(&nid).copied().unwrap_or(0);
+            let total = afferent + efferent;
+            let instability = if total > 0 {
+                efferent as f64 / total as f64
+            } else {
+                0.0
+            };
 
-        // Count methods and fields that are children of this module
-        let num_methods = edges.iter()
-            .filter(|e| e.kind == EdgeKind::Contains && e.source_node_id == nid)
-            .filter(|e| nodes.iter().any(|n| n.id == Some(e.target_node_id) && n.kind == NodeKind::Method))
-            .count() as u32;
-        let num_fields = edges.iter()
-            .filter(|e| e.kind == EdgeKind::Contains && e.source_node_id == nid)
-            .filter(|e| nodes.iter().any(|n| n.id == Some(e.target_node_id) && n.kind == NodeKind::Field))
-            .count() as u32;
+            // Count methods and fields that are children of this module
+            let num_methods = edges
+                .iter()
+                .filter(|e| e.kind == EdgeKind::Contains && e.source_node_id == nid)
+                .filter(|e| {
+                    nodes
+                        .iter()
+                        .any(|n| n.id == Some(e.target_node_id) && n.kind == NodeKind::Method)
+                })
+                .count() as u32;
+            let num_fields = edges
+                .iter()
+                .filter(|e| e.kind == EdgeKind::Contains && e.source_node_id == nid)
+                .filter(|e| {
+                    nodes
+                        .iter()
+                        .any(|n| n.id == Some(e.target_node_id) && n.kind == NodeKind::Field)
+                })
+                .count() as u32;
 
-        ModuleMetrics {
-            node_id: nid,
-            name: m.name.clone(),
-            file_id: m.file_id,
-            fan_in,
-            fan_out,
-            afferent,
-            efferent,
-            instability,
-            num_methods,
-            num_fields,
-        }
-    }).collect();
+            ModuleMetrics {
+                node_id: nid,
+                name: m.name.clone(),
+                file_id: m.file_id,
+                fan_in,
+                fan_out,
+                afferent,
+                efferent,
+                instability,
+                num_methods,
+                num_fields,
+            }
+        })
+        .collect();
 
     // Averages
     let total_complexity: u32 = func_metrics.iter().map(|f| f.cyclomatic_complexity).sum();
-    let avg_complexity = if func_metrics.is_empty() { 0.0 } else { total_complexity as f64 / func_metrics.len() as f64 };
-    let max_complexity = func_metrics.iter().map(|f| f.cyclomatic_complexity).max().unwrap_or(0);
+    let avg_complexity = if func_metrics.is_empty() {
+        0.0
+    } else {
+        total_complexity as f64 / func_metrics.len() as f64
+    };
+    let max_complexity = func_metrics
+        .iter()
+        .map(|f| f.cyclomatic_complexity)
+        .max()
+        .unwrap_or(0);
 
     // Circular dependencies via Tarjan's SCC
     let circular = detect_circular_deps(edges, nodes);
@@ -177,7 +214,8 @@ fn detect_circular_deps(edges: &[Edge], nodes: &[Node]) -> Vec<(String, String)>
     }
 
     // Only look at File nodes for dependency cycles
-    let file_nodes: HashMap<i64, &Node> = nodes.iter()
+    let file_nodes: HashMap<i64, &Node> = nodes
+        .iter()
         .filter(|n| n.kind == NodeKind::File && n.id.is_some())
         .map(|n| (n.id.unwrap(), n))
         .collect();
@@ -284,7 +322,12 @@ mod tests {
             kind,
             name: name.to_string(),
             file_id: 1,
-            span: SourceSpan { start_line: 1, start_col: 1, end_line: 10, end_col: 1 },
+            span: SourceSpan {
+                start_line: 1,
+                start_col: 1,
+                end_line: 10,
+                end_col: 1,
+            },
             doc_comment: None,
             properties: serde_json::json!({}),
         }

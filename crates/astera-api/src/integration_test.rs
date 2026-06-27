@@ -22,15 +22,39 @@ mod tests {
         let fid = db.insert_file(&file).unwrap();
 
         let nodes = vec![
-            Node::new(NodeKind::Function, "main", fid, SourceSpan {
-                start_line: 1, start_col: 1, end_line: 5, end_col: 1,
-            }),
-            Node::new(NodeKind::Function, "helper", fid, SourceSpan {
-                start_line: 7, start_col: 1, end_line: 10, end_col: 1,
-            }),
-            Node::new(NodeKind::Class, "Config", fid, SourceSpan {
-                start_line: 12, start_col: 1, end_line: 20, end_col: 1,
-            }),
+            Node::new(
+                NodeKind::Function,
+                "main",
+                fid,
+                SourceSpan {
+                    start_line: 1,
+                    start_col: 1,
+                    end_line: 5,
+                    end_col: 1,
+                },
+            ),
+            Node::new(
+                NodeKind::Function,
+                "helper",
+                fid,
+                SourceSpan {
+                    start_line: 7,
+                    start_col: 1,
+                    end_line: 10,
+                    end_col: 1,
+                },
+            ),
+            Node::new(
+                NodeKind::Class,
+                "Config",
+                fid,
+                SourceSpan {
+                    start_line: 12,
+                    start_col: 1,
+                    end_line: 20,
+                    end_col: 1,
+                },
+            ),
         ];
         let node_ids = db.insert_nodes(&nodes).unwrap();
 
@@ -48,12 +72,19 @@ mod tests {
         let app = super::super::create_router(setup_db());
 
         let resp = app
-            .oneshot(Request::builder().uri("/api/stats").body(Body::empty()).unwrap())
+            .oneshot(
+                Request::builder()
+                    .uri("/api/stats")
+                    .body(Body::empty())
+                    .unwrap(),
+            )
             .await
             .unwrap();
         assert_eq!(resp.status(), StatusCode::OK);
 
-        let body = axum::body::to_bytes(resp.into_body(), usize::MAX).await.unwrap();
+        let body = axum::body::to_bytes(resp.into_body(), usize::MAX)
+            .await
+            .unwrap();
         let json: serde_json::Value = serde_json::from_slice(&body).unwrap();
         assert_eq!(json["data"]["files"], 1);
         assert_eq!(json["data"]["symbols"], 3);
@@ -65,12 +96,19 @@ mod tests {
         let app = super::super::create_router(setup_db());
 
         let resp = app
-            .oneshot(Request::builder().uri("/api/files").body(Body::empty()).unwrap())
+            .oneshot(
+                Request::builder()
+                    .uri("/api/files")
+                    .body(Body::empty())
+                    .unwrap(),
+            )
             .await
             .unwrap();
         assert_eq!(resp.status(), StatusCode::OK);
 
-        let body = axum::body::to_bytes(resp.into_body(), usize::MAX).await.unwrap();
+        let body = axum::body::to_bytes(resp.into_body(), usize::MAX)
+            .await
+            .unwrap();
         let json: serde_json::Value = serde_json::from_slice(&body).unwrap();
         assert_eq!(json["data"][0]["relative_path"], "src/main.rs");
         assert_eq!(json["meta"]["count"], 1);
@@ -81,22 +119,36 @@ mod tests {
         let app = super::super::create_router(setup_db());
 
         let resp = app
-            .oneshot(Request::builder().uri("/api/symbols").body(Body::empty()).unwrap())
+            .oneshot(
+                Request::builder()
+                    .uri("/api/symbols")
+                    .body(Body::empty())
+                    .unwrap(),
+            )
             .await
             .unwrap();
         assert_eq!(resp.status(), StatusCode::OK);
 
-        let body = axum::body::to_bytes(resp.into_body(), usize::MAX).await.unwrap();
+        let body = axum::body::to_bytes(resp.into_body(), usize::MAX)
+            .await
+            .unwrap();
         let json: serde_json::Value = serde_json::from_slice(&body).unwrap();
         assert_eq!(json["meta"]["count"], 3);
 
         // Filter by kind
         let app = super::super::create_router(setup_db());
         let resp = app
-            .oneshot(Request::builder().uri("/api/symbols?kind=Function").body(Body::empty()).unwrap())
+            .oneshot(
+                Request::builder()
+                    .uri("/api/symbols?kind=Function")
+                    .body(Body::empty())
+                    .unwrap(),
+            )
             .await
             .unwrap();
-        let body = axum::body::to_bytes(resp.into_body(), usize::MAX).await.unwrap();
+        let body = axum::body::to_bytes(resp.into_body(), usize::MAX)
+            .await
+            .unwrap();
         let json: serde_json::Value = serde_json::from_slice(&body).unwrap();
         assert_eq!(json["meta"]["count"], 2);
     }
@@ -106,12 +158,19 @@ mod tests {
         let app = super::super::create_router(setup_db());
 
         let resp = app
-            .oneshot(Request::builder().uri("/api/search?q=helper").body(Body::empty()).unwrap())
+            .oneshot(
+                Request::builder()
+                    .uri("/api/search?q=helper")
+                    .body(Body::empty())
+                    .unwrap(),
+            )
             .await
             .unwrap();
         assert_eq!(resp.status(), StatusCode::OK);
 
-        let body = axum::body::to_bytes(resp.into_body(), usize::MAX).await.unwrap();
+        let body = axum::body::to_bytes(resp.into_body(), usize::MAX)
+            .await
+            .unwrap();
         let json: serde_json::Value = serde_json::from_slice(&body).unwrap();
         assert_eq!(json["meta"]["count"], 1);
         assert_eq!(json["data"][0]["name"], "helper");
@@ -122,22 +181,36 @@ mod tests {
         let app = super::super::create_router(setup_db());
 
         let resp = app
-            .oneshot(Request::builder().uri("/api/edges").body(Body::empty()).unwrap())
+            .oneshot(
+                Request::builder()
+                    .uri("/api/edges")
+                    .body(Body::empty())
+                    .unwrap(),
+            )
             .await
             .unwrap();
         assert_eq!(resp.status(), StatusCode::OK);
 
-        let body = axum::body::to_bytes(resp.into_body(), usize::MAX).await.unwrap();
+        let body = axum::body::to_bytes(resp.into_body(), usize::MAX)
+            .await
+            .unwrap();
         let json: serde_json::Value = serde_json::from_slice(&body).unwrap();
         assert_eq!(json["meta"]["count"], 2);
 
         // Filter by kind
         let app = super::super::create_router(setup_db());
         let resp = app
-            .oneshot(Request::builder().uri("/api/edges?kind=Calls").body(Body::empty()).unwrap())
+            .oneshot(
+                Request::builder()
+                    .uri("/api/edges?kind=Calls")
+                    .body(Body::empty())
+                    .unwrap(),
+            )
             .await
             .unwrap();
-        let body = axum::body::to_bytes(resp.into_body(), usize::MAX).await.unwrap();
+        let body = axum::body::to_bytes(resp.into_body(), usize::MAX)
+            .await
+            .unwrap();
         let json: serde_json::Value = serde_json::from_slice(&body).unwrap();
         assert_eq!(json["meta"]["count"], 1);
     }
@@ -147,12 +220,19 @@ mod tests {
         let app = super::super::create_router(setup_db());
 
         let resp = app
-            .oneshot(Request::builder().uri("/api/graph/dependency").body(Body::empty()).unwrap())
+            .oneshot(
+                Request::builder()
+                    .uri("/api/graph/dependency")
+                    .body(Body::empty())
+                    .unwrap(),
+            )
             .await
             .unwrap();
         assert_eq!(resp.status(), StatusCode::OK);
 
-        let body = axum::body::to_bytes(resp.into_body(), usize::MAX).await.unwrap();
+        let body = axum::body::to_bytes(resp.into_body(), usize::MAX)
+            .await
+            .unwrap();
         let json: serde_json::Value = serde_json::from_slice(&body).unwrap();
         assert_eq!(json["nodes"].as_array().unwrap().len(), 3);
         assert_eq!(json["edges"].as_array().unwrap().len(), 2);
@@ -163,7 +243,12 @@ mod tests {
         let app = super::super::create_router(setup_db());
 
         let resp = app
-            .oneshot(Request::builder().uri("/api/symbols/999").body(Body::empty()).unwrap())
+            .oneshot(
+                Request::builder()
+                    .uri("/api/symbols/999")
+                    .body(Body::empty())
+                    .unwrap(),
+            )
             .await
             .unwrap();
         assert_eq!(resp.status(), StatusCode::NOT_FOUND);
@@ -174,12 +259,19 @@ mod tests {
         let app = super::super::create_router(setup_db());
 
         let resp = app
-            .oneshot(Request::builder().uri("/api/metrics").body(Body::empty()).unwrap())
+            .oneshot(
+                Request::builder()
+                    .uri("/api/metrics")
+                    .body(Body::empty())
+                    .unwrap(),
+            )
             .await
             .unwrap();
         assert_eq!(resp.status(), StatusCode::OK);
 
-        let body = axum::body::to_bytes(resp.into_body(), usize::MAX).await.unwrap();
+        let body = axum::body::to_bytes(resp.into_body(), usize::MAX)
+            .await
+            .unwrap();
         let json: serde_json::Value = serde_json::from_slice(&body).unwrap();
         assert_eq!(json["data"]["total_nodes"], 3);
         assert_eq!(json["data"]["total_edges"], 2);
@@ -193,12 +285,19 @@ mod tests {
 
         // Impact analysis from node 1 (main function)
         let resp = app
-            .oneshot(Request::builder().uri("/api/impact?root_id=1").body(Body::empty()).unwrap())
+            .oneshot(
+                Request::builder()
+                    .uri("/api/impact?root_id=1")
+                    .body(Body::empty())
+                    .unwrap(),
+            )
             .await
             .unwrap();
         assert_eq!(resp.status(), StatusCode::OK);
 
-        let body = axum::body::to_bytes(resp.into_body(), usize::MAX).await.unwrap();
+        let body = axum::body::to_bytes(resp.into_body(), usize::MAX)
+            .await
+            .unwrap();
         let json: serde_json::Value = serde_json::from_slice(&body).unwrap();
         // main calls helper, so helper should be affected
         assert_eq!(json["data"]["total_affected"], 1);

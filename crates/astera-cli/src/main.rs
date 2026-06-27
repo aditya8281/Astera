@@ -157,7 +157,11 @@ fn index_command(path: &str) -> Result<(), anyhow::Error> {
     }
 
     let to_index = parse_tasks.len();
-    println!("Indexing {} files ({} unchanged, skipped)", to_index, total_files - to_index);
+    println!(
+        "Indexing {} files ({} unchanged, skipped)",
+        to_index,
+        total_files - to_index
+    );
 
     // Phase 2: Parse each file and extract symbols
     use rayon::prelude::*;
@@ -212,7 +216,8 @@ fn index_command(path: &str) -> Result<(), anyhow::Error> {
                 let src = e.source_node_id as usize;
                 let tgt = e.target_node_id as usize;
                 if src < node_ids.len() && tgt < node_ids.len() {
-                    let mut edge = astera_core::Edge::new(node_ids[src], node_ids[tgt], e.kind.clone());
+                    let mut edge =
+                        astera_core::Edge::new(node_ids[src], node_ids[tgt], e.kind.clone());
                     edge.file_id = Some(*file_id);
                     Some(edge)
                 } else {
@@ -222,8 +227,12 @@ fn index_command(path: &str) -> Result<(), anyhow::Error> {
             .collect();
         if !mapped_edges.is_empty() {
             match db.insert_edges(&mapped_edges) {
-                Ok(ids) => { total_edges += ids.len() as u64; }
-                Err(e) => { tracing::warn!("Failed to insert edges: {}", e); }
+                Ok(ids) => {
+                    total_edges += ids.len() as u64;
+                }
+                Err(e) => {
+                    tracing::warn!("Failed to insert edges: {}", e);
+                }
             }
         }
 
@@ -245,7 +254,10 @@ fn index_command(path: &str) -> Result<(), anyhow::Error> {
     println!();
     println!("Index complete:");
     let skipped = (total_files as u64).saturating_sub(indexed_files);
-    println!("  Files:        {} ({} indexed, {} skipped)", total_files, indexed_files, skipped);
+    println!(
+        "  Files:        {} ({} indexed, {} skipped)",
+        total_files, indexed_files, skipped
+    );
     println!("  Symbols:      {}", report.total_symbols);
     println!("  Edges:        {}", report.total_edges);
     println!("  Time:         {}ms", report.elapsed_ms);
@@ -278,7 +290,10 @@ fn query_symbols(kind: Option<String>, name: Option<String>) -> Result<(), anyho
     }
 
     println!("Symbols ({}):", symbols.len());
-    println!("{:<8} {:<20} {:<12} {:<12} {:<30}", "ID", "Name", "Kind", "File", "Span");
+    println!(
+        "{:<8} {:<20} {:<12} {:<12} {:<30}",
+        "ID", "Name", "Kind", "File", "Span"
+    );
     println!("{}", "-".repeat(90));
 
     for sym in &symbols {
@@ -368,22 +383,20 @@ async fn main() -> Result<(), anyhow::Error> {
             }
 
             // Find the web UI build directory
-            let static_dir = web_dir
-                .map(std::path::PathBuf::from)
-                .or_else(|| {
-                    // Auto-detect: check common locations
-                    let candidates = [
-                        root.join("apps/web/dist"),
-                        root.join("web/dist"),
-                        root.join("dist"),
-                    ];
-                    for path in &candidates {
-                        if path.join("index.html").exists() {
-                            return Some(path.clone());
-                        }
+            let static_dir = web_dir.map(std::path::PathBuf::from).or_else(|| {
+                // Auto-detect: check common locations
+                let candidates = [
+                    root.join("apps/web/dist"),
+                    root.join("web/dist"),
+                    root.join("dist"),
+                ];
+                for path in &candidates {
+                    if path.join("index.html").exists() {
+                        return Some(path.clone());
                     }
-                    None
-                });
+                }
+                None
+            });
 
             astera_api::serve_with_static(&db_path, port, static_dir).await?;
         }
@@ -422,8 +435,11 @@ async fn main() -> Result<(), anyhow::Error> {
             while let Ok(result) = update_rx.recv() {
                 println!(
                     "Re-indexed: {} files changed, +{} nodes, -{} nodes, +{} edges ({}ms)",
-                    result.files_changed, result.nodes_added, result.nodes_removed,
-                    result.edges_added, result.elapsed_ms
+                    result.files_changed,
+                    result.nodes_added,
+                    result.nodes_removed,
+                    result.edges_added,
+                    result.elapsed_ms
                 );
             }
 

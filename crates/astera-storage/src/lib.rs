@@ -272,7 +272,8 @@ impl Database {
 
         sql.push_str(&format!(" ORDER BY name LIMIT {}", limit));
 
-        let params_refs: Vec<&dyn rusqlite::types::ToSql> = param_values.iter().map(|p| p.as_ref()).collect();
+        let params_refs: Vec<&dyn rusqlite::types::ToSql> =
+            param_values.iter().map(|p| p.as_ref()).collect();
         let mut stmt = self.conn.prepare(&sql)?;
         let rows = stmt.query_map(params_refs.as_slice(), Self::map_node)?;
         rows.collect()
@@ -364,7 +365,8 @@ impl Database {
 
         sql.push_str(" LIMIT 50000");
 
-        let params_refs: Vec<&dyn rusqlite::types::ToSql> = param_values.iter().map(|p| p.as_ref()).collect();
+        let params_refs: Vec<&dyn rusqlite::types::ToSql> =
+            param_values.iter().map(|p| p.as_ref()).collect();
         let mut stmt = self.conn.prepare(&sql)?;
         let rows = stmt.query_map(params_refs.as_slice(), |row| {
             let props_str: String = row.get(5)?;
@@ -372,7 +374,8 @@ impl Database {
                 id: Some(row.get(0)?),
                 source_node_id: row.get(1)?,
                 target_node_id: row.get(2)?,
-                kind: EdgeKind::parse_from_str(&row.get::<_, String>(3)?).unwrap_or(EdgeKind::References),
+                kind: EdgeKind::parse_from_str(&row.get::<_, String>(3)?)
+                    .unwrap_or(EdgeKind::References),
                 file_id: row.get(4)?,
                 properties: serde_json::from_str(&props_str).unwrap_or_default(),
             })
@@ -411,7 +414,8 @@ impl Database {
         let props_str: String = row.get(9)?;
         Ok(Node {
             id: Some(row.get(0)?),
-            kind: NodeKind::parse_from_str(&row.get::<_, String>(1)?).unwrap_or(NodeKind::Anonymous),
+            kind: NodeKind::parse_from_str(&row.get::<_, String>(1)?)
+                .unwrap_or(NodeKind::Anonymous),
             name: row.get(2)?,
             file_id: row.get(3)?,
             span: SourceSpan {
@@ -482,12 +486,28 @@ mod tests {
         let fid = db.insert_file(&test_file()).unwrap();
 
         let nodes = vec![
-            Node::new(NodeKind::Function, "hello", fid, SourceSpan {
-                start_line: 1, start_col: 1, end_line: 5, end_col: 1,
-            }),
-            Node::new(NodeKind::Class, "MyClass", fid, SourceSpan {
-                start_line: 10, start_col: 1, end_line: 20, end_col: 1,
-            }),
+            Node::new(
+                NodeKind::Function,
+                "hello",
+                fid,
+                SourceSpan {
+                    start_line: 1,
+                    start_col: 1,
+                    end_line: 5,
+                    end_col: 1,
+                },
+            ),
+            Node::new(
+                NodeKind::Class,
+                "MyClass",
+                fid,
+                SourceSpan {
+                    start_line: 10,
+                    start_col: 1,
+                    end_line: 20,
+                    end_col: 1,
+                },
+            ),
         ];
 
         let ids = db.insert_nodes(&nodes).unwrap();
@@ -504,12 +524,28 @@ mod tests {
         let db = test_db();
         let fid = db.insert_file(&test_file()).unwrap();
         let nodes = vec![
-            Node::new(NodeKind::Function, "caller", fid, SourceSpan {
-                start_line: 1, start_col: 1, end_line: 3, end_col: 1,
-            }),
-            Node::new(NodeKind::Function, "callee", fid, SourceSpan {
-                start_line: 5, start_col: 1, end_line: 7, end_col: 1,
-            }),
+            Node::new(
+                NodeKind::Function,
+                "caller",
+                fid,
+                SourceSpan {
+                    start_line: 1,
+                    start_col: 1,
+                    end_line: 3,
+                    end_col: 1,
+                },
+            ),
+            Node::new(
+                NodeKind::Function,
+                "callee",
+                fid,
+                SourceSpan {
+                    start_line: 5,
+                    start_col: 1,
+                    end_line: 7,
+                    end_col: 1,
+                },
+            ),
         ];
         let node_ids = db.insert_nodes(&nodes).unwrap();
 
@@ -527,9 +563,17 @@ mod tests {
     fn test_delete_cascade() {
         let db = test_db();
         let fid = db.insert_file(&test_file()).unwrap();
-        let nodes = vec![Node::new(NodeKind::Function, "fn", fid, SourceSpan {
-            start_line: 1, start_col: 1, end_line: 3, end_col: 1,
-        })];
+        let nodes = vec![Node::new(
+            NodeKind::Function,
+            "fn",
+            fid,
+            SourceSpan {
+                start_line: 1,
+                start_col: 1,
+                end_line: 3,
+                end_col: 1,
+            },
+        )];
         let _node_ids = db.insert_nodes(&nodes).unwrap();
 
         db.delete_file(fid).unwrap();
@@ -542,12 +586,28 @@ mod tests {
         let db = test_db();
         let fid = db.insert_file(&test_file()).unwrap();
         let nodes = vec![
-            Node::new(NodeKind::Function, "getUserById", fid, SourceSpan {
-                start_line: 1, start_col: 1, end_line: 3, end_col: 1,
-            }),
-            Node::new(NodeKind::Function, "deleteUser", fid, SourceSpan {
-                start_line: 5, start_col: 1, end_line: 7, end_col: 1,
-            }),
+            Node::new(
+                NodeKind::Function,
+                "getUserById",
+                fid,
+                SourceSpan {
+                    start_line: 1,
+                    start_col: 1,
+                    end_line: 3,
+                    end_col: 1,
+                },
+            ),
+            Node::new(
+                NodeKind::Function,
+                "deleteUser",
+                fid,
+                SourceSpan {
+                    start_line: 5,
+                    start_col: 1,
+                    end_line: 7,
+                    end_col: 1,
+                },
+            ),
         ];
         db.insert_nodes(&nodes).unwrap();
 
@@ -574,9 +634,18 @@ mod tests {
         assert_eq!(db.edge_count().unwrap(), 0);
 
         let fid = db.insert_file(&test_file()).unwrap();
-        db.insert_nodes(&[Node::new(NodeKind::Function, "fn", fid, SourceSpan {
-            start_line: 1, start_col: 1, end_line: 3, end_col: 1,
-        })]).unwrap();
+        db.insert_nodes(&[Node::new(
+            NodeKind::Function,
+            "fn",
+            fid,
+            SourceSpan {
+                start_line: 1,
+                start_col: 1,
+                end_line: 3,
+                end_col: 1,
+            },
+        )])
+        .unwrap();
 
         assert_eq!(db.file_count().unwrap(), 1);
         assert_eq!(db.symbol_count().unwrap(), 1);

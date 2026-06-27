@@ -41,7 +41,8 @@ pub struct ParsedFile {
 
 /// Parse a source file with tree-sitter
 pub fn parse(source: &[u8], language: &str) -> Result<ParsedFile, String> {
-    let grammar = Grammar::from_language(language).ok_or_else(|| format!("Unknown language: {}", language))?;
+    let grammar = Grammar::from_language(language)
+        .ok_or_else(|| format!("Unknown language: {}", language))?;
     let lang = get_language(grammar)?;
 
     let mut parser = tree_sitter::Parser::new();
@@ -109,7 +110,10 @@ impl Extractor {
 
     // ─── Helpers for call graph extraction ───
 
-    fn find_enclosing_function_idx(nodes: &[Node], parent_stack: &[Option<usize>]) -> Option<usize> {
+    fn find_enclosing_function_idx(
+        nodes: &[Node],
+        parent_stack: &[Option<usize>],
+    ) -> Option<usize> {
         parent_stack.iter().rev().find_map(|entry| {
             entry.and_then(|idx| match nodes[idx].kind {
                 NodeKind::Function | NodeKind::Method => Some(idx),
@@ -136,12 +140,18 @@ impl Extractor {
     fn resolve_calls(nodes: &[Node], edges: &mut Vec<Edge>, call_refs: &[(usize, String)]) {
         for (caller_idx, callee_name) in call_refs {
             if let Some(callee_idx) = nodes.iter().position(|n| n.name == *callee_name) {
-                if *caller_idx != callee_idx && !edges.iter().any(|e| {
-                    e.source_node_id == *caller_idx as i64
-                        && e.target_node_id == callee_idx as i64
-                        && e.kind == EdgeKind::Calls
-                }) {
-                    edges.push(Edge::new(*caller_idx as i64, callee_idx as i64, EdgeKind::Calls));
+                if *caller_idx != callee_idx
+                    && !edges.iter().any(|e| {
+                        e.source_node_id == *caller_idx as i64
+                            && e.target_node_id == callee_idx as i64
+                            && e.kind == EdgeKind::Calls
+                    })
+                {
+                    edges.push(Edge::new(
+                        *caller_idx as i64,
+                        callee_idx as i64,
+                        EdgeKind::Calls,
+                    ));
                 }
             }
         }
@@ -155,7 +165,15 @@ impl Extractor {
         let mut parent_stack: Vec<Option<usize>> = Vec::new();
         let mut call_refs: Vec<(usize, String)> = Vec::new();
 
-        Self::walk_ts(root, source, file_id, &mut nodes, &mut edges, &mut parent_stack, &mut call_refs);
+        Self::walk_ts(
+            root,
+            source,
+            file_id,
+            &mut nodes,
+            &mut edges,
+            &mut parent_stack,
+            &mut call_refs,
+        );
         Self::resolve_calls(&nodes, &mut edges, &call_refs);
         ParseOutput { nodes, edges }
     }
@@ -179,7 +197,12 @@ impl Extractor {
                     .map(|n| Self::node_text(n, source))
                     .unwrap_or("anonymous")
                     .to_string();
-                extracted = Some(Node::new(NodeKind::Function, &name, file_id, Self::node_span(node)));
+                extracted = Some(Node::new(
+                    NodeKind::Function,
+                    &name,
+                    file_id,
+                    Self::node_span(node),
+                ));
             }
             "method_definition" | "method" => {
                 let name = node
@@ -187,7 +210,12 @@ impl Extractor {
                     .map(|n| Self::node_text(n, source))
                     .unwrap_or("anonymous")
                     .to_string();
-                extracted = Some(Node::new(NodeKind::Method, &name, file_id, Self::node_span(node)));
+                extracted = Some(Node::new(
+                    NodeKind::Method,
+                    &name,
+                    file_id,
+                    Self::node_span(node),
+                ));
             }
             "class_declaration" => {
                 let name = node
@@ -195,7 +223,12 @@ impl Extractor {
                     .map(|n| Self::node_text(n, source))
                     .unwrap_or("anonymous")
                     .to_string();
-                extracted = Some(Node::new(NodeKind::Class, &name, file_id, Self::node_span(node)));
+                extracted = Some(Node::new(
+                    NodeKind::Class,
+                    &name,
+                    file_id,
+                    Self::node_span(node),
+                ));
             }
             "interface_declaration" => {
                 let name = node
@@ -216,7 +249,12 @@ impl Extractor {
                     .map(|n| Self::node_text(n, source))
                     .unwrap_or("anonymous")
                     .to_string();
-                extracted = Some(Node::new(NodeKind::Enum, &name, file_id, Self::node_span(node)));
+                extracted = Some(Node::new(
+                    NodeKind::Enum,
+                    &name,
+                    file_id,
+                    Self::node_span(node),
+                ));
             }
             "type_alias_declaration" => {
                 let name = node
@@ -239,14 +277,23 @@ impl Extractor {
                     .unwrap_or(source_text)
                     .trim()
                     .to_string();
-                extracted = Some(Node::new(NodeKind::Import, &name, file_id, Self::node_span(node)));
+                extracted = Some(Node::new(
+                    NodeKind::Import,
+                    &name,
+                    file_id,
+                    Self::node_span(node),
+                ));
             }
             "lexical_declaration" | "variable_declaration" => {
                 // Module-level variable: const/let/var x = ...
                 if let Some(name_node) = node.child_by_field_name("name") {
                     let name = Self::node_text(name_node, source).to_string();
-                    extracted =
-                        Some(Node::new(NodeKind::Variable, &name, file_id, Self::node_span(node)));
+                    extracted = Some(Node::new(
+                        NodeKind::Variable,
+                        &name,
+                        file_id,
+                        Self::node_span(node),
+                    ));
                 }
             }
             _ => {}
@@ -278,7 +325,9 @@ impl Extractor {
                 if let Some(func_node) = node.child_by_field_name("function") {
                     let (callee_name, is_direct) = Self::extract_callee_name(func_node, source);
                     if is_direct {
-                        if let Some(caller_idx) = Self::find_enclosing_function_idx(nodes, parent_stack) {
+                        if let Some(caller_idx) =
+                            Self::find_enclosing_function_idx(nodes, parent_stack)
+                        {
                             call_refs.push((caller_idx, callee_name));
                         }
                     }
@@ -290,7 +339,15 @@ impl Extractor {
         // Recurse into children
         let mut cursor = node.walk();
         for child in node.children(&mut cursor) {
-            Self::walk_ts(child, source, file_id, nodes, edges, parent_stack, call_refs);
+            Self::walk_ts(
+                child,
+                source,
+                file_id,
+                nodes,
+                edges,
+                parent_stack,
+                call_refs,
+            );
         }
 
         parent_stack.pop();
@@ -304,7 +361,15 @@ impl Extractor {
         let mut parent_stack: Vec<Option<usize>> = Vec::new();
         let mut call_refs: Vec<(usize, String)> = Vec::new();
 
-        Self::walk_python(root, source, file_id, &mut nodes, &mut edges, &mut parent_stack, &mut call_refs);
+        Self::walk_python(
+            root,
+            source,
+            file_id,
+            &mut nodes,
+            &mut edges,
+            &mut parent_stack,
+            &mut call_refs,
+        );
         Self::resolve_calls(&nodes, &mut edges, &call_refs);
         ParseOutput { nodes, edges }
     }
@@ -328,7 +393,12 @@ impl Extractor {
                     .map(|n| Self::node_text(n, source))
                     .unwrap_or("anonymous")
                     .to_string();
-                extracted = Some(Node::new(NodeKind::Function, &name, file_id, Self::node_span(node)));
+                extracted = Some(Node::new(
+                    NodeKind::Function,
+                    &name,
+                    file_id,
+                    Self::node_span(node),
+                ));
             }
             "class_definition" => {
                 let name = node
@@ -336,15 +406,30 @@ impl Extractor {
                     .map(|n| Self::node_text(n, source))
                     .unwrap_or("anonymous")
                     .to_string();
-                extracted = Some(Node::new(NodeKind::Class, &name, file_id, Self::node_span(node)));
+                extracted = Some(Node::new(
+                    NodeKind::Class,
+                    &name,
+                    file_id,
+                    Self::node_span(node),
+                ));
             }
             "import_statement" => {
                 let text = Self::node_text(node, source).to_string();
-                extracted = Some(Node::new(NodeKind::Import, &text, file_id, Self::node_span(node)));
+                extracted = Some(Node::new(
+                    NodeKind::Import,
+                    &text,
+                    file_id,
+                    Self::node_span(node),
+                ));
             }
             "import_from_statement" => {
                 let text = Self::node_text(node, source).to_string();
-                extracted = Some(Node::new(NodeKind::Import, &text, file_id, Self::node_span(node)));
+                extracted = Some(Node::new(
+                    NodeKind::Import,
+                    &text,
+                    file_id,
+                    Self::node_span(node),
+                ));
             }
             _ => {}
         }
@@ -368,7 +453,9 @@ impl Extractor {
                 if let Some(func_node) = node.child_by_field_name("function") {
                     let (callee_name, is_direct) = Self::extract_callee_name(func_node, source);
                     if is_direct {
-                        if let Some(caller_idx) = Self::find_enclosing_function_idx(nodes, parent_stack) {
+                        if let Some(caller_idx) =
+                            Self::find_enclosing_function_idx(nodes, parent_stack)
+                        {
                             call_refs.push((caller_idx, callee_name));
                         }
                     }
@@ -379,7 +466,15 @@ impl Extractor {
 
         let mut cursor = node.walk();
         for child in node.children(&mut cursor) {
-            Self::walk_python(child, source, file_id, nodes, edges, parent_stack, call_refs);
+            Self::walk_python(
+                child,
+                source,
+                file_id,
+                nodes,
+                edges,
+                parent_stack,
+                call_refs,
+            );
         }
         parent_stack.pop();
     }
@@ -392,7 +487,15 @@ impl Extractor {
         let mut parent_stack: Vec<Option<usize>> = Vec::new();
         let mut call_refs: Vec<(usize, String)> = Vec::new();
 
-        Self::walk_rust(root, source, file_id, &mut nodes, &mut edges, &mut parent_stack, &mut call_refs);
+        Self::walk_rust(
+            root,
+            source,
+            file_id,
+            &mut nodes,
+            &mut edges,
+            &mut parent_stack,
+            &mut call_refs,
+        );
         Self::resolve_calls(&nodes, &mut edges, &call_refs);
         ParseOutput { nodes, edges }
     }
@@ -416,7 +519,12 @@ impl Extractor {
                     .map(|n| Self::node_text(n, source))
                     .unwrap_or("anonymous")
                     .to_string();
-                extracted = Some(Node::new(NodeKind::Function, &name, file_id, Self::node_span(node)));
+                extracted = Some(Node::new(
+                    NodeKind::Function,
+                    &name,
+                    file_id,
+                    Self::node_span(node),
+                ));
             }
             "struct_item" => {
                 let name = node
@@ -424,7 +532,12 @@ impl Extractor {
                     .map(|n| Self::node_text(n, source))
                     .unwrap_or("anonymous")
                     .to_string();
-                extracted = Some(Node::new(NodeKind::Class, &name, file_id, Self::node_span(node)));
+                extracted = Some(Node::new(
+                    NodeKind::Class,
+                    &name,
+                    file_id,
+                    Self::node_span(node),
+                ));
             }
             "enum_item" => {
                 let name = node
@@ -432,7 +545,12 @@ impl Extractor {
                     .map(|n| Self::node_text(n, source))
                     .unwrap_or("anonymous")
                     .to_string();
-                extracted = Some(Node::new(NodeKind::Enum, &name, file_id, Self::node_span(node)));
+                extracted = Some(Node::new(
+                    NodeKind::Enum,
+                    &name,
+                    file_id,
+                    Self::node_span(node),
+                ));
             }
             "trait_item" => {
                 let name = node
@@ -440,7 +558,12 @@ impl Extractor {
                     .map(|n| Self::node_text(n, source))
                     .unwrap_or("anonymous")
                     .to_string();
-                extracted = Some(Node::new(NodeKind::Interface, &name, file_id, Self::node_span(node)));
+                extracted = Some(Node::new(
+                    NodeKind::Interface,
+                    &name,
+                    file_id,
+                    Self::node_span(node),
+                ));
             }
             "impl_item" => {
                 let type_name = node
@@ -448,7 +571,12 @@ impl Extractor {
                     .map(|n| Self::node_text(n, source))
                     .unwrap_or("unknown")
                     .to_string();
-                extracted = Some(Node::new(NodeKind::Module, &type_name, file_id, Self::node_span(node)));
+                extracted = Some(Node::new(
+                    NodeKind::Module,
+                    &type_name,
+                    file_id,
+                    Self::node_span(node),
+                ));
             }
             "type_item" => {
                 let name = node
@@ -465,7 +593,12 @@ impl Extractor {
             }
             "use_declaration" => {
                 let text = Self::node_text(node, source).to_string();
-                extracted = Some(Node::new(NodeKind::Import, &text, file_id, Self::node_span(node)));
+                extracted = Some(Node::new(
+                    NodeKind::Import,
+                    &text,
+                    file_id,
+                    Self::node_span(node),
+                ));
             }
             "const_item" | "static_item" => {
                 let name = node
@@ -473,7 +606,12 @@ impl Extractor {
                     .map(|n| Self::node_text(n, source))
                     .unwrap_or("anonymous")
                     .to_string();
-                extracted = Some(Node::new(NodeKind::Variable, &name, file_id, Self::node_span(node)));
+                extracted = Some(Node::new(
+                    NodeKind::Variable,
+                    &name,
+                    file_id,
+                    Self::node_span(node),
+                ));
             }
             "let_declaration" => {
                 if let Some(name_node) = node.child_by_field_name("name") {
@@ -512,7 +650,9 @@ impl Extractor {
                 if let Some(func_node) = node.child_by_field_name("function") {
                     let (callee_name, is_direct) = Self::extract_callee_name(func_node, source);
                     if is_direct {
-                        if let Some(caller_idx) = Self::find_enclosing_function_idx(nodes, parent_stack) {
+                        if let Some(caller_idx) =
+                            Self::find_enclosing_function_idx(nodes, parent_stack)
+                        {
                             call_refs.push((caller_idx, callee_name));
                         }
                     }
@@ -523,7 +663,15 @@ impl Extractor {
 
         let mut cursor = node.walk();
         for child in node.children(&mut cursor) {
-            Self::walk_rust(child, source, file_id, nodes, edges, parent_stack, call_refs);
+            Self::walk_rust(
+                child,
+                source,
+                file_id,
+                nodes,
+                edges,
+                parent_stack,
+                call_refs,
+            );
         }
         parent_stack.pop();
     }
@@ -536,7 +684,15 @@ impl Extractor {
         let mut parent_stack: Vec<Option<usize>> = Vec::new();
         let mut call_refs: Vec<(usize, String)> = Vec::new();
 
-        Self::walk_go(root, source, file_id, &mut nodes, &mut edges, &mut parent_stack, &mut call_refs);
+        Self::walk_go(
+            root,
+            source,
+            file_id,
+            &mut nodes,
+            &mut edges,
+            &mut parent_stack,
+            &mut call_refs,
+        );
         Self::resolve_calls(&nodes, &mut edges, &call_refs);
         ParseOutput { nodes, edges }
     }
@@ -560,7 +716,12 @@ impl Extractor {
                     .map(|n| Self::node_text(n, source))
                     .unwrap_or("anonymous")
                     .to_string();
-                extracted = Some(Node::new(NodeKind::Function, &name, file_id, Self::node_span(node)));
+                extracted = Some(Node::new(
+                    NodeKind::Function,
+                    &name,
+                    file_id,
+                    Self::node_span(node),
+                ));
             }
             "method_declaration" => {
                 // Go methods: func (r Receiver) MethodName()
@@ -569,7 +730,12 @@ impl Extractor {
                     .map(|n| Self::node_text(n, source))
                     .unwrap_or("anonymous")
                     .to_string();
-                extracted = Some(Node::new(NodeKind::Method, &name, file_id, Self::node_span(node)));
+                extracted = Some(Node::new(
+                    NodeKind::Method,
+                    &name,
+                    file_id,
+                    Self::node_span(node),
+                ));
             }
             "type_declaration" => {
                 // type Foo struct{} / type Bar interface{}
@@ -579,27 +745,53 @@ impl Extractor {
                         .map(|n| Self::node_text(n, source))
                         .unwrap_or("anonymous")
                         .to_string();
-                    let kind_name = spec.child_by_field_name("type")
+                    let kind_name = spec
+                        .child_by_field_name("type")
                         .map(|n| Self::node_text(n, source))
                         .unwrap_or("");
                     if kind_name.contains("struct") {
-                        extracted = Some(Node::new(NodeKind::Class, &type_name, file_id, Self::node_span(node)));
+                        extracted = Some(Node::new(
+                            NodeKind::Class,
+                            &type_name,
+                            file_id,
+                            Self::node_span(node),
+                        ));
                     } else if kind_name.contains("interface") {
-                        extracted = Some(Node::new(NodeKind::Interface, &type_name, file_id, Self::node_span(node)));
+                        extracted = Some(Node::new(
+                            NodeKind::Interface,
+                            &type_name,
+                            file_id,
+                            Self::node_span(node),
+                        ));
                     } else {
-                        extracted = Some(Node::new(NodeKind::TypeAlias, &type_name, file_id, Self::node_span(node)));
+                        extracted = Some(Node::new(
+                            NodeKind::TypeAlias,
+                            &type_name,
+                            file_id,
+                            Self::node_span(node),
+                        ));
                     }
                 }
             }
             "import_declaration" => {
                 let text = Self::node_text(node, source).to_string();
-                extracted = Some(Node::new(NodeKind::Import, &text, file_id, Self::node_span(node)));
+                extracted = Some(Node::new(
+                    NodeKind::Import,
+                    &text,
+                    file_id,
+                    Self::node_span(node),
+                ));
             }
             "var_declaration" | "const_declaration" => {
                 if let Some(spec) = node.child(1) {
                     if let Some(name_node) = spec.child_by_field_name("name") {
                         let name = Self::node_text(name_node, source).to_string();
-                        extracted = Some(Node::new(NodeKind::Variable, &name, file_id, Self::node_span(node)));
+                        extracted = Some(Node::new(
+                            NodeKind::Variable,
+                            &name,
+                            file_id,
+                            Self::node_span(node),
+                        ));
                     }
                 }
             }
@@ -627,7 +819,9 @@ impl Extractor {
                 if let Some(func_node) = node.child_by_field_name("function") {
                     let (callee_name, is_direct) = Self::extract_callee_name(func_node, source);
                     if is_direct {
-                        if let Some(caller_idx) = Self::find_enclosing_function_idx(nodes, parent_stack) {
+                        if let Some(caller_idx) =
+                            Self::find_enclosing_function_idx(nodes, parent_stack)
+                        {
                             call_refs.push((caller_idx, callee_name));
                         }
                     }
@@ -638,7 +832,15 @@ impl Extractor {
 
         let mut cursor = node.walk();
         for child in node.children(&mut cursor) {
-            Self::walk_go(child, source, file_id, nodes, edges, parent_stack, call_refs);
+            Self::walk_go(
+                child,
+                source,
+                file_id,
+                nodes,
+                edges,
+                parent_stack,
+                call_refs,
+            );
         }
         parent_stack.pop();
     }
@@ -659,7 +861,10 @@ mod tests {
         let source = b"function greet(name: string): string { return `Hello ${name}`; }";
         let result = extract("typescript", source);
         assert!(
-            result.nodes.iter().any(|n| n.kind == NodeKind::Function && n.name == "greet"),
+            result
+                .nodes
+                .iter()
+                .any(|n| n.kind == NodeKind::Function && n.name == "greet"),
             "Expected function 'greet', got: {:?}",
             result.nodes
         );
@@ -670,13 +875,19 @@ mod tests {
         let source = b"class MyClass { doSomething() {} }";
         let result = extract("typescript", source);
         assert!(
-            result.nodes.iter().any(|n| n.kind == NodeKind::Class && n.name == "MyClass"),
+            result
+                .nodes
+                .iter()
+                .any(|n| n.kind == NodeKind::Class && n.name == "MyClass"),
             "Expected class 'MyClass', got: {:?}",
             result.nodes
         );
         // Method should be extracted
         assert!(
-            result.nodes.iter().any(|n| n.kind == NodeKind::Method && n.name == "doSomething"),
+            result
+                .nodes
+                .iter()
+                .any(|n| n.kind == NodeKind::Method && n.name == "doSomething"),
             "Expected method 'doSomething', got: {:?}",
             result.nodes
         );
@@ -699,7 +910,10 @@ mod tests {
         let source = b"interface User { name: string; age(): number; }";
         let result = extract("typescript", source);
         assert!(
-            result.nodes.iter().any(|n| n.kind == NodeKind::Interface && n.name == "User"),
+            result
+                .nodes
+                .iter()
+                .any(|n| n.kind == NodeKind::Interface && n.name == "User"),
             "Expected interface 'User', got: {:?}",
             result.nodes
         );
@@ -710,7 +924,10 @@ mod tests {
         let source = b"enum Color { Red, Green, Blue }";
         let result = extract("typescript", source);
         assert!(
-            result.nodes.iter().any(|n| n.kind == NodeKind::Enum && n.name == "Color"),
+            result
+                .nodes
+                .iter()
+                .any(|n| n.kind == NodeKind::Enum && n.name == "Color"),
             "Expected enum 'Color', got: {:?}",
             result.nodes
         );
@@ -731,7 +948,10 @@ mod tests {
         let source = b"type Callback = (x: number) => void;";
         let result = extract("typescript", source);
         assert!(
-            result.nodes.iter().any(|n| n.kind == NodeKind::TypeAlias && n.name == "Callback"),
+            result
+                .nodes
+                .iter()
+                .any(|n| n.kind == NodeKind::TypeAlias && n.name == "Callback"),
             "Expected type alias 'Callback', got: {:?}",
             result.nodes
         );
@@ -742,7 +962,10 @@ mod tests {
         let source = b"def hello(name):\n    return f'Hello {name}'";
         let result = extract("python", source);
         assert!(
-            result.nodes.iter().any(|n| n.kind == NodeKind::Function && n.name == "hello"),
+            result
+                .nodes
+                .iter()
+                .any(|n| n.kind == NodeKind::Function && n.name == "hello"),
             "Expected function 'hello', got: {:?}",
             result.nodes
         );
@@ -753,7 +976,10 @@ mod tests {
         let source = b"class MyService:\n    def do_thing(self):\n        pass";
         let result = extract("python", source);
         assert!(
-            result.nodes.iter().any(|n| n.kind == NodeKind::Class && n.name == "MyService"),
+            result
+                .nodes
+                .iter()
+                .any(|n| n.kind == NodeKind::Class && n.name == "MyService"),
             "Expected class 'MyService', got: {:?}",
             result.nodes
         );
@@ -768,7 +994,12 @@ mod tests {
             .iter()
             .filter(|n| n.kind == NodeKind::Import)
             .collect();
-        assert_eq!(imports.len(), 2, "Expected 2 imports, got: {:?}", result.nodes);
+        assert_eq!(
+            imports.len(),
+            2,
+            "Expected 2 imports, got: {:?}",
+            result.nodes
+        );
     }
 
     #[test]
@@ -788,7 +1019,10 @@ mod tests {
         let source = b"fn greet(name: &str) -> String { format!(\"Hello {}\", name) }";
         let result = extract("rust", source);
         assert!(
-            result.nodes.iter().any(|n| n.kind == NodeKind::Function && n.name == "greet"),
+            result
+                .nodes
+                .iter()
+                .any(|n| n.kind == NodeKind::Function && n.name == "greet"),
             "Expected function 'greet', got: {:?}",
             result.nodes
         );
@@ -799,7 +1033,10 @@ mod tests {
         let source = b"struct User { name: String, age: u32 }";
         let result = extract("rust", source);
         assert!(
-            result.nodes.iter().any(|n| n.kind == NodeKind::Class && n.name == "User"),
+            result
+                .nodes
+                .iter()
+                .any(|n| n.kind == NodeKind::Class && n.name == "User"),
             "Expected struct 'User', got: {:?}",
             result.nodes
         );
@@ -810,7 +1047,10 @@ mod tests {
         let source = b"enum Status { Active, Inactive }";
         let result = extract("rust", source);
         assert!(
-            result.nodes.iter().any(|n| n.kind == NodeKind::Enum && n.name == "Status"),
+            result
+                .nodes
+                .iter()
+                .any(|n| n.kind == NodeKind::Enum && n.name == "Status"),
             "Expected enum 'Status', got: {:?}",
             result.nodes
         );
@@ -821,7 +1061,10 @@ mod tests {
         let source = b"trait Provider { fn provide(&self) -> &str; }";
         let result = extract("rust", source);
         assert!(
-            result.nodes.iter().any(|n| n.kind == NodeKind::Interface && n.name == "Provider"),
+            result
+                .nodes
+                .iter()
+                .any(|n| n.kind == NodeKind::Interface && n.name == "Provider"),
             "Expected trait 'Provider', got: {:?}",
             result.nodes
         );
@@ -842,7 +1085,10 @@ mod tests {
         let source = b"type Callback = Box<dyn Fn()>;";
         let result = extract("rust", source);
         assert!(
-            result.nodes.iter().any(|n| n.kind == NodeKind::TypeAlias && n.name == "Callback"),
+            result
+                .nodes
+                .iter()
+                .any(|n| n.kind == NodeKind::TypeAlias && n.name == "Callback"),
             "Expected type alias 'Callback', got: {:?}",
             result.nodes
         );
@@ -905,7 +1151,10 @@ mod tests {
         let source = b"func greet(name string) string {\n    return \"Hello \" + name\n}";
         let result = extract("go", source);
         assert!(
-            result.nodes.iter().any(|n| n.kind == NodeKind::Function && n.name == "greet"),
+            result
+                .nodes
+                .iter()
+                .any(|n| n.kind == NodeKind::Function && n.name == "greet"),
             "Expected function 'greet', got: {:?}",
             result.nodes
         );
@@ -916,7 +1165,10 @@ mod tests {
         let source = b"type User struct {\n    Name string\n    Age  int\n}";
         let result = extract("go", source);
         assert!(
-            result.nodes.iter().any(|n| n.kind == NodeKind::Class && n.name == "User"),
+            result
+                .nodes
+                .iter()
+                .any(|n| n.kind == NodeKind::Class && n.name == "User"),
             "Expected struct 'User', got: {:?}",
             result.nodes
         );

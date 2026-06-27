@@ -54,10 +54,7 @@ pub fn create_router_with_static(db: Database, static_dir: Option<PathBuf>) -> R
 }
 
 /// Fallback: serve static files if static_dir is set, otherwise 404
-async fn fallback_handler(
-    AxumState(state): AxumState<AppState>,
-    uri: Uri,
-) -> Response {
+async fn fallback_handler(AxumState(state): AxumState<AppState>, uri: Uri) -> Response {
     let dir = match &state.static_dir {
         Some(d) => d,
         None => return StatusCode::NOT_FOUND.into_response(),

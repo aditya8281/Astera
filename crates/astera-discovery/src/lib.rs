@@ -241,10 +241,7 @@ mod tests {
 
     #[test]
     fn test_classify_typescript() {
-        assert_eq!(
-            classify_language(Path::new("file.ts")),
-            Some("typescript")
-        );
+        assert_eq!(classify_language(Path::new("file.ts")), Some("typescript"));
         assert_eq!(classify_language(Path::new("file.tsx")), Some("tsx"));
     }
 

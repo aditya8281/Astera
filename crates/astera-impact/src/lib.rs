@@ -67,7 +67,9 @@ impl ImpactAnalyzer {
     /// Forward impact: who does root_id affect?
     pub fn impact_analysis(&self, root_id: i64, max_depth: Option<u32>) -> ImpactResult {
         let max_d = max_depth.unwrap_or(10);
-        let root_name = self.nodes.get(&root_id)
+        let root_name = self
+            .nodes
+            .get(&root_id)
             .map(|(n, _)| n.clone())
             .unwrap_or_default();
 
@@ -124,7 +126,9 @@ impl ImpactAnalyzer {
     /// Reverse impact: what affects root_id?
     pub fn reverse_impact(&self, root_id: i64, max_depth: Option<u32>) -> ImpactResult {
         let max_d = max_depth.unwrap_or(10);
-        let root_name = self.nodes.get(&root_id)
+        let root_name = self
+            .nodes
+            .get(&root_id)
             .map(|(n, _)| n.clone())
             .unwrap_or_default();
 
@@ -255,7 +259,12 @@ mod tests {
             kind,
             name: name.to_string(),
             file_id: 1,
-            span: SourceSpan { start_line: 1, start_col: 1, end_line: 10, end_col: 1 },
+            span: SourceSpan {
+                start_line: 1,
+                start_col: 1,
+                end_line: 10,
+                end_col: 1,
+            },
             doc_comment: None,
             properties: serde_json::json!({}),
         }
@@ -320,8 +329,12 @@ mod tests {
 
     #[test]
     fn test_max_depth() {
-        let nodes: Vec<Node> = (1..=5).map(|i| make_node(i, NodeKind::Function, &format!("F{}", i))).collect();
-        let edges: Vec<Edge> = (1..5).map(|i| make_edge(i, i + 1, EdgeKind::Calls)).collect();
+        let nodes: Vec<Node> = (1..=5)
+            .map(|i| make_node(i, NodeKind::Function, &format!("F{}", i)))
+            .collect();
+        let edges: Vec<Edge> = (1..5)
+            .map(|i| make_edge(i, i + 1, EdgeKind::Calls))
+            .collect();
         let analyzer = ImpactAnalyzer::new(&nodes, &edges);
         let result = analyzer.impact_analysis(1, Some(2));
         assert!(result.affected.iter().all(|n| n.depth <= 2));

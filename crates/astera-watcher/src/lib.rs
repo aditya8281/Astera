@@ -52,7 +52,10 @@ impl FileWatcher {
 
         let mut debouncer = new_debouncer(
             Duration::from_millis(debounce_ms),
-            move |res: std::result::Result<Vec<notify_debouncer_mini::DebouncedEvent>, notify::Error>| {
+            move |res: std::result::Result<
+                Vec<notify_debouncer_mini::DebouncedEvent>,
+                notify::Error,
+            >| {
                 if let Ok(events) = res {
                     let paths: Vec<PathBuf> = events
                         .into_iter()
@@ -68,7 +71,11 @@ impl FileWatcher {
 
         debouncer.watcher().watch(&root, RecursiveMode::Recursive)?;
 
-        info!("Watching {} for changes (debounce: {}ms)", root.display(), debounce_ms);
+        info!(
+            "Watching {} for changes (debounce: {}ms)",
+            root.display(),
+            debounce_ms
+        );
 
         loop {
             match rx.recv() {
@@ -125,7 +132,9 @@ impl FileWatcher {
 
             // Delete old data for this file (CASCADE handles nodes/edges)
             if let Ok(Some(old_fid)) = db.file_exists(rel_path) {
-                let old_nodes = db.query_nodes(None, None, Some(old_fid)).unwrap_or_default();
+                let old_nodes = db
+                    .query_nodes(None, None, Some(old_fid))
+                    .unwrap_or_default();
                 total_nodes_removed += old_nodes.len();
                 let _ = db.delete_file(old_fid);
             }
@@ -186,8 +195,12 @@ impl FileWatcher {
 
             if !mapped_edges.is_empty() {
                 match db.insert_edges(&mapped_edges) {
-                    Ok(ids) => { total_edges_added += ids.len(); }
-                    Err(e) => { warn!("Failed to insert edges: {}", e); }
+                    Ok(ids) => {
+                        total_edges_added += ids.len();
+                    }
+                    Err(e) => {
+                        warn!("Failed to insert edges: {}", e);
+                    }
                 }
             }
 
@@ -198,7 +211,10 @@ impl FileWatcher {
         let elapsed = start.elapsed();
         info!(
             "Re-index complete: {} files, +{} nodes, -{} nodes, +{} edges in {}ms",
-            files_changed, total_nodes_added, total_nodes_removed, total_edges_added,
+            files_changed,
+            total_nodes_added,
+            total_nodes_removed,
+            total_edges_added,
             elapsed.as_millis()
         );
 
@@ -214,10 +230,7 @@ impl FileWatcher {
 
 /// Check if a file path should trigger re-indexing
 fn is_watchable(path: &Path) -> bool {
-    let name = path
-        .file_name()
-        .and_then(|n| n.to_str())
-        .unwrap_or("");
+    let name = path.file_name().and_then(|n| n.to_str()).unwrap_or("");
 
     // Skip hidden files, temp files, build artifacts
     if name.starts_with('.') || name.ends_with('~') || name.ends_with(".swp") {
@@ -225,8 +238,15 @@ fn is_watchable(path: &Path) -> bool {
     }
 
     // Skip common non-source directories
-    if let Some(dir_name) = path.parent().and_then(|p| p.file_name()).and_then(|n| n.to_str()) {
-        if matches!(dir_name, "node_modules" | "target" | "build" | "dist" | ".git" | "__pycache__") {
+    if let Some(dir_name) = path
+        .parent()
+        .and_then(|p| p.file_name())
+        .and_then(|n| n.to_str())
+    {
+        if matches!(
+            dir_name,
+            "node_modules" | "target" | "build" | "dist" | ".git" | "__pycache__"
+        ) {
             return false;
         }
     }
