@@ -1,7 +1,7 @@
 use serde::{Deserialize, Serialize};
 use std::collections::{HashMap, VecDeque};
 
-use astera_core::{Edge, Node};
+use astera_core::{ArchitectureRule, Edge, Node};
 #[cfg(test)]
 use astera_core::{EdgeKind, NodeKind};
 
@@ -248,6 +248,191 @@ impl ImpactAnalyzer {
     }
 }
 
+// ─── Architecture Rule Validation ───
+
+/// A violation of an architecture rule
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ArchitectureViolation {
+    pub rule_name: String,
+    pub source_layer: String,
+    pub target_layer: String,
+    pub source_file: String,
+    pub target_file: String,
+    pub edge_kind: String,
+}
+
+/// Result of architecture rule validation
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ArchitectureValidation {
+    pub total_rules_checked: u32,
+    pub total_violations: u32,
+    pub violations: Vec<ArchitectureViolation>,
+}
+
+/// Validate architecture rules against the dependency graph.
+///
+/// Each rule defines a layer with glob patterns for which files belong to it,
+/// and which other layers it is allowed to depend on.
+pub fn validate_architecture(
+    rules: &[ArchitectureRule],
+    file_nodes: &[(i64, String, String)], // (id, name, path)
+    dep_edges: &[(i64, i64, String)],      // (source_file_id, target_file_id, edge_kind)
+) -> ArchitectureValidation {
+    // Map each file to its layer(s) based on glob patterns
+    let mut file_layers: HashMap<i64, Vec<String>> = HashMap::new();
+
+    for &(id, _, ref path) in file_nodes {
+        let mut layers = Vec::new();
+        for rule in rules {
+            for pattern in &rule.patterns {
+                if glob_matches(path, pattern) {
+                    layers.push(rule.layer.clone());
+                    break;
+                }
+            }
+        }
+        file_layers.insert(id, layers);
+    }
+
+    // Build layer allow-list lookup
+    let layer_rules: HashMap<String, Vec<String>> = rules
+        .iter()
+        .map(|r| (r.layer.clone(), r.allowed_dependencies.clone()))
+        .collect();
+
+    let mut violations = Vec::new();
+
+    for &(src_id, tgt_id, ref edge_kind) in dep_edges {
+        let src_layers = file_layers.get(&src_id).cloned().unwrap_or_default();
+        let tgt_layers = file_layers.get(&tgt_id).cloned().unwrap_or_default();
+
+        for src_layer in &src_layers {
+            for tgt_layer in &tgt_layers {
+                if src_layer == tgt_layer {
+                    continue; // same layer is always allowed
+                }
+                if let Some(allowed) = layer_rules.get(src_layer) {
+                    if !allowed.contains(tgt_layer) {
+                        let src_file = file_nodes
+                            .iter()
+                            .find(|(id, _, _)| *id == src_id)
+                            .map(|(_, name, _)| name.clone())
+                            .unwrap_or_default();
+                        let tgt_file = file_nodes
+                            .iter()
+                            .find(|(id, _, _)| *id == tgt_id)
+                            .map(|(_, name, _)| name.clone())
+                            .unwrap_or_default();
+                        let rule_name = rules
+                            .iter()
+                            .find(|r| r.layer == *src_layer)
+                            .map(|r| r.name.clone())
+                            .unwrap_or_else(|| src_layer.clone());
+
+                        // Avoid duplicate violations
+                        let is_dup = violations.iter().any(|v: &ArchitectureViolation| {
+                            v.rule_name == rule_name
+                                && v.source_file == src_file
+                                && v.target_file == tgt_file
+                        });
+                        if !is_dup {
+                            violations.push(ArchitectureViolation {
+                                rule_name,
+                                source_layer: src_layer.clone(),
+                                target_layer: tgt_layer.clone(),
+                                source_file: src_file,
+                                target_file: tgt_file,
+                                edge_kind: edge_kind.clone(),
+                            });
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    let total = rules.len() as u32;
+    ArchitectureValidation {
+        total_rules_checked: total,
+        total_violations: violations.len() as u32,
+        violations,
+    }
+}
+
+/// Simple glob matching: supports `*` (any chars in single segment) and `**` (any chars including /)
+fn glob_matches(path: &str, pattern: &str) -> bool {
+    glob_match_inner(path.as_bytes(), pattern.as_bytes())
+}
+
+fn glob_match_inner(path: &[u8], pattern: &[u8]) -> bool {
+    if pattern.is_empty() {
+        return path.is_empty();
+    }
+
+    if pattern.len() >= 2 && pattern[0] == b'*' && pattern[1] == b'*' {
+        // ** matches everything (including /)
+        let rest = &pattern[2..];
+        // skip optional /
+        let rest = if rest.first() == Some(&b'/') { &rest[1..] } else { rest };
+        // try matching rest of pattern at every position in path
+        for i in 0..=path.len() {
+            if glob_match_inner(&path[i..], rest) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    if pattern.first() == Some(&b'*') {
+        // * matches any non-/ characters
+        let rest = &pattern[1..];
+        for i in 0..=path.len() {
+            if i > 0 && path[i - 1] == b'/' {
+                break;
+            }
+            if glob_match_inner(&path[i..], rest) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    if pattern.first() == Some(&b'?') {
+        return !path.is_empty() && glob_match_inner(&path[1..], &pattern[1..]);
+    }
+
+    if path.first() == pattern.first() {
+        return glob_match_inner(&path[1..], &pattern[1..]);
+    }
+
+    false
+}
+
+#[cfg(test)]
+mod glob_tests {
+    use super::*;
+
+    #[test]
+    fn test_glob_simple() {
+        assert!(glob_matches("src/ui/app.ts", "src/ui/app.ts"));
+        assert!(!glob_matches("src/ui/app.ts", "src/lib/app.ts"));
+    }
+
+    #[test]
+    fn test_glob_star() {
+        assert!(glob_matches("src/ui/app.ts", "src/**/*.ts"));
+        assert!(glob_matches("src/ui/deep/app.ts", "src/**/*.ts"));
+        assert!(glob_matches("src/app.ts", "src/*.ts"));
+        assert!(!glob_matches("src/ui/app.ts", "src/*.ts"));
+    }
+
+    #[test]
+    fn test_glob_doublestar() {
+        assert!(glob_matches("src/ui/app.ts", "src/**/app.ts"));
+        assert!(glob_matches("src/app.ts", "src/**/app.ts"));
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -387,5 +572,93 @@ mod tests {
         let analyzer = ImpactAnalyzer::new(&nodes, &edges);
         let path = analyzer.critical_path(1, 2);
         assert!(path.is_none());
+    }
+
+    // ─── Architecture Rule Validation Tests ───
+
+    #[test]
+    fn test_architecture_no_violations() {
+        use astera_core::ArchitectureRule;
+
+        let rules = vec![
+            ArchitectureRule {
+                name: "ui_can_depend_on_service".into(),
+                description: "UI layer can import service".into(),
+                layer: "ui".into(),
+                allowed_dependencies: vec!["service".into()],
+                patterns: vec!["src/ui/**".into()],
+            },
+            ArchitectureRule {
+                name: "service_can_depend_on_storage".into(),
+                description: "Service layer can import storage".into(),
+                layer: "service".into(),
+                allowed_dependencies: vec!["storage".into()],
+                patterns: vec!["src/service/**".into()],
+            },
+        ];
+        let file_nodes = vec![
+            (1, "app.ts".into(), "src/ui/app.ts".into()),
+            (2, "service.ts".into(), "src/service/service.ts".into()),
+            (3, "db.ts".into(), "src/storage/db.ts".into()),
+        ];
+        // ui → service (allowed), service → storage (allowed)
+        let dep_edges = vec![
+            (1, 2, "DependsOn".into()),
+            (2, 3, "DependsOn".into()),
+        ];
+        let result = validate_architecture(&rules, &file_nodes, &dep_edges);
+        assert_eq!(result.total_violations, 0);
+    }
+
+    #[test]
+    fn test_architecture_violation() {
+        use astera_core::ArchitectureRule;
+
+        let rules = vec![
+            ArchitectureRule {
+                name: "ui_cannot_depend_on_storage".into(),
+                description: "UI layer must not import storage".into(),
+                layer: "ui".into(),
+                allowed_dependencies: vec!["service".into()],
+                patterns: vec!["src/ui/**".into()],
+            },
+            ArchitectureRule {
+                name: "storage_exists".into(),
+                description: "Storage layer files".into(),
+                layer: "storage".into(),
+                allowed_dependencies: vec![],
+                patterns: vec!["src/storage/**".into()],
+            },
+        ];
+        let file_nodes = vec![
+            (1, "app.ts".into(), "src/ui/app.ts".into()),
+            (3, "db.ts".into(), "src/storage/db.ts".into()),
+        ];
+        // ui → storage (VIOLATION)
+        let dep_edges = vec![(1, 3, "DependsOn".into())];
+        let result = validate_architecture(&rules, &file_nodes, &dep_edges);
+        assert_eq!(result.total_violations, 1);
+        assert_eq!(result.violations[0].source_layer, "ui");
+        assert_eq!(result.violations[0].target_layer, "storage");
+    }
+
+    #[test]
+    fn test_architecture_same_layer_allowed() {
+        use astera_core::ArchitectureRule;
+
+        let rules = vec![ArchitectureRule {
+            name: "ui_internal".into(),
+            description: "UI layer internal deps".into(),
+            layer: "ui".into(),
+            allowed_dependencies: vec!["service".into()],
+            patterns: vec!["src/ui/**".into()],
+        }];
+        let file_nodes = vec![
+            (1, "a.ts".into(), "src/ui/a.ts".into()),
+            (2, "b.ts".into(), "src/ui/b.ts".into()),
+        ];
+        let dep_edges = vec![(1, 2, "DependsOn".into())];
+        let result = validate_architecture(&rules, &file_nodes, &dep_edges);
+        assert_eq!(result.total_violations, 0, "Same layer deps should be allowed");
     }
 }

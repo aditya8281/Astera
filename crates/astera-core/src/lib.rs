@@ -250,6 +250,37 @@ pub struct AsteraConfig {
     pub exclude_patterns: Vec<String>,
     pub languages: Vec<String>,
     pub db_path: Option<String>,
+    /// Multiple repos for workspace mode
+    #[serde(default)]
+    pub repos: Vec<RepoConfig>,
+    /// Architecture rules for validation
+    #[serde(default)]
+    pub rules: Vec<ArchitectureRule>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct RepoConfig {
+    pub name: String,
+    pub path: String,
+    #[serde(default)]
+    pub exclude_patterns: Vec<String>,
+    #[serde(default)]
+    pub languages: Vec<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ArchitectureRule {
+    /// Unique rule name
+    pub name: String,
+    /// Human-readable description
+    #[serde(default)]
+    pub description: String,
+    /// Layer name (e.g., "ui", "service", "storage")
+    pub layer: String,
+    /// Layers this layer is allowed to depend on
+    pub allowed_dependencies: Vec<String>,
+    /// Glob patterns matching files in this layer (e.g., "src/ui/**")
+    pub patterns: Vec<String>,
 }
 
 impl Default for AsteraConfig {
@@ -264,8 +295,19 @@ impl Default for AsteraConfig {
                 "dist".into(),
                 ".astera".into(),
             ],
-            languages: vec!["typescript".into(), "javascript".into(), "python".into()],
+            languages: vec![
+                "typescript".into(),
+                "javascript".into(),
+                "python".into(),
+                "rust".into(),
+                "go".into(),
+                "c".into(),
+                "cpp".into(),
+                "java".into(),
+            ],
             db_path: None,
+            repos: vec![],
+            rules: vec![],
         }
     }
 }
