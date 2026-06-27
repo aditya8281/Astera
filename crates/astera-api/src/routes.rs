@@ -648,3 +648,160 @@ pub async fn children(
         edges: graph_edges,
     }))
 }
+
+// ─── Snapshots (Repository Evolution) ───
+
+#[derive(Deserialize)]
+pub struct TrendQuery {
+    pub q: String,
+}
+
+/// Save a snapshot of the current index state with aggregate metrics.
+pub async fn save_snapshot(
+    State(state): State<AppState>,
+) -> Result<Json<ApiResponse<astera_storage::SnapshotRow>>, (StatusCode, Json<ErrorResponse>)> {
+    let start = std::time::Instant::now();
+    let db = state.db.lock().map_err(|_| {
+        (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            Json(ErrorResponse {
+                error: "Database lock poisoned".into(),
+            }),
+        )
+    })?;
+
+    let (nodes, edges) = db.get_all_graph().map_err(|e| {
+        (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            Json(ErrorResponse {
+                error: format!("Database error: {}", e),
+            }),
+        )
+    })?;
+
+    let agg = compute_metrics(&nodes, &edges);
+
+    let snapshot = db
+        .save_snapshot(
+            None, // commit_hash — could be filled by git integration later
+            agg.total_files,
+            agg.total_nodes,
+            agg.total_edges,
+            agg.avg_complexity,
+            agg.max_complexity,
+            agg.circular_dependencies.len() as u32,
+        )
+        .map_err(|e| {
+            (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                Json(ErrorResponse {
+                    error: format!("Database error: {}", e),
+                }),
+            )
+        })?;
+
+    // Record key metrics for trending
+    let _ = db.record_metric(snapshot, "total_nodes", agg.total_nodes as f64);
+    let _ = db.record_metric(snapshot, "total_edges", agg.total_edges as f64);
+    let _ = db.record_metric(snapshot, "total_files", agg.total_files as f64);
+    let _ = db.record_metric(snapshot, "avg_complexity", agg.avg_complexity);
+    let _ = db.record_metric(snapshot, "max_complexity", agg.max_complexity as f64);
+    let _ = db.record_metric(
+        snapshot,
+        "circular_deps",
+        agg.circular_dependencies.len() as f64,
+    );
+
+    // Return the saved snapshot
+    let row = db.get_snapshot(snapshot).map_err(|e| {
+        (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            Json(ErrorResponse {
+                error: format!("Database error: {}", e),
+            }),
+        )
+    })?;
+
+    match row {
+        Some(s) => Ok(Json(ApiResponse {
+            data: s,
+            meta: ResponseMeta {
+                count: 1,
+                elapsed_ms: start.elapsed().as_millis() as u64,
+            },
+        })),
+        None => Err((
+            StatusCode::INTERNAL_SERVER_ERROR,
+            Json(ErrorResponse {
+                error: "Failed to retrieve saved snapshot".into(),
+            }),
+        )),
+    }
+}
+
+/// List all stored metric snapshots.
+pub async fn list_snapshots(
+    State(state): State<AppState>,
+) -> Result<Json<ApiResponse<Vec<astera_storage::SnapshotRow>>>, (StatusCode, Json<ErrorResponse>)> {
+    let start = std::time::Instant::now();
+    let db = state.db.lock().map_err(|_| {
+        (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            Json(ErrorResponse {
+                error: "Database lock poisoned".into(),
+            }),
+        )
+    })?;
+
+    let snapshots = db.list_snapshots().map_err(|e| {
+        (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            Json(ErrorResponse {
+                error: format!("Database error: {}", e),
+            }),
+        )
+    })?;
+
+    let count = snapshots.len();
+    Ok(Json(ApiResponse {
+        data: snapshots,
+        meta: ResponseMeta {
+            count,
+            elapsed_ms: start.elapsed().as_millis() as u64,
+        },
+    }))
+}
+
+/// Get trend data for a specific metric across snapshots.
+pub async fn get_trend(
+    State(state): State<AppState>,
+    Query(query): Query<TrendQuery>,
+) -> Result<Json<ApiResponse<Vec<astera_storage::TrendPoint>>>, (StatusCode, Json<ErrorResponse>)> {
+    let start = std::time::Instant::now();
+    let db = state.db.lock().map_err(|_| {
+        (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            Json(ErrorResponse {
+                error: "Database lock poisoned".into(),
+            }),
+        )
+    })?;
+
+    let points = db.get_trend(&query.q).map_err(|e| {
+        (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            Json(ErrorResponse {
+                error: format!("Database error: {}", e),
+            }),
+        )
+    })?;
+
+    let count = points.len();
+    Ok(Json(ApiResponse {
+        data: points,
+        meta: ResponseMeta {
+            count,
+            elapsed_ms: start.elapsed().as_millis() as u64,
+        },
+    }))
+}

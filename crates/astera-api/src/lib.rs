@@ -76,6 +76,8 @@ pub fn create_router_with_static(db: Database, static_dir: Option<PathBuf>) -> R
         .route("/api/graph/dependency", get(routes::dependency_graph))
         .route("/api/metrics", get(routes::metrics))
         .route("/api/impact", get(routes::impact))
+        .route("/api/snapshots", get(routes::list_snapshots).post(routes::save_snapshot))
+        .route("/api/trend", get(routes::get_trend))
         .route("/api/events", get(ws::ws_handler))
         .fallback(fallback_handler)
         .layer(cors)

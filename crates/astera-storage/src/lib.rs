@@ -11,6 +11,27 @@ struct GraphCache {
     all_edges: Vec<Edge>,
 }
 
+/// A stored snapshot of repository state at a point in time.
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct SnapshotRow {
+    pub id: i64,
+    pub timestamp: String,
+    pub commit_hash: Option<String>,
+    pub total_files: u64,
+    pub total_nodes: u64,
+    pub total_edges: u64,
+    pub avg_complexity: f64,
+    pub max_complexity: u32,
+    pub circular_deps: u32,
+}
+
+/// A single data point in a metric trend line.
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct TrendPoint {
+    pub timestamp: String,
+    pub value: f64,
+}
+
 /// Database for Astera index
 pub struct Database {
     conn: Connection,
@@ -85,6 +106,28 @@ impl Database {
             CREATE INDEX IF NOT EXISTS idx_edges_target ON edges(target_node_id);
             CREATE INDEX IF NOT EXISTS idx_edges_kind ON edges(kind);
             CREATE INDEX IF NOT EXISTS idx_edges_unique ON edges(source_node_id, target_node_id, kind);
+
+            -- Snapshots for repository evolution tracking
+            CREATE TABLE IF NOT EXISTS snapshots (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                timestamp TEXT NOT NULL DEFAULT (datetime('now')),
+                commit_hash TEXT,
+                total_files INTEGER NOT NULL,
+                total_nodes INTEGER NOT NULL,
+                total_edges INTEGER NOT NULL,
+                avg_complexity REAL NOT NULL DEFAULT 0.0,
+                max_complexity INTEGER NOT NULL DEFAULT 0,
+                circular_deps INTEGER NOT NULL DEFAULT 0
+            );
+
+            CREATE TABLE IF NOT EXISTS metric_history (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                snapshot_id INTEGER NOT NULL REFERENCES snapshots(id) ON DELETE CASCADE,
+                metric_name TEXT NOT NULL,
+                metric_value REAL NOT NULL
+            );
+
+            CREATE INDEX IF NOT EXISTS idx_metric_history_snapshot ON metric_history(snapshot_id);
 
             -- FTS5 full-text search (best-effort, may fail if sqlite lacks FTS5)
             ",
@@ -505,6 +548,115 @@ impl Database {
             .conn
             .query_row("SELECT COUNT(*) FROM edges", [], |row| row.get(0))?;
         Ok(count)
+    }
+
+    // ─── Snapshots (Repository Evolution) ───
+
+    /// Save a snapshot of current index state with aggregate metrics.
+    pub fn save_snapshot(
+        &self,
+        commit_hash: Option<&str>,
+        total_files: u64,
+        total_nodes: u64,
+        total_edges: u64,
+        avg_complexity: f64,
+        max_complexity: u32,
+        circular_deps: u32,
+    ) -> SqlResult<i64> {
+        self.conn.execute(
+            "INSERT INTO snapshots (commit_hash, total_files, total_nodes, total_edges, avg_complexity, max_complexity, circular_deps)
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)",
+            params![commit_hash, total_files as i64, total_nodes as i64, total_edges as i64, avg_complexity, max_complexity as i64, circular_deps as i64],
+        )?;
+        Ok(self.conn.last_insert_rowid())
+    }
+
+    /// Record a metric value for a snapshot.
+    pub fn record_metric(&self, snapshot_id: i64, name: &str, value: f64) -> SqlResult<()> {
+        self.conn.execute(
+            "INSERT INTO metric_history (snapshot_id, metric_name, metric_value) VALUES (?1, ?2, ?3)",
+            params![snapshot_id, name, value],
+        )?;
+        Ok(())
+    }
+
+    /// List all snapshots, newest first.
+    pub fn list_snapshots(&self) -> SqlResult<Vec<SnapshotRow>> {
+        let mut stmt = self.conn.prepare(
+            "SELECT id, timestamp, commit_hash, total_files, total_nodes, total_edges, avg_complexity, max_complexity, circular_deps
+             FROM snapshots ORDER BY id DESC",
+        )?;
+        let rows = stmt.query_map([], |row| {
+            Ok(SnapshotRow {
+                id: row.get(0)?,
+                timestamp: row.get(1)?,
+                commit_hash: row.get(2)?,
+                total_files: row.get(3)?,
+                total_nodes: row.get(4)?,
+                total_edges: row.get(5)?,
+                avg_complexity: row.get(6)?,
+                max_complexity: row.get(7)?,
+                circular_deps: row.get(8)?,
+            })
+        })?;
+        rows.collect()
+    }
+
+    /// Get a single snapshot by ID.
+    pub fn get_snapshot(&self, id: i64) -> SqlResult<Option<SnapshotRow>> {
+        let mut stmt = self.conn.prepare(
+            "SELECT id, timestamp, commit_hash, total_files, total_nodes, total_edges, avg_complexity, max_complexity, circular_deps
+             FROM snapshots WHERE id = ?1",
+        )?;
+        let mut rows = stmt.query_map(params![id], |row| {
+            Ok(SnapshotRow {
+                id: row.get(0)?,
+                timestamp: row.get(1)?,
+                commit_hash: row.get(2)?,
+                total_files: row.get(3)?,
+                total_nodes: row.get(4)?,
+                total_edges: row.get(5)?,
+                avg_complexity: row.get(6)?,
+                max_complexity: row.get(7)?,
+                circular_deps: row.get(8)?,
+            })
+        })?;
+        match rows.next() {
+            Some(row) => Ok(Some(row?)),
+            None => Ok(None),
+        }
+    }
+
+    /// Get metric history for a given metric name across all snapshots.
+    pub fn get_trend(&self, metric_name: &str) -> SqlResult<Vec<TrendPoint>> {
+        let mut stmt = self.conn.prepare(
+            "SELECT s.timestamp, mh.metric_value
+             FROM metric_history mh
+             JOIN snapshots s ON s.id = mh.snapshot_id
+             WHERE mh.metric_name = ?1
+             ORDER BY s.id ASC",
+        )?;
+        let rows = stmt.query_map(params![metric_name], |row| {
+            Ok(TrendPoint {
+                timestamp: row.get(0)?,
+                value: row.get(1)?,
+            })
+        })?;
+        rows.collect()
+    }
+
+    /// Get the git commit hash of the most recent snapshot (for detecting if a new index is needed).
+    pub fn last_snapshot_commit(&self) -> SqlResult<Option<String>> {
+        let result = self.conn.query_row(
+            "SELECT commit_hash FROM snapshots ORDER BY id DESC LIMIT 1",
+            [],
+            |row| row.get(0),
+        );
+        match result {
+            Ok(hash) => Ok(Some(hash)),
+            Err(rusqlite::Error::QueryReturnedNoRows) => Ok(None),
+            Err(e) => Err(e),
+        }
     }
 
     // ─── Migration helpers ───
