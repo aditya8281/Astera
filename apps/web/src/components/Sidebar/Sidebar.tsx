@@ -1,8 +1,8 @@
 import { useState, useRef, useEffect, useCallback } from 'react'
 import { useUIStore } from '../../store'
-import { NODE_COLORS } from '../../constants'
-import { COLORS } from '../../constants'
+import { NODE_COLORS, COLORS } from '../../constants'
 import type { PanelId } from '../../types'
+import { TreeView } from './TreeView'
 
 interface NavItem {
   id: PanelId
@@ -166,6 +166,16 @@ export function Sidebar() {
               ))}
             </div>
           )}
+        </div>
+      )}
+
+      {/* Tree view (expanded mode only) */}
+      {sidebarExpanded && activePanel === 'symbols' && (
+        <div className="w-full border-t border-border-subtle overflow-y-auto max-h-64">
+          <div className="px-3 py-1 text-[10px] uppercase tracking-wider font-semibold" style={{ color: COLORS.textDim }}>
+            Tree
+          </div>
+          <TreeView />
         </div>
       )}
 
