@@ -52,6 +52,12 @@ enum Commands {
         #[arg(short, long, default_value = "8080")]
         port: u16,
     },
+    /// Export graph to a file (JSON, CSV, or DOT)
+    Export {
+        /// Output file path (extension determines format: .json, .csv, .dot)
+        #[arg(short, long)]
+        output: String,
+    },
 }
 
 #[derive(Subcommand)]
@@ -399,6 +405,41 @@ async fn main() -> Result<(), anyhow::Error> {
             });
 
             astera_api::serve_with_static(&db_path, port, static_dir).await?;
+        }
+        Commands::Export { output } => {
+            let root = find_astera_root(Path::new("."));
+            let root = match root {
+                Some(r) => r,
+                None => {
+                    println!("No .astera directory found in current or parent directories.");
+                    return Ok(());
+                }
+            };
+            let db_path = root.join(".astera").join("index.db");
+            if !db_path.exists() {
+                println!("No index database found at: {}", db_path.display());
+                println!("Run 'astera index' first.");
+                return Ok(());
+            }
+
+            let out_path = std::path::PathBuf::from(&output);
+            let format = match out_path.extension().and_then(|e| e.to_str()) {
+                Some(ext) => match astera_export::ExportFormat::from_extension(ext) {
+                    Some(f) => f,
+                    None => {
+                        println!("Unknown format '{}'. Use .json, .csv, or .dot", ext);
+                        return Ok(());
+                    }
+                },
+                None => {
+                    println!("No file extension. Use .json, .csv, or .dot");
+                    return Ok(());
+                }
+            };
+
+            let db = Database::open(&db_path)?;
+            astera_export::export_all(&db, &out_path, format)?;
+            println!("Exported graph to {}", out_path.display());
         }
         Commands::Watch { path, port } => {
             let root = std::fs::canonicalize(path)?;

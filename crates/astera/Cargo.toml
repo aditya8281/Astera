@@ -12,6 +12,7 @@ astera-core = { path = "../astera-core" }
 astera-discovery = { path = "../astera-discovery" }
 astera-parser = { path = "../astera-parser" }
 astera-storage = { path = "../astera-storage" }
+astera-export = { path = "../astera-export" }
 astera-watcher = { path = "../astera-watcher" }
 astera-api = { path = "../astera-api" }
 clap = { workspace = true }

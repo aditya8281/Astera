@@ -96,6 +96,7 @@ dependencies = [
  "astera-api",
  "astera-core",
  "astera-discovery",
+ "astera-export",
  "astera-parser",
  "astera-storage",
  "astera-watcher",
@@ -153,6 +154,18 @@ dependencies = [
  "sha2",
  "tracing",
  "walkdir",
+]
+
+[[package]]
+name = "astera-export"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "astera-core",
+ "astera-storage",
+ "serde",
+ "serde_json",
+ "tempfile",
 ]
 
 [[package]]
