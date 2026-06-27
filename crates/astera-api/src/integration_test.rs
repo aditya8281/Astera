@@ -169,4 +169,39 @@ mod tests {
             .unwrap();
         assert_eq!(resp.status(), StatusCode::NOT_FOUND);
     }
+
+    #[tokio::test]
+    async fn test_metrics_endpoint() {
+        let app = super::super::create_router(setup_db());
+
+        let resp = app
+            .oneshot(Request::builder().uri("/api/metrics").body(Body::empty()).unwrap())
+            .await
+            .unwrap();
+        assert_eq!(resp.status(), StatusCode::OK);
+
+        let body = axum::body::to_bytes(resp.into_body(), usize::MAX).await.unwrap();
+        let json: serde_json::Value = serde_json::from_slice(&body).unwrap();
+        assert_eq!(json["data"]["total_nodes"], 3);
+        assert_eq!(json["data"]["total_edges"], 2);
+        assert_eq!(json["data"]["function_count"], 2);
+        assert_eq!(json["data"]["module_count"], 1);
+    }
+
+    #[tokio::test]
+    async fn test_impact_endpoint() {
+        let app = super::super::create_router(setup_db());
+
+        // Impact analysis from node 1 (main function)
+        let resp = app
+            .oneshot(Request::builder().uri("/api/impact?root_id=1").body(Body::empty()).unwrap())
+            .await
+            .unwrap();
+        assert_eq!(resp.status(), StatusCode::OK);
+
+        let body = axum::body::to_bytes(resp.into_body(), usize::MAX).await.unwrap();
+        let json: serde_json::Value = serde_json::from_slice(&body).unwrap();
+        // main calls helper, so helper should be affected
+        assert_eq!(json["data"]["total_affected"], 1);
+    }
 }

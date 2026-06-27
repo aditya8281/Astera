@@ -6,6 +6,8 @@ edition = "2021"
 [dependencies]
 astera-core = { path = "../astera-core" }
 astera-storage = { path = "../astera-storage" }
+astera-metrics = { path = "../astera-metrics" }
+astera-impact = { path = "../astera-impact" }
 axum = "0.8"
 tokio = { version = "1", features = ["rt-multi-thread", "macros", "sync"] }
 serde = { workspace = true }

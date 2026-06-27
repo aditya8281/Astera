@@ -5,6 +5,8 @@ use serde::{Deserialize, Serialize};
 
 use crate::AppState;
 use astera_core::{Edge, Node};
+use astera_metrics::compute_metrics;
+use astera_impact::ImpactAnalyzer;
 
 // ─── Response types ───
 
@@ -353,5 +355,145 @@ pub async fn dependency_graph(
     Ok(Json(GraphResponse {
         nodes: graph_nodes,
         edges: graph_edges,
+    }))
+}
+
+// ─── Metrics endpoint ───
+
+#[derive(Serialize)]
+pub struct MetricsResponse {
+    pub total_nodes: u64,
+    pub total_edges: u64,
+    pub total_files: u64,
+    pub avg_complexity: f64,
+    pub max_complexity: u32,
+    pub function_count: usize,
+    pub module_count: usize,
+    pub circular_dependencies: Vec<(String, String)>,
+}
+
+pub async fn metrics(
+    State(state): State<AppState>,
+) -> Result<Json<ApiResponse<MetricsResponse>>, (StatusCode, Json<ErrorResponse>)> {
+    let start = std::time::Instant::now();
+    let db = state.db.lock().map_err(|_| {
+        (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            Json(ErrorResponse {
+                error: "Database lock poisoned".into(),
+            }),
+        )
+    })?;
+
+    let nodes = db.query_nodes(None, None, None).map_err(|e| {
+        (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            Json(ErrorResponse {
+                error: format!("Database error: {}", e),
+            }),
+        )
+    })?;
+
+    let edges = db.get_edges(None, None, None).map_err(|e| {
+        (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            Json(ErrorResponse {
+                error: format!("Database error: {}", e),
+            }),
+        )
+    })?;
+
+    let agg = compute_metrics(&nodes, &edges);
+
+    Ok(Json(ApiResponse {
+        data: MetricsResponse {
+            total_nodes: agg.total_nodes,
+            total_edges: agg.total_edges,
+            total_files: agg.total_files,
+            avg_complexity: agg.avg_complexity,
+            max_complexity: agg.max_complexity,
+            function_count: agg.functions.len(),
+            module_count: agg.modules.len(),
+            circular_dependencies: agg.circular_dependencies,
+        },
+        meta: ResponseMeta {
+            count: 1,
+            elapsed_ms: start.elapsed().as_millis() as u64,
+        },
+    }))
+}
+
+// ─── Impact analysis endpoint ───
+
+#[derive(Deserialize)]
+pub struct ImpactQuery {
+    pub root_id: i64,
+    pub max_depth: Option<u32>,
+    pub direction: Option<String>, // "forward" or "reverse"
+}
+
+#[derive(Serialize)]
+pub struct ImpactResponse {
+    pub root: i64,
+    pub root_name: String,
+    pub total_affected: u32,
+    pub max_depth: u32,
+    pub cycle_detected: bool,
+    pub affected: Vec<astera_impact::ImpactNode>,
+}
+
+pub async fn impact(
+    State(state): State<AppState>,
+    Query(query): Query<ImpactQuery>,
+) -> Result<Json<ApiResponse<ImpactResponse>>, (StatusCode, Json<ErrorResponse>)> {
+    let start = std::time::Instant::now();
+    let db = state.db.lock().map_err(|_| {
+        (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            Json(ErrorResponse {
+                error: "Database lock poisoned".into(),
+            }),
+        )
+    })?;
+
+    let nodes = db.query_nodes(None, None, None).map_err(|e| {
+        (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            Json(ErrorResponse {
+                error: format!("Database error: {}", e),
+            }),
+        )
+    })?;
+
+    let edges = db.get_edges(None, None, None).map_err(|e| {
+        (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            Json(ErrorResponse {
+                error: format!("Database error: {}", e),
+            }),
+        )
+    })?;
+
+    let analyzer = ImpactAnalyzer::new(&nodes, &edges);
+
+    let result = if query.direction.as_deref() == Some("reverse") {
+        analyzer.reverse_impact(query.root_id, query.max_depth)
+    } else {
+        analyzer.impact_analysis(query.root_id, query.max_depth)
+    };
+
+    Ok(Json(ApiResponse {
+        data: ImpactResponse {
+            root: result.root,
+            root_name: result.root_name,
+            total_affected: result.total_affected,
+            max_depth: result.max_depth,
+            cycle_detected: result.cycle_detected,
+            affected: result.affected,
+        },
+        meta: ResponseMeta {
+            count: 1,
+            elapsed_ms: start.elapsed().as_millis() as u64,
+        },
     }))
 }

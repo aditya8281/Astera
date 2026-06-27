@@ -35,6 +35,8 @@ pub fn create_router(db: Database) -> Router {
         .route("/api/edges", get(routes::list_edges))
         .route("/api/search", get(routes::search))
         .route("/api/graph/dependency", get(routes::dependency_graph))
+        .route("/api/metrics", get(routes::metrics))
+        .route("/api/impact", get(routes::impact))
         .layer(cors)
         .layer(TraceLayer::new_for_http())
         .with_state(state)
