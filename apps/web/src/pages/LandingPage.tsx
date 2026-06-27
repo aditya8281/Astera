@@ -20,17 +20,17 @@ const LANGUAGES = [
 
 const FEATURES: Array<{ icon: ReactNode; title: string; desc: string }> = [
   {
-    icon: <GraphIcon size={20} color={COLORS.accent} />,
+    icon: <GraphIcon size={20} color={COLORS.textMuted} />,
     title: 'Parse',
     desc: 'Tree-sitter powers symbol extraction across 8 languages. Error-tolerant, incremental, fast.',
   },
   {
-    icon: <ImpactIcon size={20} color={COLORS.accent} />,
+    icon: <ImpactIcon size={20} color={COLORS.textMuted} />,
     title: 'Explore',
     desc: 'Interactive 3D knowledge graph. Drill down into modules, trace call paths, find clusters.',
   },
   {
-    icon: <MetricsIcon size={20} color={COLORS.accent} />,
+    icon: <MetricsIcon size={20} color={COLORS.textMuted} />,
     title: 'Analyze',
     desc: 'Cyclomatic complexity, coupling metrics, circular dependency detection, change impact analysis.',
   },
@@ -233,10 +233,10 @@ export function LandingPage() {
               style={{
                 background: COLORS.surfaceDim,
                 border: `1px solid ${COLORS.border}`,
-                color: copied === 0 ? COLORS.accent : COLORS.textMuted,
+                color: copied === 0 ? COLORS.success : COLORS.textMuted,
               }}
             >
-              {copied === 0 ? <CheckIcon size={14} /> : <CopyIcon size={14} />}
+              {copied === 0 ? <CheckIcon size={14} color={COLORS.success} /> : <CopyIcon size={14} />}
             </button>
           </div>
 
@@ -253,11 +253,11 @@ export function LandingPage() {
                 color: COLORS.textMuted,
               }}
               onMouseEnter={(e) => {
-                e.currentTarget.style.borderColor = COLORS.accent
+                e.currentTarget.style.background = COLORS.surfaceHover
                 e.currentTarget.style.color = COLORS.text
               }}
               onMouseLeave={(e) => {
-                e.currentTarget.style.borderColor = COLORS.border
+                e.currentTarget.style.background = 'transparent'
                 e.currentTarget.style.color = COLORS.textMuted
               }}
             >
@@ -360,9 +360,9 @@ export function LandingPage() {
               <span
                 className="w-6 h-6 flex items-center justify-center rounded-full text-[10px] font-mono font-bold flex-shrink-0"
                 style={{
-                  background: `${COLORS.accent}15`,
-                  color: COLORS.accent,
-                  border: `1px solid ${COLORS.accent}30`,
+                  background: COLORS.surfaceHover,
+                  color: COLORS.textMuted,
+                  border: `1px solid ${COLORS.border}`,
                 }}
               >
                 {i + 1}
@@ -382,11 +382,11 @@ export function LandingPage() {
                 onClick={() => copyCmd(step.cmd, i + 1)}
                 className="flex items-center gap-1 px-2 py-1 rounded text-[10px] font-mono transition-colors flex-shrink-0"
                 style={{
-                  color: copied === i + 1 ? COLORS.accent : COLORS.textDim,
+                  color: copied === i + 1 ? COLORS.success : COLORS.textDim,
                   background: 'transparent',
                 }}
               >
-                {copied === i + 1 ? <><CheckIcon size={10} /> copied</> : <><CopyIcon size={10} /> copy</>}
+                {copied === i + 1 ? <><CheckIcon size={10} color={COLORS.success} /> copied</> : <><CopyIcon size={10} /> copy</>}
               </button>
             </div>
           ))}
@@ -404,12 +404,12 @@ export function LandingPage() {
                 border: `1px solid ${COLORS.border}`,
               }}
               onClick={() => navigate('/graph')}
-              onMouseEnter={(e) => (e.currentTarget.style.borderColor = COLORS.accent)}
-              onMouseLeave={(e) => (e.currentTarget.style.borderColor = COLORS.border)}
+              onMouseEnter={(e) => (e.currentTarget.style.background = COLORS.surfaceHover)}
+              onMouseLeave={(e) => (e.currentTarget.style.background = COLORS.surface)}
               role="button"
               tabIndex={0}
             >
-              <GraphIcon size={20} color={COLORS.accent} />
+              <GraphIcon size={20} color={COLORS.textMuted} />
               <div className="text-left">
                 <div className="text-sm font-heading font-bold" style={{ color: COLORS.text }}>
                   Index loaded — explore now
@@ -418,7 +418,7 @@ export function LandingPage() {
                   {stats.symbols.toLocaleString()} symbols · {stats.files.toLocaleString()} files · {stats.edges.toLocaleString()} edges
                 </div>
               </div>
-              <ArrowRightIcon size={16} color={COLORS.accent} />
+              <ArrowRightIcon size={16} color={COLORS.textMuted} />
             </div>
           </div>
         </section>

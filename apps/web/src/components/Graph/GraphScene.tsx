@@ -64,7 +64,7 @@ function Scene({ nodePositions, visibleNodes, visibleEdges, rawPositions, onNode
     <>
       <ambientLight intensity={0.3} />
       <pointLight position={[10, 10, 10]} intensity={0.4} />
-      <pointLight position={[-10, -10, -10]} intensity={0.2} color="#59F6FF" />
+      <pointLight position={[-10, -10, -10]} intensity={0.2} color="#FFFFFF" />
 
       {!settings.reducedMotion && <ParticleField />}
 

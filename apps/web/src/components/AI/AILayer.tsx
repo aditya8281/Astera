@@ -141,15 +141,15 @@ export function AIChatPanel() {
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%', padding: '16px' }}>
       {/* Header */}
       <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '12px' }}>
-        <SparklesIcon size={16} color={COLORS.accent} />
+        <SparklesIcon size={16} color={COLORS.ai} />
         <h3 style={{ margin: 0, color: COLORS.text, fontSize: '14px', fontWeight: 600 }}>
           AI Analysis
         </h3>
         <span
           style={{
             marginLeft: 'auto',
-            background: configured ? 'rgba(52,211,153,0.15)' : 'rgba(251,191,36,0.15)',
-            color: configured ? '#34d399' : '#fbbf24',
+            background: configured ? `${COLORS.success}15` : `${COLORS.warning}15`,
+            color: configured ? COLORS.success : COLORS.warning,
             padding: '2px 8px',
             borderRadius: '4px',
             fontSize: '10px',
@@ -254,10 +254,10 @@ export function AIChatPanel() {
           onClick={handleSubmit}
           disabled={!configured || loading || !input.trim()}
           style={{
-            background: configured ? 'rgba(0,255,136,0.2)' : 'rgba(255,255,255,0.05)',
-            border: '1px solid rgba(0,255,136,0.3)',
+            background: configured ? COLORS.surfaceHover : `${COLORS.surfaceDim}`,
+            border: `1px solid ${COLORS.border}`,
             borderRadius: '6px',
-            color: configured ? COLORS.accent : COLORS.muted,
+            color: configured ? COLORS.text : COLORS.textDim,
             padding: '8px 16px',
             fontSize: '12px',
             cursor: configured && !loading ? 'pointer' : 'not-allowed',

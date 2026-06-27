@@ -43,8 +43,8 @@ const SEVERITY_ICON_MAP: Record<string, typeof SeverityInfoIcon> = {
 }
 
 const KIND_BADGES: Record<string, { bg: string; text: string }> = {
-  BuiltIn: { bg: 'rgba(89,246,255,0.10)', text: COLORS.accent },
-  Native: { bg: 'rgba(74,222,128,0.10)', text: COLORS.success },
+  BuiltIn: { bg: `${COLORS.surfaceHover}`, text: COLORS.textMuted },
+  Native: { bg: `${COLORS.success}15`, text: COLORS.success },
   Wasm: { bg: `${COLORS.warning}15`, text: COLORS.warning },
 }
 
@@ -117,13 +117,13 @@ export function PluginRegistry() {
           disabled={running}
           className="flex items-center gap-1.5 px-3 py-1.5 rounded text-xs font-mono transition-colors"
           style={{
-            background: running ? `${COLORS.accent}10` : `${COLORS.accent}18`,
-            border: `1px solid ${COLORS.accent}30`,
-            color: COLORS.accent,
+            background: running ? COLORS.surfaceHover : COLORS.accent,
+            border: 'none',
+            color: COLORS.bg,
             cursor: running ? 'wait' : 'pointer',
           }}
         >
-          {running ? <SpinnerIcon size={12} color={COLORS.accent} /> : <PlayIcon size={10} color={COLORS.accent} />}
+          {running ? <SpinnerIcon size={12} color={COLORS.textMuted} /> : <PlayIcon size={10} color={COLORS.bg} />}
           {running ? 'Running...' : 'Run All'}
         </button>
       </div>
