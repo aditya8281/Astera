@@ -6,6 +6,8 @@
 
 **Phase 2 (Analysis & Rich Visualization)**: ✅ COMPLETE
 
+**Infrastructure & Polish**: ✅ COMPLETE
+
 All Phase 2 milestones achieved:
 - Reference resolution (scope chain + import resolution for 5 languages)
 - Code metrics (cyclomatic/cognitive complexity, coupling, circular deps via Tarjan's SCC)
@@ -13,8 +15,19 @@ All Phase 2 milestones achieved:
 - File watching (notify v7, debounced, incremental re-index)
 - Frontend serving (API server serves static files with SPA fallback)
 - Frontend pages: Metrics + Impact added to existing Graph, Symbols, Files
+- Export to JSON, CSV, DOT formats (`astera-export` crate)
+- `astera stats` command with full breakdown
+- Edges display node names instead of raw IDs
 
-**96 tests passing** — 6 core + 8 discovery + 27 parser + 25 resolver + 9 storage + 4 metrics + 7 impact + 9 API + 1 watcher.
+Infrastructure complete:
+- GitHub Actions CI (check, test, fmt, clippy)
+- GitHub Actions release workflow (cross-platform binaries)
+- LICENSE, CONTRIBUTING, SECURITY, CODE_OF_CONDUCT, CHANGELOG
+- Issue templates (bug report, feature request) + PR template
+- Workspace metadata (version, license, repository)
+- README with badges and comprehensive documentation
+
+**101 tests passing** — 6 core + 8 discovery + 27 parser + 25 resolver + 9 storage + 4 metrics + 7 impact + 9 API + 1 watcher + 5 export.
 
 | Crate | Tests | Status |
 |---|---|---|
@@ -25,9 +38,10 @@ All Phase 2 milestones achieved:
 | astera-storage | 9 | ✅ FTS5+LIKE fallback |
 | astera-metrics | 4 | ✅ cyclomatic/cognitive complexity, coupling, instability, Tarjan SCC |
 | astera-impact | 7 | ✅ BFS transitive closure, critical path, cycle detection |
-| astera | 0 | ✅ Builds, edge mapping, serve with --web-dir |
-| astera-api | 9 | ✅ 9 REST endpoints (stats, files, symbols, edges, search, graph, metrics, impact, symbol-by-id) + static file serving |
+| astera | 0 | ✅ Builds, all commands work |
+| astera-api | 9 | ✅ 9 REST endpoints + static file serving |
 | astera-watcher | 1 | ✅ notify v7 file watching, debounced incremental re-index |
+| astera-export | 5 | ✅ JSON, CSV, DOT export |
 | apps/web | — | ✅ 3D frontend, 5 pages (Graph, Symbols, Files, Metrics, Impact) |
 
 ## Prerequisites
@@ -39,27 +53,34 @@ All Phase 2 milestones achieved:
 ## Quick Start
 
 ```bash
-# Build CLI
-cargo build --release
+# Install globally
+cargo install astera
 
-# Index a repo
-./target/release/astera init /path/to/repo
-./target/release/astera index /path/to/repo
+# OR: download from GitHub Releases
+# https://github.com/user/astera/releases
+
+# Navigate to any codebase
+cd /path/to/your/project
+
+# Initialize and index
+astera init
+astera index
 
 # Serve API + 3D frontend
-./target/release/astera serve --port 8080
+astera serve --port 8080
 # Open http://localhost:8080
 
 # OR: explore via CLI
-./target/release/astera query symbols
-./target/release/astera query edges --kind Calls
+astera query symbols
+astera query edges --kind Calls
+astera stats
 ```
 
 ## Repository
 
 ```
 astera/                    # Cargo workspace (Rust backend)
-├── crates/               # 10 workspace crates
+├── crates/               # 11 workspace crates
 │   ├── astera-core/      # Types, config, error types
 │   ├── astera-discovery/ # Filesystem walk, language classification
 │   ├── astera-parser/    # Tree-sitter integration, symbol extraction
@@ -67,11 +88,12 @@ astera/                    # Cargo workspace (Rust backend)
 │   ├── astera-storage/   # SQLite + FTS5
 │   ├── astera-metrics/   # Complexity, coupling, instability
 │   ├── astera-impact/    # BFS impact analysis
+│   ├── astera-export/    # JSON, CSV, DOT export
 │   ├── astera-api/       # Axum HTTP server + static file serving
-│   ├── astera/           # CLI binary
-│   └── astera-watcher/   # File watching via notify
+│   ├── astera-watcher/   # File watching via notify
+│   └── astera/           # CLI binary
 ├── apps/web/             # React + Three.js frontend
-├── tests/                # Test fixtures + integration tests
+├── .github/workflows/    # CI + release workflows
 └── docs/                 # Documentation
 ```
 
@@ -82,22 +104,22 @@ astera/                    # Cargo workspace (Rust backend)
 cargo build
 
 # Run all tests
-cargo test
+cargo test --workspace
 
 # Run specific test
 cargo test -p astera-parser -- test_ts_extraction
 
-# Lint
-cargo clippy --workspace
+# Lint (CI-strict)
+cargo clippy --workspace -- -D warnings
 
 # Format check
 cargo fmt --check
 
-# Watch mode (frontend)
-cd apps/web && npm run dev
+# Install globally
+cargo install --path crates/astera
 
-# API server + dev frontend
-./target/debug/astera serve
+# Frontend dev
+cd apps/web && npm install && npm run dev
 ```
 
 ## Phase Sequence
@@ -106,8 +128,36 @@ cd apps/web && npm run dev
 |---|---|---|
 | [Phase 1](./04-phases.md#phase-1-core-engine--mvp) | ✅ Complete | Working MVP: 5 languages, CLI, 3D web UI |
 | [Phase 2](./04-phases.md#phase-2-analysis-depth--rich-visualization) | ✅ Complete | Deep analysis, metrics, impact, file watching |
-| [Phase 3](./04-phases.md#phase-3-advanced-features) | Next | Plugins, exports, CI integration, architecture rules |
-| [Phase 4](./04-phases.md#phase-4-ecosystem--scale) | Planned | IDE plugins, SDKs, scale, community |
+| Phase 3 | Next | Plugins, CI integration, architecture rules, C/C++/Java |
+| Phase 4 | Planned | IDE plugins, SDKs, scale, community |
+
+## What's Done (Phase 1-2 + Infrastructure)
+
+- [x] 5 languages (TS/JS, Python, Rust, Go)
+- [x] CLI: init, index, query, serve, watch, export, stats
+- [x] REST API: 9 endpoints
+- [x] 3D web UI: Graph, Symbols, Files, Metrics, Impact pages
+- [x] Reference resolution (scope chain + imports)
+- [x] Code metrics (complexity, coupling, circular deps)
+- [x] Impact analysis (BFS transitive closure, critical path)
+- [x] File watching + incremental re-index
+- [x] Export to JSON, CSV, DOT
+- [x] `astera stats` command
+- [x] GitHub Actions CI + release workflows
+- [x] Professional docs (LICENSE, CONTRIBUTING, SECURITY, CHANGELOG)
+- [x] README with badges, install options, complete reference
+- [x] Cross-platform safe (Path::join everywhere, bundled SQLite)
+
+## What's Next (Phase 3)
+
+- [ ] GitHub Action for CI indexing
+- [ ] Pre-commit hook
+- [ ] Architecture rule validation
+- [ ] C/C++/Java grammar + extractors
+- [ ] Multi-repo workspace support
+- [ ] Frontend: LOD for large graphs, MiniMap, filter panel
+- [ ] Performance benchmarks (criterion)
+- [ ] Frontend embedding into binary (rust-embed)
 
 ## Language Support
 

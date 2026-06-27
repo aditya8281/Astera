@@ -1,7 +1,5 @@
 # Archive — C++ implementation, moved when switching to Rust
-_archive/build/
-_archive/docs/
-_archive/vcpkg/
+_archive/
 
 # Rust build artifacts
 target/
@@ -12,6 +10,12 @@ apps/web/dist/
 
 # Astera index (generated per-repo)
 .astera/
+
+# Agent plans / internal docs
+.agents/
+
+# Claude settings
+.claude/
 
 # Editor / IDE
 .vscode/
