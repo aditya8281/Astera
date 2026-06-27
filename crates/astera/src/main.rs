@@ -814,6 +814,23 @@ fn index_command(path: &str) -> Result<(), anyhow::Error> {
     println!("  Edges:        {}", report.total_edges);
     println!("  Time:         {}ms", report.elapsed_ms);
 
+    // Auto-save snapshot for evolution tracking
+    if indexed_files > 0 {
+        use astera_metrics::compute_metrics;
+        if let Ok((nodes, edges)) = db.get_all_graph() {
+            let agg = compute_metrics(&nodes, &edges);
+            let _ = db.save_snapshot(
+                None,
+                agg.total_files,
+                agg.total_nodes,
+                agg.total_edges,
+                agg.avg_complexity,
+                agg.max_complexity,
+                agg.circular_dependencies.len() as u32,
+            );
+        }
+    }
+
     Ok(())
 }
 
