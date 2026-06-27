@@ -188,6 +188,31 @@ code, pre, .mono {
   border-radius: 4px;
 }
 
+/* ─── State-conveying micro-interactions ─── */
+
+button:not(:disabled) {
+  transition: transform 120ms ease-out, opacity 120ms ease-out;
+}
+button:not(:disabled):active {
+  transform: scale(0.97);
+}
+
+input[type="text"],
+input[type="number"],
+select {
+  transition: border-color 150ms ease-out;
+}
+input[type="text"]:focus,
+input[type="number"]:focus,
+select:focus {
+  border-color: var(--color-accent) !important;
+}
+
+@keyframes statusPulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.6; }
+}
+
 /* ─── Panel backdrop ─── */
 
 .panel-backdrop {
