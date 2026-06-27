@@ -2,6 +2,7 @@ import { useState, useCallback, useRef, useEffect } from 'react'
 import { useQuery, useMutation } from '@tanstack/react-query'
 import { api } from '../api'
 import { GraphCanvas } from '../components/Graph/GraphCanvas'
+import { ParticleField } from '../components/Graph/ParticleField'
 import { OverlayPanel } from '../components/Overlay/OverlayPanel'
 import { SymbolsPanel } from './panels/SymbolsPanel'
 import { FilesPanel } from './panels/FilesPanel'
@@ -142,6 +143,9 @@ export function GraphPage() {
           action={{ label: 'View setup guide', onClick: () => window.open('https://github.com/astera/astera#usage', '_blank') }}
         />
       )}
+
+      {/* Particle constellation background */}
+      <ParticleField />
 
       {/* Graph */}
       <GraphCanvas
