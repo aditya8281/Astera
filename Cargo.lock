@@ -103,6 +103,8 @@ dependencies = [
  "astera-core",
  "astera-discovery",
  "astera-export",
+ "astera-impact",
+ "astera-metrics",
  "astera-parser",
  "astera-storage",
  "astera-watcher",
