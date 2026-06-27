@@ -102,8 +102,8 @@ export function CommandPalette() {
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             onKeyDown={handleKeyDown}
-            placeholder="Search symbols, files, modules..."
-            aria-label="Search symbols, files, modules"
+            placeholder="Search symbols or files..."
+            aria-label="Search symbols or files"
             className="flex-1 bg-transparent text-sm font-body outline-none"
             style={{ color: COLORS.text }}
           />
@@ -172,13 +172,13 @@ export function CommandPalette() {
 
           {query.length >= 1 && results.length === 0 && (
             <div className="px-4 py-8 text-center text-xs" style={{ color: COLORS.textMuted }}>
-              No results for "{query}"
+              No results for "{query}". Try a different term or run astera index if your code isn't parsed yet.
             </div>
           )}
 
           {query.length === 0 && !showRecent && (
             <div className="px-4 py-8 text-center text-xs" style={{ color: COLORS.textMuted }}>
-              Type to search across all symbols, files, and modules
+              Type to search across symbols and files
             </div>
           )}
         </div>

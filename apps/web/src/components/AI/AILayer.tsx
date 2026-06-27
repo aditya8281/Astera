@@ -128,7 +128,7 @@ export function AIChatPanel() {
         ...prev,
         {
           role: 'ai',
-          content: 'Error: Could not process query. Check AI provider configuration.',
+          content: 'Error: Could not process query. Open Settings to add your AI provider key.',
           timestamp: Date.now(),
         },
       ])
@@ -143,7 +143,7 @@ export function AIChatPanel() {
       <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '12px' }}>
         <SparklesIcon size={16} color={COLORS.ai} />
         <h3 style={{ margin: 0, color: COLORS.text, fontSize: '14px', fontWeight: 600 }}>
-          AI Analysis
+          AI Chat
         </h3>
         <span
           style={{

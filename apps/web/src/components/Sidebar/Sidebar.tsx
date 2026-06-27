@@ -188,7 +188,7 @@ export function Sidebar() {
       {sidebarExpanded && (
         <div className="w-full border-t border-border-subtle overflow-y-auto max-h-64">
           <div className="px-3 py-1 text-[10px] uppercase tracking-wider font-semibold" style={{ color: COLORS.textDim }}>
-            Tree
+            Symbol tree
           </div>
           <TreeView />
         </div>

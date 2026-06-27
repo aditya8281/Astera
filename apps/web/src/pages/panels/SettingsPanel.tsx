@@ -20,7 +20,7 @@ export function SettingsPanel() {
           <option value="force">Force-directed</option>
           <option value="hierarchical">Hierarchical</option>
           <option value="radial">Radial</option>
-          <option value="dagre">DAG</option>
+          <option value="dagre">DAG (Hierarchical)</option>
           <option value="circular">Circular</option>
         </select>
       </SettingGroup>
@@ -107,7 +107,7 @@ export function SettingsPanel() {
           <Toggle label="Show labels" checked={settings.showLabels} onChange={(v) => updateSettings({ showLabels: v })} />
           <Toggle label="Edge highlight on select" checked={settings.edgeHighlightOnSelect} onChange={(v) => updateSettings({ edgeHighlightOnSelect: v })} />
           <Toggle label="Reduced motion" checked={settings.reducedMotion} onChange={(v) => updateSettings({ reducedMotion: v })} />
-          <Toggle label="Performance telemetry" checked={settings.showPerformanceTelemetry} onChange={(v) => updateSettings({ showPerformanceTelemetry: v })} />
+          <Toggle label="Performance overlay" checked={settings.showPerformanceTelemetry} onChange={(v) => updateSettings({ showPerformanceTelemetry: v })} />
         </div>
       </SettingGroup>
     </div>

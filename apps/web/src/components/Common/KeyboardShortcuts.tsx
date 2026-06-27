@@ -8,7 +8,7 @@ const SHORTCUTS: Array<{ key: string; action: string }> = [
   { key: 'Space', action: 'Reset to overview' },
   { key: 'Escape', action: 'Back / close panel / clear selection' },
   { key: '← →', action: 'Selection history' },
-  { key: 'Ctrl+Shift+D', action: 'Toggle performance telemetry' },
+  { key: 'Ctrl+Shift+D', action: 'Toggle performance overlay' },
   { key: '1-5', action: 'Quick switch graph page' },
   { key: '?', action: 'Keyboard shortcuts' },
   { key: 'Right click', action: 'Context menu' },

@@ -246,7 +246,7 @@ export function GraphCanvas({ nodes, edges, isLoading, error, onNodeDoubleClick 
       <div className="h-full flex items-center justify-center" style={{ color: COLORS.error }}>
         <div className="text-center">
           <p className="text-sm font-heading font-bold">Failed to load graph</p>
-          <p className="text-xs mt-1" style={{ color: COLORS.textMuted }}>{error}</p>
+          <p className="text-xs mt-1" style={{ color: COLORS.textMuted }}>Make sure astera serve is running and your codebase is indexed.</p>
         </div>
       </div>
     )

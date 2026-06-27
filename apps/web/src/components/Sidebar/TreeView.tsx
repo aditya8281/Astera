@@ -160,7 +160,7 @@ export function TreeView() {
   if (tree.length === 0) {
     return (
       <div className="p-4 text-center">
-        <span className="text-xs" style={{ color: COLORS.textMuted }}>No symbols indexed</span>
+        <span className="text-xs" style={{ color: COLORS.textMuted }}>No symbols found. Run astera index to parse your code.</span>
       </div>
     )
   }

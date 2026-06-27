@@ -110,7 +110,7 @@ export function PluginRegistry() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <h3 className="text-sm font-heading" style={{ color: COLORS.text }}>
-          Plugin Registry
+          Plugins
         </h3>
         <button
           onClick={runPlugins}
@@ -134,7 +134,7 @@ export function PluginRegistry() {
           className="flex gap-3 px-3 py-2 rounded text-xs font-mono"
           style={{ background: COLORS.surface, border: `1px solid ${COLORS.border}` }}
         >
-          <span style={{ color: COLORS.text }}>{totalFindings} findings</span>
+          <span style={{ color: COLORS.text }}>{totalFindings} results</span>
           {criticalCount > 0 && (
             <span style={{ color: SEVERITY_COLORS.Critical }}>
               {criticalCount} critical
@@ -245,7 +245,7 @@ export function PluginRegistry() {
                     {plugin.description}
                   </p>
                   <p className="text-[11px] mt-2 italic" style={{ color: COLORS.textDim }}>
-                    No findings yet — click "Run All" to execute
+                    No results yet. Click "Run All" to scan your code.
                   </p>
                 </div>
               )}

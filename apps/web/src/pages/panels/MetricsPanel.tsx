@@ -21,7 +21,7 @@ export function MetricsPanel() {
   if (error) {
     return (
       <div className="p-4 text-center">
-        <span className="text-xs" style={{ color: COLORS.error }}>Failed to load metrics</span>
+        <span className="text-xs" style={{ color: COLORS.error }}>Failed to load metrics. Ensure the API server is running.</span>
       </div>
     )
   }
@@ -76,7 +76,7 @@ export function MetricsPanel() {
         </div>
         <div className="flex justify-between text-[9px] font-mono" style={{ color: COLORS.textDim }}>
           <span>0</span>
-          <span>low · med · high</span>
+          <span>low · medium · high</span>
           <span>20+</span>
         </div>
       </div>
@@ -88,7 +88,7 @@ export function MetricsPanel() {
         </div>
         {m.circular_dependencies.length === 0 ? (
           <div className="flex items-center gap-2 px-2 py-1.5 rounded text-xs" style={{ background: `${COLORS.success}10`, color: COLORS.success }}>
-            <CheckIcon size={12} color={COLORS.success} /> None detected
+            <CheckIcon size={12} color={COLORS.success} /> No circular dependencies found
           </div>
         ) : (
           <div className="space-y-1">
@@ -110,7 +110,7 @@ export function MetricsPanel() {
       {/* Legend */}
       <div className="flex items-center gap-3 text-[9px] font-mono" style={{ color: COLORS.textDim }}>
         <span className="flex items-center gap-1"><span className="w-1.5 h-1.5 rounded-full" style={{ background: COLORS.success }} /> Low (1-5)</span>
-        <span className="flex items-center gap-1"><span className="w-1.5 h-1.5 rounded-full" style={{ background: COLORS.warning }} /> Med (6-10)</span>
+        <span className="flex items-center gap-1"><span className="w-1.5 h-1.5 rounded-full" style={{ background: COLORS.warning }} /> Medium (6-10)</span>
         <span className="flex items-center gap-1"><span className="w-1.5 h-1.5 rounded-full" style={{ background: COLORS.error }} /> High (11+)</span>
       </div>
     </div>

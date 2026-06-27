@@ -28,7 +28,7 @@ export function SymbolsPage() {
           type="text"
           value={search}
           onChange={(e) => setSearch(e.target.value)}
-          placeholder="Search symbols..."
+          placeholder="Search functions, classes, and variables..."
           aria-label="Search symbols"
           className="flex-1 px-3 py-2 rounded text-xs font-mono outline-none"
           style={{ background: COLORS.bg, color: COLORS.text, border: `1px solid ${COLORS.border}` }}

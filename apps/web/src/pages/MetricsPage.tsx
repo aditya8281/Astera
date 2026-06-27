@@ -23,7 +23,7 @@ export function MetricsPage() {
   if (error) {
     return (
       <div className="flex flex-col items-center justify-center h-full gap-4">
-        <div className="text-sm" style={{ color: COLORS.error }}>Failed to load metrics</div>
+        <div className="text-sm" style={{ color: COLORS.error }}>Failed to load metrics. Ensure astera serve is running.</div>
         <div className="text-xs font-mono px-3 py-2 rounded" style={{ background: COLORS.surface, color: COLORS.textMuted }}>
           astera serve --port 8080
         </div>
@@ -71,7 +71,7 @@ export function MetricsPage() {
       {m.circular_dependencies.length === 0 && (
         <div className="mb-8">
           <h3 className="flex items-center gap-2 text-sm font-heading font-bold mb-3" style={{ color: COLORS.success }}><CheckIcon size={14} color={COLORS.success} /> No Circular Dependencies</h3>
-          <p className="text-xs" style={{ color: COLORS.textMuted }}>All module dependencies are acyclic.</p>
+          <p className="text-xs" style={{ color: COLORS.textMuted }}>All module dependencies flow in one direction (no cycles).</p>
         </div>
       )}
 

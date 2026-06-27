@@ -23,7 +23,7 @@ export function SymbolsPanel() {
         type="text"
         value={search}
         onChange={(e) => setSearch(e.target.value)}
-        placeholder="Search symbols..."
+        placeholder="Search functions, classes, and variables..."
         aria-label="Search symbols"
         className="w-full px-3 py-2 rounded text-xs font-mono outline-none"
         style={{

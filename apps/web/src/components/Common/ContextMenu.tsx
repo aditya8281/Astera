@@ -51,7 +51,7 @@ export function ContextMenu({ nodeName, nodeKind, position, onClose }: ContextMe
   const items: MenuItem[] = [
     { icon: <ClipboardIcon size={14} />, label: 'Copy name', action: handleCopyName },
     { icon: <TreeIcon size={14} />, label: 'Show in tree', action: handleShowInTree },
-    { icon: <ImpactIcon size={14} />, label: 'Impact from here', action: handleImpactFromHere },
+    { icon: <ImpactIcon size={14} />, label: 'Trace dependencies from here', action: handleImpactFromHere },
     { icon: null as any, label: '', action: () => {}, separator: true },
     { icon: <MetricsIcon size={14} />, label: 'Metrics for this', action: handleMetricsForThis },
   ]

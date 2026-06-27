@@ -29,14 +29,14 @@ export function ImpactPage() {
 
   return (
     <div className="h-full flex flex-col p-6">
-      <h2 className="text-lg font-heading font-bold mb-4" style={{ color: COLORS.text }}>Impact Analysis</h2>
+      <h2 className="text-lg font-heading font-bold mb-4" style={{ color: COLORS.text }}>Dependency Impact</h2>
 
       <div className="flex gap-3 mb-4">
         <input
           type="text"
           value={searchName}
           onChange={(e) => setSearchName(e.target.value)}
-          placeholder="Search symbol for root..."
+          placeholder="Search for a symbol to trace..."
           aria-label="Search symbol for impact root"
           className="flex-1 px-3 py-2 rounded text-xs font-mono outline-none"
           style={{ background: COLORS.bg, color: COLORS.text, border: `1px solid ${COLORS.border}` }}
@@ -57,14 +57,14 @@ export function ImpactPage() {
           className="px-3 py-2 rounded text-xs font-mono outline-none cursor-pointer"
           style={{ background: COLORS.bg, color: COLORS.text, border: `1px solid ${COLORS.border}` }}
         >
-          <option value="forward">Forward (who affects)</option>
-          <option value="reverse">Reverse (what affects me)</option>
+          <option value="forward">Downstream (what this affects)</option>
+          <option value="reverse">Upstream (what affects this)</option>
         </select>
       </div>
 
       {searchResults.length > 0 && rootId === '' && (
         <div className="mb-4 rounded-lg p-3 max-h-40 overflow-auto" style={{ background: COLORS.surface, border: `1px solid ${COLORS.border}` }}>
-          <p className="text-[10px] font-mono uppercase tracking-wider mb-2" style={{ color: COLORS.textDim }}>Click a symbol to set as root</p>
+          <p className="text-[10px] font-mono uppercase tracking-wider mb-2" style={{ color: COLORS.textDim }}>Click a symbol to trace from</p>
           {searchResults.map((s) => (
             <button
               key={s.id}
@@ -84,7 +84,7 @@ export function ImpactPage() {
 
       {rootId && (
         <div className="flex items-center gap-2 mb-4 text-xs" style={{ color: COLORS.textMuted }}>
-          <span>Root:</span>
+          <span>Source:</span>
           <span className="font-mono" style={{ color: COLORS.relationship }}>#{rootId}</span>
           {impact && <span className="font-mono" style={{ color: COLORS.text }}>{impact.root_name}</span>}
           <button onClick={() => setRootId('')} className="ml-2 hover:underline" style={{ color: COLORS.error }}>clear</button>
@@ -105,7 +105,7 @@ export function ImpactPage() {
         <>
           <div className="flex gap-4 mb-4">
             <div className="rounded px-4 py-2" style={{ background: COLORS.surface, border: `1px solid ${COLORS.border}` }}>
-              <p className="text-[10px] font-mono" style={{ color: COLORS.textDim }}>Affected</p>
+              <p className="text-[10px] font-mono" style={{ color: COLORS.textDim }}>Affected symbols</p>
               <p className="text-xl font-heading font-bold" style={{ color: COLORS.relationship }}>{impact.total_affected}</p>
             </div>
             <div className="rounded px-4 py-2" style={{ background: COLORS.surface, border: `1px solid ${COLORS.border}` }}>

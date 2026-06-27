@@ -139,7 +139,7 @@ export function GraphPage() {
           iconKey="graph"
           title="No index found"
           description="Run astera index to parse your codebase into a queryable graph."
-          action={{ label: 'Open CLI', onClick: () => window.open('https://github.com/astera/astera#usage', '_blank') }}
+          action={{ label: 'View setup guide', onClick: () => window.open('https://github.com/astera/astera#usage', '_blank') }}
         />
       )}
 
@@ -212,7 +212,7 @@ export function GraphPage() {
                     border: `1px solid ${COLORS.selection}40`,
                   }}
                 >
-                  Drill down →
+                  Explore inside →
                 </button>
               </div>
             )}
