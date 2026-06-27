@@ -1,7 +1,7 @@
 import { useState, useCallback, useRef, useEffect } from 'react'
 import { useQuery, useMutation } from '@tanstack/react-query'
 import { api } from '../api'
-import { GraphScene } from '../components/Graph/GraphScene'
+import { GraphCanvas } from '../components/Graph/GraphCanvas'
 import { OverlayPanel } from '../components/Overlay/OverlayPanel'
 import { SymbolsPanel } from './panels/SymbolsPanel'
 import { FilesPanel } from './panels/FilesPanel'
@@ -132,7 +132,7 @@ export function GraphPage() {
   return (
     <div className="h-full relative">
       {/* Graph */}
-      <GraphScene
+      <GraphCanvas
         nodes={filteredNodes}
         edges={filteredEdges}
         isLoading={isLoading}

@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "description": "Interactive 3D web UI for Astera static analysis engine",
+  "description": "Interactive 2D graph web UI for Astera static analysis engine",
   "license": "MIT",
   "repository": {
     "type": "git",
@@ -22,19 +22,15 @@
     "@fontsource/ibm-plex-mono": "^5.2.7",
     "@fontsource/ibm-plex-sans": "^5.2.8",
     "@fontsource/space-grotesk": "^5.2.10",
-    "@react-three/drei": "^10.3.2",
-    "@react-three/fiber": "^9.1.2",
     "@tanstack/react-query": "^5.75.5",
     "react": "^19.1.0",
     "react-dom": "^19.1.0",
     "react-router-dom": "^7.5.2",
-    "three": "^0.176.0",
     "zustand": "^5.0.5"
   },
   "devDependencies": {
     "@types/react": "^19.1.3",
     "@types/react-dom": "^19.1.3",
-    "@types/three": "^0.176.0",
     "@vitejs/plugin-react": "^4.5.0",
     "autoprefixer": "^10.4.21",
     "postcss": "^8.5.3",
