@@ -41,7 +41,7 @@ function CameraRig() {
 
 // ─── Scene ───
 
-function Scene({ nodes, edges }: { nodes: GraphNode[]; edges: GraphEdge[] }) {
+function Scene({ nodes, edges, onNodeDoubleClick }: { nodes: GraphNode[]; edges: GraphEdge[]; onNodeDoubleClick?: (id: number) => void }) {
   const kindFilter = useUIStore((s) => s.kindFilter)
   const selectedNodeId = useUIStore((s) => s.selectedNodeId)
   const hoveredNodeId = useUIStore((s) => s.hoveredNodeId)
@@ -72,11 +72,16 @@ function Scene({ nodes, edges }: { nodes: GraphNode[]; edges: GraphEdge[] }) {
   }, [visibleNodes, positions])
 
   const handleNodeDoubleClick = useCallback((id: number) => {
+    // Use external handler (progressive drill-down) if provided
+    if (onNodeDoubleClick) {
+      onNodeDoubleClick(id)
+    }
+    // Also focus camera on the node
     const pos = positions.get(id)
     if (pos) {
       setCameraTarget([pos.x, pos.y, pos.z])
     }
-  }, [positions, setCameraTarget])
+  }, [positions, setCameraTarget, onNodeDoubleClick])
 
   return (
     <>
@@ -165,9 +170,10 @@ interface GraphSceneProps {
   edges: GraphEdge[]
   isLoading?: boolean
   error?: string | null
+  onNodeDoubleClick?: (id: number) => void
 }
 
-export function GraphScene({ nodes, edges, isLoading, error }: GraphSceneProps) {
+export function GraphScene({ nodes, edges, isLoading, error, onNodeDoubleClick }: GraphSceneProps) {
   if (error) return <ErrorOverlay message={error} />
 
   return (
@@ -181,7 +187,7 @@ export function GraphScene({ nodes, edges, isLoading, error }: GraphSceneProps) 
         dpr={[1, 1.5]}
         onPointerMissed={() => useUIStore.getState().clearSelection()}
       >
-        <Scene nodes={nodes} edges={edges} />
+        <Scene nodes={nodes} edges={edges} onNodeDoubleClick={onNodeDoubleClick} />
       </Canvas>
 
       {/* Breadcrumbs */}
