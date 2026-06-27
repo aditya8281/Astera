@@ -42,35 +42,11 @@ function CameraRig() {
 
 // ─── Scene ───
 
-function Scene({ nodes, edges, onNodeDoubleClick, onContextMenu }: { nodes: GraphNode[]; edges: GraphEdge[]; onNodeDoubleClick?: (id: number) => void; onContextMenu?: (id: number, x: number, y: number) => void }) {
-  const kindFilter = useUIStore((s) => s.kindFilter)
+function Scene({ nodePositions, visibleNodes, visibleEdges, rawPositions, onNodeDoubleClick, onContextMenu }: { nodePositions: Map<number, [number, number, number]>; visibleNodes: GraphNode[]; visibleEdges: GraphEdge[]; rawPositions: Map<number, THREE.Vector3>; onNodeDoubleClick?: (id: number) => void; onContextMenu?: (id: number, x: number, y: number) => void }) {
   const selectedNodeId = useUIStore((s) => s.selectedNodeId)
   const hoveredNodeId = useUIStore((s) => s.hoveredNodeId)
   const settings = useUIStore((s) => s.settings)
   const setCameraTarget = useUIStore((s) => s.setCameraTarget)
-
-  const positions = useForceLayout(nodes, edges)
-
-  const visibleNodes = useMemo(
-    () => nodes.filter((n) => kindFilter.has(n.kind)),
-    [nodes, kindFilter]
-  )
-
-  const visibleIds = useMemo(() => new Set(visibleNodes.map((n) => n.id)), [visibleNodes])
-
-  const visibleEdges = useMemo(
-    () => edges.filter((e) => visibleIds.has(e.source) && visibleIds.has(e.target)),
-    [edges, visibleIds]
-  )
-
-  const nodePositions = useMemo(() => {
-    const map = new Map<number, [number, number, number]>()
-    for (const n of visibleNodes) {
-      const pos = positions.get(n.id)
-      if (pos) map.set(n.id, [pos.x, pos.y, pos.z])
-    }
-    return map
-  }, [visibleNodes, positions])
 
   const handleNodeDoubleClick = useCallback((id: number) => {
     // Use external handler (progressive drill-down) if provided
@@ -78,11 +54,11 @@ function Scene({ nodes, edges, onNodeDoubleClick, onContextMenu }: { nodes: Grap
       onNodeDoubleClick(id)
     }
     // Also focus camera on the node
-    const pos = positions.get(id)
+    const pos = rawPositions.get(id)
     if (pos) {
       setCameraTarget([pos.x, pos.y, pos.z])
     }
-  }, [positions, setCameraTarget, onNodeDoubleClick])
+  }, [rawPositions, setCameraTarget, onNodeDoubleClick])
 
   return (
     <>
@@ -127,8 +103,6 @@ function Scene({ nodes, edges, onNodeDoubleClick, onContextMenu }: { nodes: Grap
         maxDistance={100}
         onStart={() => useUIStore.getState().setCameraTarget(null)}
       />
-
-      <MiniMap nodes={visibleNodes} positions={nodePositions} />
     </>
   )
 }
@@ -185,6 +159,30 @@ interface ContextMenuState {
 
 export function GraphScene({ nodes, edges, isLoading, error, onNodeDoubleClick }: GraphSceneProps) {
   const [contextMenu, setContextMenu] = useState<ContextMenuState | null>(null)
+  const kindFilter = useUIStore((s) => s.kindFilter)
+
+  const positions = useForceLayout(nodes, edges)
+
+  const visibleNodes = useMemo(
+    () => nodes.filter((n) => kindFilter.has(n.kind)),
+    [nodes, kindFilter]
+  )
+
+  const visibleIds = useMemo(() => new Set(visibleNodes.map((n) => n.id)), [visibleNodes])
+
+  const visibleEdges = useMemo(
+    () => edges.filter((e) => visibleIds.has(e.source) && visibleIds.has(e.target)),
+    [edges, visibleIds]
+  )
+
+  const nodePositions = useMemo(() => {
+    const map = new Map<number, [number, number, number]>()
+    for (const n of visibleNodes) {
+      const pos = positions.get(n.id)
+      if (pos) map.set(n.id, [pos.x, pos.y, pos.z])
+    }
+    return map
+  }, [visibleNodes, positions])
 
   const handleContextMenu = useCallback((id: number, x: number, y: number) => {
     const node = nodes.find(n => n.id === id)
@@ -207,8 +205,18 @@ export function GraphScene({ nodes, edges, isLoading, error, onNodeDoubleClick }
         dpr={[1, 1.5]}
         onPointerMissed={() => useUIStore.getState().clearSelection()}
       >
-        <Scene nodes={nodes} edges={edges} onNodeDoubleClick={onNodeDoubleClick} onContextMenu={handleContextMenu} />
+        <Scene
+          nodePositions={nodePositions}
+          visibleNodes={visibleNodes}
+          visibleEdges={visibleEdges}
+          rawPositions={positions}
+          onNodeDoubleClick={onNodeDoubleClick}
+          onContextMenu={handleContextMenu}
+        />
       </Canvas>
+
+      {/* MiniMap — outside Canvas (DOM element) */}
+      <MiniMap nodes={visibleNodes} positions={nodePositions} />
 
       {/* Breadcrumbs */}
       <Breadcrumbs />
