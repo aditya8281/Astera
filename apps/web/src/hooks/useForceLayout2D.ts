@@ -201,15 +201,16 @@ class ForceSimulation2D {
   private adjacency: Map<number, Set<number>>
 
   // --- Adaptive tuning (scaled by node count) ---
-  private readonly REPULSION_BASE = 600
-  private readonly REPULSION_FLOOR = 150
-  private readonly LINK_DISTANCE_BASE = 60
-  private readonly LINK_SPRING = 0.05
-  private readonly CONNECTION_ATTRACTION = 0.008
-  private readonly RADIAL_CONTAINMENT = 0.003
-  private readonly DAMPING = 0.65
-  private readonly MIN_VELOCITY = 0.015
-  private readonly MAX_TICKS = 600
+  // Calm, spacious layout: high repulsion, wide link distance, gentle attraction
+  private readonly REPULSION_BASE = 900
+  private readonly REPULSION_FLOOR = 200
+  private readonly LINK_DISTANCE_BASE = 140
+  private readonly LINK_SPRING = 0.03
+  private readonly CONNECTION_ATTRACTION = 0.004
+  private readonly RADIAL_CONTAINMENT = 0.0015
+  private readonly DAMPING = 0.7
+  private readonly MIN_VELOCITY = 0.012
+  private readonly MAX_TICKS = 800
   private tickCount = 0
 
   // Adaptive values
@@ -221,7 +222,7 @@ class ForceSimulation2D {
     const n = nodes.length
 
     // Adaptive spread: more nodes → wider initial spread to reduce early chaos
-    this.spread = Math.max(20, Math.sqrt(n) * 6)
+    this.spread = Math.max(30, Math.sqrt(n) * 8)
     this.repulsion = this.REPULSION_BASE * Math.max(0.5, Math.min(2, Math.sqrt(n) / 10))
     this.linkDistance = this.LINK_DISTANCE_BASE * Math.max(0.6, Math.min(1.5, Math.sqrt(n) / 8))
 
