@@ -704,15 +704,25 @@ fn bench_report(criterion_dir: &str, output: &str) -> Result<(), anyhow::Error> 
     for (group, benchs) in &groups {
         let mut means: Vec<f64> = benchs.iter().map(|b| b.mean_ns).collect();
         means.sort_by(|a, b| a.partial_cmp(b).unwrap());
-        let fastest = means.first().map(|v| benchmarks::format_ns(*v)).unwrap_or_default();
-        let slowest = means.last().map(|v| benchmarks::format_ns(*v)).unwrap_or_default();
+        let fastest = means
+            .first()
+            .map(|v| benchmarks::format_ns(*v))
+            .unwrap_or_default();
+        let slowest = means
+            .last()
+            .map(|v| benchmarks::format_ns(*v))
+            .unwrap_or_default();
         let median = means
             .get(means.len() / 2)
             .map(|v| benchmarks::format_ns(*v))
             .unwrap_or_default();
         md.push_str(&format!(
             "| `{}` | {} | {} | {} | {} |\n",
-            group, benchs.len(), fastest, slowest, median
+            group,
+            benchs.len(),
+            fastest,
+            slowest,
+            median
         ));
     }
 
@@ -759,7 +769,10 @@ fn bench_report(criterion_dir: &str, output: &str) -> Result<(), anyhow::Error> 
     md.push_str("\n---\n\n");
     md.push_str("## Performance Characteristics\n\n");
 
-    let parse_benchs: Vec<_> = results.iter().filter(|r| r.name.contains("parse_throughput")).collect();
+    let parse_benchs: Vec<_> = results
+        .iter()
+        .filter(|r| r.name.contains("parse_throughput"))
+        .collect();
     if !parse_benchs.is_empty() {
         md.push_str("### Parse Throughput\n\n");
         md.push_str("| Language | File Size | Time | Est. LOC/s |\n");
@@ -789,7 +802,10 @@ fn bench_report(criterion_dir: &str, output: &str) -> Result<(), anyhow::Error> 
         }
     }
 
-    let storage_benchs: Vec<_> = results.iter().filter(|r| r.name.starts_with("storage/")).collect();
+    let storage_benchs: Vec<_> = results
+        .iter()
+        .filter(|r| r.name.starts_with("storage/"))
+        .collect();
     if !storage_benchs.is_empty() {
         md.push_str("\n### Storage Latency\n\n");
         md.push_str("| Operation | Latency | Notes |\n");
@@ -808,17 +824,26 @@ fn bench_report(criterion_dir: &str, output: &str) -> Result<(), anyhow::Error> 
         }
     }
 
-    let scalability_benchs: Vec<_> = results.iter().filter(|r| r.name.starts_with("scalability/")).collect();
+    let scalability_benchs: Vec<_> = results
+        .iter()
+        .filter(|r| r.name.starts_with("scalability/"))
+        .collect();
     if !scalability_benchs.is_empty() {
         md.push_str("\n### Scalability\n\n");
         md.push_str("| Operation | Input Size | Time | Scaling |\n");
         md.push_str("|---|---|---|---|\n");
 
-        let mut scale_groups: std::collections::BTreeMap<String, Vec<&benchmarks::BenchmarkResult>> =
-            std::collections::BTreeMap::new();
+        let mut scale_groups: std::collections::BTreeMap<
+            String,
+            Vec<&benchmarks::BenchmarkResult>,
+        > = std::collections::BTreeMap::new();
         for r in &scalability_benchs {
             let parts: Vec<_> = r.name.split('/').collect();
-            let op = if parts.len() >= 2 { parts[1] } else { "unknown" };
+            let op = if parts.len() >= 2 {
+                parts[1]
+            } else {
+                "unknown"
+            };
             scale_groups.entry(op.to_string()).or_default().push(r);
         }
 
@@ -833,11 +858,19 @@ fn bench_report(criterion_dir: &str, output: &str) -> Result<(), anyhow::Error> 
         }
     }
 
-    std::fs::create_dir_all(std::path::Path::new(output).parent().unwrap_or(Path::new(".")))?;
+    std::fs::create_dir_all(
+        std::path::Path::new(output)
+            .parent()
+            .unwrap_or(Path::new(".")),
+    )?;
     std::fs::write(output, &md)?;
 
     println!("✅ Benchmark report written to: {}", output);
-    println!("   {} benchmarks across {} groups", results.len(), groups.len());
+    println!(
+        "   {} benchmarks across {} groups",
+        results.len(),
+        groups.len()
+    );
 
     Ok(())
 }
@@ -904,7 +937,8 @@ fn index_command(path: &str) -> Result<(), anyhow::Error> {
     }
 
     // Phase 0: Detect files deleted from disk but still in DB
-    let existing_paths: std::collections::HashSet<String> = files.iter().map(|(p, _, _, _)| p.clone()).collect();
+    let existing_paths: std::collections::HashSet<String> =
+        files.iter().map(|(p, _, _, _)| p.clone()).collect();
     let db_files = db.list_files().unwrap_or_default();
     let mut removed_count = 0u64;
     for db_file in &db_files {
@@ -1475,7 +1509,8 @@ async fn main() -> Result<(), anyhow::Error> {
             let watcher_event_tx = event_tx.clone();
             let watcher_handle = std::thread::spawn(move || {
                 let watcher = astera_watcher::FileWatcher::new(watcher_root, watcher_db);
-                let (update_tx, update_rx) = std::sync::mpsc::channel::<astera_watcher::UpdateResult>();
+                let (update_tx, update_rx) =
+                    std::sync::mpsc::channel::<astera_watcher::UpdateResult>();
                 // Start the file watcher in its own thread
                 let watch_handle = std::thread::spawn(move || {
                     if let Err(e) = watcher.watch(update_tx) {
@@ -1501,7 +1536,10 @@ async fn main() -> Result<(), anyhow::Error> {
                         elapsed_ms: result.elapsed_ms as u64,
                         message: format!(
                             "Re-indexed: {} files, +{} nodes, -{} nodes, +{} edges",
-                            result.files_changed, result.nodes_added, result.nodes_removed, result.edges_added
+                            result.files_changed,
+                            result.nodes_added,
+                            result.nodes_removed,
+                            result.edges_added
                         ),
                     };
                     astera_api::ws::broadcast_event(&watcher_event_tx, &event);
@@ -1512,7 +1550,9 @@ async fn main() -> Result<(), anyhow::Error> {
             // Start API server on the main thread with the shared broadcast sender
             let api_db_path = db_path.clone();
             let api_handle = tokio::spawn(async move {
-                if let Err(e) = astera_api::serve_with_broadcast(&api_db_path, port, event_tx, None).await {
+                if let Err(e) =
+                    astera_api::serve_with_broadcast(&api_db_path, port, event_tx, None).await
+                {
                     eprintln!("API server error: {}", e);
                 }
             });
@@ -1539,7 +1579,10 @@ async fn main() -> Result<(), anyhow::Error> {
             BenchCommands::Show => {
                 bench_show()?;
             }
-            BenchCommands::Report { criterion_dir, output } => {
+            BenchCommands::Report {
+                criterion_dir,
+                output,
+            } => {
                 bench_report(&criterion_dir, &output)?;
             }
         },

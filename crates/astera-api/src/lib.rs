@@ -246,4 +246,3 @@ pub async fn serve_with_broadcast(
     axum::serve(listener, router).await?;
     Ok(())
 }
-

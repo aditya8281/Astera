@@ -805,7 +805,8 @@ pub async fn get_snapshot(
 /// List all stored metric snapshots.
 pub async fn list_snapshots(
     State(state): State<AppState>,
-) -> Result<Json<ApiResponse<Vec<astera_storage::SnapshotRow>>>, (StatusCode, Json<ErrorResponse>)> {
+) -> Result<Json<ApiResponse<Vec<astera_storage::SnapshotRow>>>, (StatusCode, Json<ErrorResponse>)>
+{
     let start = std::time::Instant::now();
     let db = state.db.lock().map_err(|_| {
         (

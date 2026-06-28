@@ -47,7 +47,11 @@ impl Database {
         // Enable WAL mode for concurrent reads
         conn.execute_batch("PRAGMA journal_mode=WAL; PRAGMA synchronous=NORMAL;")?;
 
-        let db = Database { conn, graph_cache: RefCell::new(None), generation: Cell::new(0) };
+        let db = Database {
+            conn,
+            graph_cache: RefCell::new(None),
+            generation: Cell::new(0),
+        };
         db.initialize_schema()?;
         Ok(db)
     }
@@ -57,7 +61,11 @@ impl Database {
         let conn = Connection::open_in_memory()?;
         conn.execute_batch("PRAGMA journal_mode=WAL; PRAGMA synchronous=NORMAL;")?;
 
-        let db = Database { conn, graph_cache: RefCell::new(None), generation: Cell::new(0) };
+        let db = Database {
+            conn,
+            graph_cache: RefCell::new(None),
+            generation: Cell::new(0),
+        };
         db.initialize_schema()?;
         Ok(db)
     }

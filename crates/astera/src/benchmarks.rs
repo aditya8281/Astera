@@ -167,10 +167,7 @@ pub fn parse_criterion_json(path: &Path) -> anyhow::Result<Vec<BenchmarkResult>>
             .unwrap_or(0.0);
 
         // Extract iterations from slope or use a default
-        let iters = raw
-            .get("iterations")
-            .and_then(|v| v.as_u64())
-            .unwrap_or(0);
+        let iters = raw.get("iterations").and_then(|v| v.as_u64()).unwrap_or(0);
 
         results.push(BenchmarkResult {
             name: name_str,
