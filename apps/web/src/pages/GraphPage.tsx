@@ -28,7 +28,7 @@ export function GraphPage() {
   // Progressive loading state
   const [visibleNodes, setVisibleNodes] = useState<GraphNode[]>([])
   const [visibleEdges, setVisibleEdges] = useState<GraphEdge[]>([])
-  const [drillStack, setDrillStack] = useState<Array<{ id: number; name: string; kind: string }>>([])
+  const [drillStack, setDrillStack] = useState<Array<{ id: number; name: string; kind: string; nodes: GraphNode[]; edges: GraphEdge[] }>>([])
   const loadedModulesRef = useRef(false)
   const nodesRef = useRef<GraphNode[]>([])
   const edgesRef = useRef<GraphEdge[]>([])
@@ -119,7 +119,7 @@ export function GraphPage() {
     if (CONTAINER_KINDS.has(node.kind)) {
       // Drill down into container
       childrenMutation.mutate(id)
-      setDrillStack(prev => [...prev, { id, name: node.name, kind: node.kind }])
+      setDrillStack(prev => [...prev, { id, name: node.name, kind: node.kind, nodes: [...visibleNodes], edges: [...visibleEdges] }])
     }
   }, [visibleNodes, childrenMutation])
 
@@ -172,18 +172,52 @@ export function GraphPage() {
         </div>
       )}
 
-      {/* Drill-down indicator — slide up entrance */}
+      {/* Drill-down breadcrumb — clickable to navigate back */}
       {drillStack.length > 0 && (
         <div
-          className="absolute top-3 left-1/2 -translate-x-1/2 px-3 py-1 rounded-full font-mono text-[11px] animate-slide-up-panel"
+          className="absolute top-3 left-1/2 -translate-x-1/2 flex items-center gap-1 px-3 py-1 rounded-full font-mono text-[11px] animate-slide-up-panel"
           style={{
             background: `${COLORS.surface}E0`,
             border: `1px solid ${COLORS.selection}40`,
-            color: COLORS.selection,
             zIndex: 'var(--z-minimap)',
           }}
         >
-          {drillStack.map(d => d.name).join(' → ')}
+          <button
+            onClick={() => {
+              // Reset to overview: reload modules, clear drill state
+              loadedModulesRef.current = false
+              setDrillStack([])
+              setVisibleNodes([])
+              setVisibleEdges([])
+              setGraphState({ phase: 'overview' })
+            }}
+            className="transition-colors cursor-pointer"
+            style={{ color: COLORS.textMuted }}
+            onMouseEnter={(e) => (e.currentTarget.style.color = COLORS.selection)}
+            onMouseLeave={(e) => (e.currentTarget.style.color = COLORS.textMuted)}
+          >
+            Overview
+          </button>
+          {drillStack.map((d, i) => (
+            <span key={d.id} className="flex items-center gap-1">
+              <span style={{ color: COLORS.textDim }}>→</span>
+              <button
+                onClick={() => {
+                  // Restore snapshot from this drill level
+                  const snapshot = drillStack[i]
+                  setVisibleNodes(snapshot.nodes)
+                  setVisibleEdges(snapshot.edges)
+                  setDrillStack(drillStack.slice(0, i + 1))
+                }}
+                className="transition-colors cursor-pointer"
+                style={{ color: i === drillStack.length - 1 ? COLORS.selection : COLORS.textMuted }}
+                onMouseEnter={(e) => (e.currentTarget.style.color = COLORS.selection)}
+                onMouseLeave={(e) => (e.currentTarget.style.color = i === drillStack.length - 1 ? COLORS.selection : COLORS.textMuted)}
+              >
+                {d.name}
+              </button>
+            </span>
+          ))}
         </div>
       )}
 

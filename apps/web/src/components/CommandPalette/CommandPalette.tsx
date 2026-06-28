@@ -14,14 +14,22 @@ export function CommandPalette() {
   const recentSearches = useUIStore((s) => s.recentSearches)
 
   const [query, setQuery] = useState('')
+  const [debouncedQuery, setDebouncedQuery] = useState('')
   const [selectedIndex, setSelectedIndex] = useState(0)
   const inputRef = useRef<HTMLInputElement>(null)
   const listRef = useRef<HTMLDivElement>(null)
 
+  // Debounce search — 200ms after last keystroke
+  useEffect(() => {
+    if (!query) { setDebouncedQuery(''); return }
+    const t = setTimeout(() => setDebouncedQuery(query), 200)
+    return () => clearTimeout(t)
+  }, [query])
+
   const { data } = useQuery({
-    queryKey: ['command-palette', query],
-    queryFn: () => api.search(query),
-    enabled: query.length >= 1,
+    queryKey: ['command-palette', debouncedQuery],
+    queryFn: () => api.search(debouncedQuery),
+    enabled: debouncedQuery.length >= 1,
   })
 
   const results = data?.data || []

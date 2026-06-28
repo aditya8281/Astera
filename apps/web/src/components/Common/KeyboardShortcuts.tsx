@@ -4,14 +4,14 @@ import { COLORS } from '../../constants'
 const SHORTCUTS: Array<{ key: string; action: string }> = [
   { key: 'Ctrl+K', action: 'Command palette' },
   { key: 'Ctrl+P', action: 'Pin selection' },
-  { key: 'F', action: 'Focus selected node' },
+  { key: 'Tab', action: 'Cycle through nodes' },
+  { key: 'Arrow keys', action: 'Navigate to nearest node' },
+  { key: '+/−', action: 'Zoom in/out' },
   { key: 'Space', action: 'Reset to overview' },
   { key: 'Escape', action: 'Back / close panel / clear selection' },
-  { key: '← →', action: 'Selection history' },
-  { key: 'Ctrl+Shift+D', action: 'Toggle performance overlay' },
-  { key: '1-5', action: 'Quick switch graph page' },
+  { key: '1-5', action: 'Toggle side panels' },
+  { key: ',', action: 'Toggle settings' },
   { key: '?', action: 'Keyboard shortcuts' },
-  { key: 'Right click', action: 'Context menu' },
 ]
 
 export function KeyboardShortcuts() {
