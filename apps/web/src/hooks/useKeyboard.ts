@@ -40,11 +40,6 @@ export function useKeyboard() {
           store.setCameraTarget(null)
           break
 
-        case 'f':
-        case 'F':
-          // Focus selected node
-          break
-
         case 'p':
         case 'P':
           if (e.ctrlKey || e.metaKey) {
@@ -67,9 +62,6 @@ export function useKeyboard() {
           store.togglePanel('settings')
           break
 
-        case '?':
-          // TODO: keyboard shortcuts overlay
-          break
       }
     }
 
