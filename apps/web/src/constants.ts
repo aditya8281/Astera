@@ -36,8 +36,8 @@ export const COLORS = {
   nodeHover: '#F1F5F9',
   nodeSelected: '#59F6FF',
 
-  // Graph edges — visible on OLED black
-  edgeDefault: '#3A506B',
+  // Graph edges — vivid on OLED black
+  edgeDefault: '#2A6080',
   edgeHover: '#59F6FF',
 
   // Labels
@@ -58,23 +58,23 @@ export const COLORS = {
   muted: '#8B91A0',
 } as const
 
-// ─── Node colors by kind (vivid, OLED-contrast) ───
+// ─── Node colors by kind (vivid, OLED-contrast, glow-ready) ───
 
 export const NODE_COLORS: Record<string, string> = {
-  File: '#8B95A5',
-  Module: '#C084FC',
-  Function: '#60A5FA',
-  Method: '#818CF8',
-  Class: '#38BDF8',
-  Interface: '#22D3EE',
-  Enum: '#FBBF24',
-  Variable: '#F472B6',
-  Field: '#FB923C',
-  Parameter: '#A78BFA',
-  TypeAlias: '#34D399',
-  Import: '#8B95A5',
-  Macro: '#F472B6',
-  Anonymous: '#94A3B8',
+  File: '#94A3B8',
+  Module: '#D8B4FE',
+  Function: '#93C5FD',
+  Method: '#A5B4FC',
+  Class: '#67E8F9',
+  Interface: '#5EEAD4',
+  Enum: '#FDE047',
+  Variable: '#F9A8D4',
+  Field: '#FDBA74',
+  Parameter: '#C4B5FD',
+  TypeAlias: '#6EE7B7',
+  Import: '#94A3B8',
+  Macro: '#F9A8D4',
+  Anonymous: '#CBD5E1',
 }
 
 // ─── Node geometry mapping ───

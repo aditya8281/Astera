@@ -29,12 +29,12 @@ interface GraphCanvasProps {
  * - Label crossfade: smooth opacity at zoom threshold (not binary gate)
  */
 
-// Node radius by kind
+// Node radius by kind — generous sizes for visibility
 function nodeRadius(kind: string): number {
-  if (kind === 'File' || kind === 'Module') return 10
-  if (kind === 'Class' || kind === 'Interface' || kind === 'Enum') return 8
-  if (kind === 'Function' || kind === 'Method') return 6
-  return 5
+  if (kind === 'File' || kind === 'Module') return 14
+  if (kind === 'Class' || kind === 'Interface' || kind === 'Enum') return 11
+  if (kind === 'Function' || kind === 'Method') return 9
+  return 7
 }
 
 // Easing: cubic ease-out — starts fast, decelerates
@@ -386,6 +386,20 @@ export function GraphCanvas({ nodes, edges, isLoading, error, onNodeDoubleClick 
 
       // --- Draw edges ---
       const timeSec = time / 1000
+
+      // First pass: hover cascade glow on connected edges
+      const hoveredId = hoverNodeIdRef.current
+      const hoverConnectedEdges = new Set<string>()
+      if (hoveredId !== null) {
+        const adj = adjacencyRef.current.get(hoveredId)
+        if (adj) {
+          for (const nid of adj) {
+            hoverConnectedEdges.add(`${hoveredId}-${nid}`)
+            hoverConnectedEdges.add(`${nid}-${hoveredId}`)
+          }
+        }
+      }
+
       for (const edge of currentEdges) {
         const from = currentPositions.get(edge.source)
         const to = currentPositions.get(edge.target)
@@ -409,6 +423,8 @@ export function GraphCanvas({ nodes, edges, isLoading, error, onNodeDoubleClick 
         if ((fx > w + 50 && tox > w + 50) || (fy > h + 50 && toy > h + 50)) continue
 
         const isDirectHighlight = edge.source === selectedId || edge.target === selectedId
+        const edgeKey = `${edge.source}-${edge.target}`
+        const isHoverConnected = hoverConnectedEdges.has(edgeKey)
 
         // Delight: connected-edge cascade — hop-distance glow
         let cascadeStrength = 0
@@ -416,16 +432,15 @@ export function GraphCanvas({ nodes, edges, isLoading, error, onNodeDoubleClick 
           const distSource = hopDistances.get(edge.source)
           const distTarget = hopDistances.get(edge.target)
           if (distSource !== undefined && distTarget !== undefined) {
-            // Edge connecting two BFS nodes gets glow based on further hop
             const maxDist = Math.max(distSource, distTarget)
-            if (maxDist <= 2) cascadeStrength = 1 - maxDist * 0.35 // hop 0=1.0, hop 1=0.65, hop 2=0.3
+            if (maxDist <= 2) cascadeStrength = 1 - maxDist * 0.35
           }
         }
 
         // Edge entrance: fade in
         let edgeAlpha = 1
-        const edgeKey = `${edge.source}-${edge.target}-${edge.kind}`
-        const edgeBirth = edgeBirthRef.current.get(edgeKey)
+        const edgeKindKey = `${edge.source}-${edge.target}-${edge.kind}`
+        const edgeBirth = edgeBirthRef.current.get(edgeKindKey)
         if (edgeBirth !== undefined) {
           const age = time - edgeBirth
           if (age < EDGE_ENTRANCE_DURATION) {
@@ -433,25 +448,49 @@ export function GraphCanvas({ nodes, edges, isLoading, error, onNodeDoubleClick 
           }
         }
 
+        // Determine edge color and width
+        let edgeColor: string
+        let edgeWidth: number
+        let edgeAlphaFinal: number
+
+        if (isDirectHighlight) {
+          edgeColor = COLORS.selection
+          edgeWidth = 2.5
+          edgeAlphaFinal = edgeAlpha
+        } else if (cascadeStrength > 0.05) {
+          edgeColor = COLORS.selection
+          edgeWidth = 1.8 + cascadeStrength
+          edgeAlphaFinal = (0.4 + cascadeStrength * 0.5) * edgeAlpha
+        } else if (isHoverConnected) {
+          // Hover glow cascade: electric cyan with energy
+          const pulse = Math.sin(timeSec * 3 + edge.source * 0.1) * 0.15 + 0.85
+          edgeColor = COLORS.selection
+          edgeWidth = 2.0
+          edgeAlphaFinal = 0.7 * pulse * edgeAlpha
+        } else {
+          edgeColor = COLORS.edgeDefault
+          edgeWidth = 1.4
+          edgeAlphaFinal = 0.75 * edgeAlpha
+        }
+
+        // Draw edge glow layer (thicker, more transparent)
+        if (isDirectHighlight || cascadeStrength > 0.05 || isHoverConnected) {
+          ctx.beginPath()
+          ctx.moveTo(fx, fy)
+          ctx.lineTo(tox, toy)
+          ctx.strokeStyle = edgeColor
+          ctx.globalAlpha = edgeAlphaFinal * 0.3
+          ctx.lineWidth = edgeWidth + 4
+          ctx.stroke()
+        }
+
+        // Draw edge core
         ctx.beginPath()
         ctx.moveTo(fx, fy)
         ctx.lineTo(tox, toy)
-
-        if (isDirectHighlight) {
-          ctx.strokeStyle = COLORS.selection
-          ctx.globalAlpha = edgeAlpha
-          ctx.lineWidth = 2.0
-        } else if (cascadeStrength > 0.05) {
-          // Delight: cascade glow — cyan at decreasing intensity
-          ctx.strokeStyle = COLORS.selection
-          ctx.globalAlpha = cascadeStrength * 0.7 * edgeAlpha
-          ctx.lineWidth = 1.5
-        } else {
-          ctx.strokeStyle = COLORS.edgeDefault
-          ctx.globalAlpha = edgeAlpha * 0.85
-          ctx.lineWidth = 1.2
-        }
-
+        ctx.strokeStyle = edgeColor
+        ctx.globalAlpha = edgeAlphaFinal
+        ctx.lineWidth = edgeWidth
         ctx.stroke()
         ctx.globalAlpha = 1
       }
@@ -472,11 +511,18 @@ export function GraphCanvas({ nodes, edges, isLoading, error, onNodeDoubleClick 
         const nx = pos.x * scale + tx + bx
         const ny = pos.y * scale + ty + by
 
-        if (nx < -30 || nx > w + 30 || ny < -30 || ny > h + 30) continue
+        if (nx < -40 || nx > w + 40 || ny < -40 || ny > h + 40) continue
 
         const baseR = nodeRadius(node.kind)
         const isSelected = node.id === selectedId
         const hoverStrength = hoverStrengthRef.current.get(node.id) || 0
+
+        // Is this node connected to the hovered node?
+        let isConnectedToHover = false
+        if (hoveredId !== null && hoveredId !== node.id) {
+          const hoverAdj = adjacencyRef.current.get(hoveredId)
+          if (hoverAdj?.has(node.id)) isConnectedToHover = true
+        }
 
         // Node entrance: staggered scale + fade
         let entranceScale = 1
@@ -486,39 +532,57 @@ export function GraphCanvas({ nodes, edges, isLoading, error, onNodeDoubleClick 
           const age = time - birth
           if (age < NODE_ENTRANCE_DURATION) {
             const progress = easeOutCubic(Math.max(0, age / NODE_ENTRANCE_DURATION))
-            entranceScale = 0.6 + 0.4 * progress  // 0.6 → 1.0
-            entranceAlpha = progress               // 0 → 1
+            entranceScale = 0.6 + 0.4 * progress
+            entranceAlpha = progress
           }
         }
 
-        const r = baseR * entranceScale * (isSelected ? 1.2 : 1)
+        const scaleBoost = isSelected ? 1.3 : (isConnectedToHover ? 1.15 : 1)
+        const r = baseR * entranceScale * scaleBoost
         const color = NODE_COLORS[node.kind] || COLORS.nodeDefault
 
-        // Delight: same-kind highlight — hovering a node brightens all same-kind nodes
+        // Delight: same-kind highlight
         let sameKindStrength = 0
         if (currentHover !== null && hoverStrength > 0.3 && node.kind !== 'File') {
           const hoveredNode = currentNodes.find(n => n.id === currentHover)
           if (hoveredNode && hoveredNode.kind === node.kind && node.id !== currentHover) {
-            sameKindStrength = hoverStrength * 0.4
+            sameKindStrength = hoverStrength * 0.5
           }
         }
 
         ctx.globalAlpha = entranceAlpha
 
-        // Node dot
+        // Outer glow halo — neural feel, pulsing for selected/hovered
+        const isHighlighted = isSelected || isConnectedToHover || sameKindStrength > 0.01
+        if (isHighlighted) {
+          const haloR = r + (isSelected ? 16 : 10)
+          const haloAlpha = isSelected ? 0.25 : (isConnectedToHover ? 0.18 : 0.1)
+          const pulse = isSelected
+            ? Math.sin(timeSec * 2) * 0.08 + 0.92
+            : isConnectedToHover
+              ? Math.sin(timeSec * 3 + node.id * 0.3) * 0.1 + 0.9
+              : 1
+          ctx.beginPath()
+          ctx.arc(nx, ny, haloR * pulse, 0, Math.PI * 2)
+          ctx.fillStyle = isSelected ? COLORS.selection : color
+          ctx.globalAlpha = entranceAlpha * haloAlpha
+          ctx.fill()
+          ctx.globalAlpha = entranceAlpha
+        }
+
+        // Node dot — filled with color
         ctx.beginPath()
         ctx.arc(nx, ny, r, 0, Math.PI * 2)
         if (isSelected) {
           ctx.fillStyle = COLORS.selection
         } else if (sameKindStrength > 0.01) {
-          // Brighten same-kind nodes by blending toward nodeHover
           ctx.fillStyle = color
           ctx.globalAlpha = entranceAlpha * (1 + sameKindStrength)
         } else {
           ctx.fillStyle = color
         }
         ctx.fill()
-        ctx.globalAlpha = entranceAlpha // reset after fill
+        ctx.globalAlpha = entranceAlpha
 
         // Selection ring — scale animation from 0.6 to 1.0
         if (isSelected) {
@@ -530,23 +594,24 @@ export function GraphCanvas({ nodes, edges, isLoading, error, onNodeDoubleClick 
               ringScale = 0.6 + 0.4 * easeOutCubic(age / SELECTION_RING_DURATION)
             }
           }
-          const ringR = (baseR + 6) * ringScale
+          const ringR = (baseR + 8) * ringScale
           ctx.beginPath()
           ctx.arc(nx, ny, ringR, 0, Math.PI * 2)
-          ctx.strokeStyle = `${COLORS.selection}40`
-          ctx.lineWidth = 1
+          ctx.strokeStyle = `${COLORS.selection}50`
+          ctx.lineWidth = 1.5
           ctx.stroke()
         }
 
-        // Hover glow — smooth lerp, not binary
+        // Hover glow — smooth lerp
         if (hoverStrength > 0.01 && !isSelected) {
-          const glowR = baseR + 4
-          const glowAlpha = Math.round(hoverStrength * 35).toString(16).padStart(2, '0')
+          const glowR = r + 6
           ctx.beginPath()
           ctx.arc(nx, ny, glowR, 0, Math.PI * 2)
-          ctx.strokeStyle = `${COLORS.selection}${glowAlpha}`
-          ctx.lineWidth = 1
+          ctx.strokeStyle = COLORS.selection
+          ctx.globalAlpha = hoverStrength * 0.4
+          ctx.lineWidth = 1.5
           ctx.stroke()
+          ctx.globalAlpha = entranceAlpha
         }
 
         // Reticle pulse — ease-out cubic expansion
@@ -556,24 +621,26 @@ export function GraphCanvas({ nodes, edges, isLoading, error, onNodeDoubleClick 
           if (age < RETICLE_DURATION) {
             const progress = age / RETICLE_DURATION
             const eased = easeOutCubic(progress)
-            const pulseR = (baseR + 6) + eased * 25
-            const alpha = Math.round((1 - eased) * 50).toString(16).padStart(2, '0')
+            const pulseR = (baseR + 8) + eased * 30
             ctx.beginPath()
             ctx.arc(nx, ny, pulseR, 0, Math.PI * 2)
-            ctx.strokeStyle = `${COLORS.selection}${alpha}`
+            ctx.strokeStyle = COLORS.selection
+            ctx.globalAlpha = (1 - eased) * 0.5
             ctx.lineWidth = 1.5
             ctx.stroke()
+            ctx.globalAlpha = entranceAlpha
           }
         }
 
-        // Labels — smooth crossfade at zoom threshold (0.7x–1.0x)
-        const labelFadeIn = Math.max(0, Math.min(1, (scale - 0.7) / 0.3))
+        // Labels — smooth crossfade at zoom threshold (0.5x–1.0x)
+        const labelFadeIn = Math.max(0, Math.min(1, (scale - 0.5) / 0.5))
         if (labelFadeIn > 0.01) {
-          ctx.font = `10px 'IBM Plex Mono', monospace`
+          const fontSize = Math.max(10, Math.min(14, 10 / Math.max(0.5, scale)))
+          ctx.font = `${fontSize}px 'IBM Plex Mono', monospace`
           ctx.textAlign = 'center'
           ctx.fillStyle = isSelected ? COLORS.text : COLORS.textMuted
-          ctx.globalAlpha = labelFadeIn * entranceAlpha
-          ctx.fillText(node.name, nx, ny + baseR + 14)
+          ctx.globalAlpha = labelFadeIn * entranceAlpha * (isSelected || isConnectedToHover ? 1 : 0.7)
+          ctx.fillText(node.name, nx, ny + baseR + 16)
           ctx.globalAlpha = entranceAlpha
         }
 
@@ -721,7 +788,7 @@ export function GraphCanvas({ nodes, edges, isLoading, error, onNodeDoubleClick 
 
     const factor = e.deltaY > 0 ? 0.92 : 1.08
     const currentScale = transformRef.current.scale
-    const newScale = Math.max(0.15, Math.min(4, currentScale * factor))
+    const newScale = Math.max(0.03, Math.min(12, currentScale * factor))
 
     const t = transformRef.current
     const newTx = mouseX - (mouseX - t.x) * (newScale / currentScale)
@@ -897,13 +964,13 @@ export function GraphCanvas({ nodes, edges, isLoading, error, onNodeDoubleClick 
       // Zoom with +/-
       if (e.key === '=' || e.key === '+') {
         const t = transformRef.current
-        const newScale = Math.min(4, t.scale * 1.15)
+        const newScale = Math.min(12, t.scale * 1.15)
         cameraTargetRef.current = { x: t.x, y: t.y, scale: newScale }
         return
       }
       if (e.key === '-' || e.key === '_') {
         const t = transformRef.current
-        const newScale = Math.max(0.15, t.scale * 0.85)
+        const newScale = Math.max(0.03, t.scale * 0.85)
         cameraTargetRef.current = { x: t.x, y: t.y, scale: newScale }
         return
       }
@@ -951,7 +1018,7 @@ export function GraphCanvas({ nodes, edges, isLoading, error, onNodeDoubleClick 
       const dx = e.touches[0].clientX - e.touches[1].clientX
       const dy = e.touches[0].clientY - e.touches[1].clientY
       const dist = Math.sqrt(dx * dx + dy * dy)
-      const newScale = Math.max(0.15, Math.min(4, touchRef.current.startScale * (dist / touchRef.current.startDist)))
+      const newScale = Math.max(0.03, Math.min(12, touchRef.current.startScale * (dist / touchRef.current.startDist)))
       const t = transformRef.current
       cameraTargetRef.current = { x: t.x, y: t.y, scale: newScale }
       touchRef.current.moved = true
