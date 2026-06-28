@@ -333,9 +333,8 @@ export function GraphCanvas({ nodes, edges, isLoading, error, onNodeDoubleClick 
 
       const { x: tx, y: ty, scale } = t
 
-      // Clear — OLED black
-      ctx.fillStyle = '#000000'
-      ctx.fillRect(0, 0, w, h)
+      // Clear — transparent so ParticleField shows through
+      ctx.clearRect(0, 0, w, h)
 
       // Read current data from refs
       const currentNodes = nodesRef.current
@@ -462,7 +461,6 @@ export function GraphCanvas({ nodes, edges, isLoading, error, onNodeDoubleClick 
           edgeWidth = 1.8 + cascadeStrength
           edgeAlphaFinal = (0.4 + cascadeStrength * 0.5) * edgeAlpha
         } else if (isHoverConnected) {
-          // Hover glow cascade: electric cyan with energy
           const pulse = Math.sin(timeSec * 3 + edge.source * 0.1) * 0.15 + 0.85
           edgeColor = COLORS.selection
           edgeWidth = 2.0
@@ -473,16 +471,14 @@ export function GraphCanvas({ nodes, edges, isLoading, error, onNodeDoubleClick 
           edgeAlphaFinal = 0.75 * edgeAlpha
         }
 
-        // Draw edge glow layer (thicker, more transparent)
-        if (isDirectHighlight || cascadeStrength > 0.05 || isHoverConnected) {
-          ctx.beginPath()
-          ctx.moveTo(fx, fy)
-          ctx.lineTo(tox, toy)
-          ctx.strokeStyle = edgeColor
-          ctx.globalAlpha = edgeAlphaFinal * 0.3
-          ctx.lineWidth = edgeWidth + 4
-          ctx.stroke()
-        }
+        // Draw edge glow layer for all edges — neural feel
+        ctx.beginPath()
+        ctx.moveTo(fx, fy)
+        ctx.lineTo(tox, toy)
+        ctx.strokeStyle = edgeColor
+        ctx.globalAlpha = edgeAlphaFinal * 0.3
+        ctx.lineWidth = edgeWidth + 3
+        ctx.stroke()
 
         // Draw edge core
         ctx.beginPath()
@@ -1089,7 +1085,7 @@ export function GraphCanvas({ nodes, edges, isLoading, error, onNodeDoubleClick 
   }
 
   return (
-    <div ref={containerRef} className="h-full w-full relative" style={{ cursor: 'grab', background: '#000000' }}>
+    <div ref={containerRef} className="h-full w-full relative" style={{ cursor: 'grab', background: '#000000', zIndex: 1 }}>
       <canvas
         ref={canvasRef}
         className="absolute inset-0 w-full h-full"

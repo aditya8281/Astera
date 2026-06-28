@@ -150,7 +150,9 @@ export function GraphPage() {
       )}
 
       {/* Particle constellation background */}
-      <ParticleField />
+      <div className="absolute inset-0" style={{ zIndex: 0 }}>
+        <ParticleField />
+      </div>
 
       {/* Graph */}
       <GraphCanvas

@@ -145,7 +145,7 @@ impl FileWatcher {
 
         for (rel_path, language, content, hash) in &relevant {
             // Check if hash changed
-            let needs_update = match db.file_has_changed(&rel_path, hash) {
+            let needs_update = match db.file_has_changed(rel_path, hash) {
                 Ok(true) | Err(_) => true,
                 Ok(false) => false,
             };
@@ -155,7 +155,7 @@ impl FileWatcher {
             }
 
             // Delete old data for this file (CASCADE handles nodes/edges)
-            if let Ok(Some(old_fid)) = db.file_exists(&rel_path) {
+            if let Ok(Some(old_fid)) = db.file_exists(rel_path) {
                 let old_nodes = db
                     .query_nodes(None, None, Some(old_fid))
                     .unwrap_or_default();
@@ -179,7 +179,7 @@ impl FileWatcher {
             let file_id = db.insert_file(&file_info)?;
 
             // Parse and extract
-            let output = match parse(&content, &language) {
+            let output = match parse(content, language) {
                 Ok(parsed) => Extractor::extract(&parsed),
                 Err(e) => {
                     warn!("Parse failed for {}: {}", rel_path, e);

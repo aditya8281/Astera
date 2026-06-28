@@ -643,7 +643,7 @@ fn bench_show() -> Result<(), anyhow::Error> {
         println!("{}", "─".repeat(84));
 
         for r in &sorted {
-            let short_name = r.name.splitn(2, '/').nth(1).unwrap_or(&r.name);
+            let short_name = r.name.split_once('/').map(|x| x.1).unwrap_or(&r.name);
             let mean_str = benchmarks::format_ns(r.mean_ns);
             let std_str = benchmarks::format_ns(r.std_dev_ns);
             println!(
@@ -741,7 +741,7 @@ fn bench_report(criterion_dir: &str, output: &str) -> Result<(), anyhow::Error> 
 
         for r in &sorted {
             // Full sub-path after group name: "discovery/classify_language/go"
-            let short_name = r.name.splitn(2, '/').nth(1).unwrap_or(&r.name);
+            let short_name = r.name.split_once('/').map(|x| x.1).unwrap_or(&r.name);
             let mean = benchmarks::format_ns(r.mean_ns);
             let std = benchmarks::format_ns(r.std_dev_ns);
 
@@ -1533,7 +1533,7 @@ async fn main() -> Result<(), anyhow::Error> {
                         nodes_added: result.nodes_added as u64,
                         nodes_removed: result.nodes_removed as u64,
                         edges_added: result.edges_added as u64,
-                        elapsed_ms: result.elapsed_ms as u64,
+                        elapsed_ms: result.elapsed_ms,
                         message: format!(
                             "Re-indexed: {} files, +{} nodes, -{} nodes, +{} edges",
                             result.files_changed,
