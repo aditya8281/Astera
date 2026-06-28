@@ -80,6 +80,8 @@
   - [x] Event debouncing (500ms)
   - [x] Incremental re-index (hash-based diff)
   - [x] `astera watch` daemon mode
+  - [x] Deletion detection for ALL file types (removed extension filter from debouncer)
+  - [x] Added .c, .cpp, .java to watchable extensions
 - [x] **Frontend serving** — API server serves static files with SPA fallback
 - [x] **Frontend pages**
   - [x] Metrics page (summary cards, circular deps, complexity legend)
@@ -90,6 +92,17 @@
   - [x] MiniMap (SVG minimap with click-to-navigate)
   - [ ] Filter panel — kind filter done in Sidebar; file/metric range filters not implemented
   - [x] WebSocket integration for re-index progress
+- [x] **Broken reference detection** (Phase 2 — completed 2026-06-28)
+  - [x] `UnresolvedRef` type in `astera-core` (UnresolvedCall, DeadImport, UnresolvedRef)
+  - [x] `find_unresolved_refs()` in `astera-resolver`
+  - [x] `broken_refs` table in SQLite schema
+  - [x] `/api/broken-refs` REST endpoint
+  - [x] `BrokenRefsPanel` in frontend sidebar + overlay
+  - [x] Integrated into `astera index` pipeline (Phase 4 of indexing)
+- [x] **Dependency subtree visualization** (Phase 2 — completed 2026-06-28)
+  - [x] `/api/graph/subtree/{id}` endpoint (bidirectional BFS, configurable depth)
+  - [x] Double-click on leaf nodes shows full recursive dependency tree
+  - [x] Double-click on container nodes does drill-down navigation
 - [x] **Performance benchmarks** (criterion — 73 benchmarks, 11 groups)
   - [x] Parsing throughput (5 languages × multiple scales)
   - [x] Symbol extraction + full pipeline
