@@ -10,7 +10,7 @@ import { MetricsPanel } from './panels/MetricsPanel'
 import { ImpactPanel } from './panels/ImpactPanel'
 import { SettingsPanel } from './panels/SettingsPanel'
 import { useUIStore } from '../store'
-import { COLORS } from '../constants'
+import { COLORS, NODE_COLORS } from '../constants'
 import { EmptyState } from '../components/Common/EmptyState'
 import type { GraphNode, GraphEdge } from '../types'
 
@@ -199,23 +199,46 @@ export function GraphPage() {
           }}
         >
           <div className="flex items-center gap-2 mb-1">
-            <span className="w-2.5 h-2.5 rounded-full" style={{ background: COLORS.selection }} />
+            <span
+              className="w-2.5 h-2.5 rounded-full flex-shrink-0"
+              style={{ background: NODE_COLORS[selectedNode.kind] || COLORS.nodeDefault }}
+            />
             <span className="text-sm font-heading font-bold" style={{ color: COLORS.text }}>
               {selectedNode.name}
             </span>
           </div>
           <div className="text-[11px] space-y-0.5" style={{ color: COLORS.textMuted }}>
-            <div>Kind: <span style={{ color: COLORS.text }}>{selectedNode.kind}</span></div>
-            <div>File: <span style={{ color: COLORS.text }}>{selectedNode.file_id}</span></div>
-            <div>Lines: <span style={{ color: COLORS.text }}>{selectedNode.start_line}–{selectedNode.end_line}</span></div>
+            <div className="flex items-center gap-1">
+              <span style={{ color: COLORS.textDim }}>Kind</span>
+              <span
+                className="px-1 rounded text-[10px]"
+                style={{
+                  background: `${NODE_COLORS[selectedNode.kind] || COLORS.nodeDefault}20`,
+                  color: NODE_COLORS[selectedNode.kind] || COLORS.text,
+                }}
+              >
+                {selectedNode.kind}
+              </span>
+            </div>
+            <div>
+              <span style={{ color: COLORS.textDim }}>Lines </span>
+              <span className="font-mono" style={{ color: COLORS.text }}>
+                {selectedNode.start_line}–{selectedNode.end_line}
+              </span>
+            </div>
             {selectedNode.importance !== undefined && (
-              <div>Importance: <span style={{ color: COLORS.text }}>{(selectedNode.importance * 100).toFixed(0)}%</span></div>
+              <div>
+                <span style={{ color: COLORS.textDim }}>Impact </span>
+                <span className="font-mono" style={{ color: COLORS.text }}>
+                  {(selectedNode.importance * 100).toFixed(0)}%
+                </span>
+              </div>
             )}
             {CONTAINER_KINDS.has(selectedNode.kind) && (
               <div className="pt-1">
                 <button
                   onClick={() => handleNodeDoubleClick(selectedNode.id)}
-                  className="text-[11px] px-2 py-0.5 rounded transition-colors"
+                  className="text-[11px] px-2 py-0.5 rounded transition-colors cursor-pointer"
                   style={{
                     background: `${COLORS.selection}20`,
                     color: COLORS.selection,

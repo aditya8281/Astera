@@ -907,6 +907,75 @@ export function GraphCanvas({ nodes, edges, isLoading, error, onNodeDoubleClick 
     return () => window.removeEventListener('keydown', handler)
   }, [selectNode, panToNode])
 
+  // Touch support: pan + pinch zoom + tap to select
+  const touchRef = useRef({ startX: 0, startY: 0, startDist: 0, startScale: 1, touching: false, moved: false })
+
+  const handleTouchStart = useCallback((e: React.TouchEvent) => {
+    if (e.touches.length === 1) {
+      const t = e.touches[0]
+      touchRef.current = { startX: t.clientX, startY: t.clientY, startDist: 0, startScale: 1, touching: true, moved: false }
+    } else if (e.touches.length === 2) {
+      const dx = e.touches[0].clientX - e.touches[1].clientX
+      const dy = e.touches[0].clientY - e.touches[1].clientY
+      touchRef.current = {
+        startX: (e.touches[0].clientX + e.touches[1].clientX) / 2,
+        startY: (e.touches[0].clientY + e.touches[1].clientY) / 2,
+        startDist: Math.sqrt(dx * dx + dy * dy),
+        startScale: transformRef.current.scale,
+        touching: true,
+        moved: false,
+      }
+    }
+  }, [])
+
+  const handleTouchMove = useCallback((e: React.TouchEvent) => {
+    e.preventDefault()
+    if (e.touches.length === 1 && touchRef.current.touching) {
+      const t = e.touches[0]
+      const dx = t.clientX - touchRef.current.startX
+      const dy = t.clientY - touchRef.current.startY
+      if (Math.abs(dx) > 3 || Math.abs(dy) > 3) touchRef.current.moved = true
+      transformRef.current.x += dx
+      transformRef.current.y += dy
+      cameraTargetRef.current.x += dx
+      cameraTargetRef.current.y += dy
+      touchRef.current.startX = t.clientX
+      touchRef.current.startY = t.clientY
+    } else if (e.touches.length === 2 && touchRef.current.startDist > 0) {
+      const dx = e.touches[0].clientX - e.touches[1].clientX
+      const dy = e.touches[0].clientY - e.touches[1].clientY
+      const dist = Math.sqrt(dx * dx + dy * dy)
+      const newScale = Math.max(0.15, Math.min(4, touchRef.current.startScale * (dist / touchRef.current.startDist)))
+      const t = transformRef.current
+      cameraTargetRef.current = { x: t.x, y: t.y, scale: newScale }
+      touchRef.current.moved = true
+    }
+  }, [])
+
+  const handleTouchEnd = useCallback((e: React.TouchEvent) => {
+    if (e.touches.length === 0 && !touchRef.current.moved) {
+      // Tap — treat as click for node selection
+      const rect = canvasRef.current?.getBoundingClientRect()
+      if (rect && touchRef.current.touching) {
+        const mx = (touchRef.current.startX - rect.left - transformRef.current.x) / transformRef.current.scale
+        const my = (touchRef.current.startY - rect.top - transformRef.current.y) / transformRef.current.scale
+        let closest: number | null = null
+        let closestDist = Infinity
+        for (const node of nodesRef.current) {
+          const pos = positionsRef.current.get(node.id)
+          if (!pos) continue
+          const dx = pos.x - mx, dy = pos.y - my
+          const dist = Math.sqrt(dx * dx + dy * dy)
+          const threshold = nodeRadius(node.kind) + 8
+          if (dist < threshold && dist < closestDist) { closest = node.id; closestDist = dist }
+        }
+        selectNode(closest)
+        if (closest !== null) panToNode(closest)
+      }
+    }
+    touchRef.current.touching = false
+  }, [selectNode, panToNode])
+
   if (error) {
     return (
       <div className="h-full flex items-center justify-center" style={{ color: COLORS.error }}>
@@ -958,6 +1027,9 @@ export function GraphCanvas({ nodes, edges, isLoading, error, onNodeDoubleClick 
         onWheel={handleWheel}
         onClick={handleClick}
         onDoubleClick={handleDoubleClick}
+        onTouchStart={handleTouchStart}
+        onTouchMove={handleTouchMove}
+        onTouchEnd={handleTouchEnd}
         style={{ touchAction: 'none' }}
       />
     </div>
