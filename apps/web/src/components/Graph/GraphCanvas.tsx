@@ -22,6 +22,11 @@ interface GraphCanvasProps {
  * - Selection: reticle pulse with cubic ease-out, ring scale 0.6→1.0
  * - Camera: linear lerp = exponential ease-out (already correct)
  * - All entrances respect prefers-reduced-motion
+ *
+ * Delight moments:
+ * - Connected edge cascade: selection lights connected edges with hop-distance stagger
+ * - Same-kind highlight: hovering brightens siblings of the same kind
+ * - Label crossfade: smooth opacity at zoom threshold (not binary gate)
  */
 
 // Node radius by kind
@@ -75,6 +80,10 @@ export function GraphCanvas({ nodes, edges, isLoading, error, onNodeDoubleClick 
   const selectNode = useUIStore((s) => s.selectNode)
   const cameraTarget = useUIStore((s) => s.cameraTarget)
 
+  // --- Delight state ---
+  // Adjacency map for connected-edge cascade
+  const adjacencyRef = useRef<Map<number, Set<number>>>(new Map())
+
   // --- Animation state ---
   // Node entrance: birth timestamp per node (staggered by distance from center)
   const nodeBirthRef = useRef<Map<number, number>>(new Map())
@@ -104,6 +113,18 @@ export function GraphCanvas({ nodes, edges, isLoading, error, onNodeDoubleClick 
   useEffect(() => { nodesRef.current = nodes }, [nodes])
   useEffect(() => { edgesRef.current = edges }, [edges])
   useEffect(() => { selectedRef.current = selectedNodeId }, [selectedNodeId])
+
+  // Build adjacency map for delight features (connected-edge cascade, same-kind highlight)
+  useEffect(() => {
+    const adj = new Map<number, Set<number>>()
+    for (const e of edges) {
+      if (!adj.has(e.source)) adj.set(e.source, new Set())
+      if (!adj.has(e.target)) adj.set(e.target, new Set())
+      adj.get(e.source)!.add(e.target)
+      adj.get(e.target)!.add(e.source)
+    }
+    adjacencyRef.current = adj
+  }, [edges])
 
   // Check reduced motion on mount
   useEffect(() => {
@@ -296,6 +317,29 @@ export function GraphCanvas({ nodes, edges, isLoading, error, onNodeDoubleClick 
         }
       }
 
+      // --- Compute connected-edge cascade (delight: hop-distance stagger) ---
+      // BFS from selected node to find hop distances
+      const hopDistances = new Map<number, number>()
+      if (selectedId !== null) {
+        hopDistances.set(selectedId, 0)
+        const queue = [selectedId]
+        let qi = 0
+        const adj = adjacencyRef.current
+        while (qi < queue.length && queue.length < 500) { // cap BFS for perf
+          const current = queue[qi++]
+          const neighbors = adj.get(current)
+          if (!neighbors) continue
+          const nextDist = (hopDistances.get(current) || 0) + 1
+          if (nextDist > 2) continue // only cascade 2 hops
+          for (const nid of neighbors) {
+            if (!hopDistances.has(nid)) {
+              hopDistances.set(nid, nextDist)
+              queue.push(nid)
+            }
+          }
+        }
+      }
+
       // --- Draw edges ---
       for (const edge of currentEdges) {
         const from = currentPositions.get(edge.source)
@@ -311,7 +355,19 @@ export function GraphCanvas({ nodes, edges, isLoading, error, onNodeDoubleClick 
         if ((fx < -50 && tox < -50) || (fy < -50 && toy < -50)) continue
         if ((fx > w + 50 && tox > w + 50) || (fy > h + 50 && toy > h + 50)) continue
 
-        const isHighlighted = edge.source === selectedId || edge.target === selectedId
+        const isDirectHighlight = edge.source === selectedId || edge.target === selectedId
+
+        // Delight: connected-edge cascade — hop-distance glow
+        let cascadeStrength = 0
+        if (selectedId !== null) {
+          const distSource = hopDistances.get(edge.source)
+          const distTarget = hopDistances.get(edge.target)
+          if (distSource !== undefined && distTarget !== undefined) {
+            // Edge connecting two BFS nodes gets glow based on further hop
+            const maxDist = Math.max(distSource, distTarget)
+            if (maxDist <= 2) cascadeStrength = 1 - maxDist * 0.35 // hop 0=1.0, hop 1=0.65, hop 2=0.3
+          }
+        }
 
         // Edge entrance: fade in
         let edgeAlpha = 1
@@ -328,12 +384,16 @@ export function GraphCanvas({ nodes, edges, isLoading, error, onNodeDoubleClick 
         ctx.moveTo(fx, fy)
         ctx.lineTo(tox, toy)
 
-        if (isHighlighted) {
+        if (isDirectHighlight) {
           ctx.strokeStyle = COLORS.selection
           ctx.globalAlpha = edgeAlpha
           ctx.lineWidth = 1.5
+        } else if (cascadeStrength > 0.05) {
+          // Delight: cascade glow — cyan at decreasing intensity
+          ctx.strokeStyle = COLORS.selection
+          ctx.globalAlpha = cascadeStrength * 0.6 * edgeAlpha
+          ctx.lineWidth = 1.0
         } else {
-          // Parse edgeDefault rgba and apply entrance alpha
           ctx.strokeStyle = COLORS.edgeDefault
           ctx.globalAlpha = edgeAlpha
           ctx.lineWidth = 0.8
@@ -373,13 +433,31 @@ export function GraphCanvas({ nodes, edges, isLoading, error, onNodeDoubleClick 
         const r = baseR * entranceScale * (isSelected ? 1.2 : 1)
         const color = NODE_COLORS[node.kind] || COLORS.nodeDefault
 
+        // Delight: same-kind highlight — hovering a node brightens all same-kind nodes
+        let sameKindStrength = 0
+        if (currentHover !== null && hoverStrength > 0.3 && node.kind !== 'File') {
+          const hoveredNode = currentNodes.find(n => n.id === currentHover)
+          if (hoveredNode && hoveredNode.kind === node.kind && node.id !== currentHover) {
+            sameKindStrength = hoverStrength * 0.4
+          }
+        }
+
         ctx.globalAlpha = entranceAlpha
 
         // Node dot
         ctx.beginPath()
         ctx.arc(nx, ny, r, 0, Math.PI * 2)
-        ctx.fillStyle = isSelected ? COLORS.selection : color
+        if (isSelected) {
+          ctx.fillStyle = COLORS.selection
+        } else if (sameKindStrength > 0.01) {
+          // Brighten same-kind nodes by blending toward nodeHover
+          ctx.fillStyle = color
+          ctx.globalAlpha = entranceAlpha * (1 + sameKindStrength)
+        } else {
+          ctx.fillStyle = color
+        }
         ctx.fill()
+        ctx.globalAlpha = entranceAlpha // reset after fill
 
         // Selection ring — scale animation from 0.6 to 1.0
         if (isSelected) {
@@ -427,12 +505,15 @@ export function GraphCanvas({ nodes, edges, isLoading, error, onNodeDoubleClick 
           }
         }
 
-        // Labels — visible at moderate zoom
-        if (scale >= 0.8) {
+        // Labels — smooth crossfade at zoom threshold (0.7x–1.0x)
+        const labelFadeIn = Math.max(0, Math.min(1, (scale - 0.7) / 0.3))
+        if (labelFadeIn > 0.01) {
           ctx.font = `10px 'IBM Plex Mono', monospace`
           ctx.textAlign = 'center'
           ctx.fillStyle = isSelected ? COLORS.text : COLORS.textMuted
+          ctx.globalAlpha = labelFadeIn * entranceAlpha
           ctx.fillText(node.name, nx, ny + baseR + 14)
+          ctx.globalAlpha = entranceAlpha
         }
 
         ctx.globalAlpha = 1
