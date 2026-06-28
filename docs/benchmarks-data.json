@@ -1,0 +1,830 @@
+[
+  {
+    "name": "api_simulation/api_search_json",
+    "mean_ns": 21929.228398543306,
+    "std_ns": 94.9122590852432,
+    "ci_low": 21761.61716037166,
+    "ci_high": 22131.43060992351,
+    "base_mean": 21929.228398543306,
+    "change_pct": 0.0
+  },
+  {
+    "name": "api_simulation/api_stats",
+    "mean_ns": 3267.6302393764367,
+    "std_ns": 9.520428128035624,
+    "ci_low": 3250.11710344172,
+    "ci_high": 3287.437005434102,
+    "base_mean": 3267.6302393764367,
+    "change_pct": 0.0
+  },
+  {
+    "name": "api_simulation/api_symbols_json",
+    "mean_ns": 1721165.0056767315,
+    "std_ns": 5739.013940936511,
+    "ci_low": 1710861.0852693801,
+    "ci_high": 1733293.1528372588,
+    "base_mean": 1721165.0056767315,
+    "change_pct": 0.0
+  },
+  {
+    "name": "concurrent_storage/mixed_queries_10",
+    "mean_ns": 6093289.661111114,
+    "std_ns": 12954.80294813524,
+    "ci_low": 6068294.468194444,
+    "ci_high": 6118927.189305558,
+    "base_mean": 6093289.661111114,
+    "change_pct": 0.0
+  },
+  {
+    "name": "concurrent_storage/sequential_reads_50",
+    "mean_ns": 4258687.013333333,
+    "std_ns": 10017.813940121205,
+    "ci_low": 4239701.774854166,
+    "ci_high": 4279009.825041668,
+    "base_mean": 4258687.013333333,
+    "change_pct": 0.0
+  },
+  {
+    "name": "discovery/classify_language/go",
+    "mean_ns": 35.14086408206537,
+    "std_ns": 0.20970801234625264,
+    "ci_low": 34.77838025904243,
+    "ci_high": 35.59402259806033,
+    "base_mean": 35.14086408206537,
+    "change_pct": 0.0
+  },
+  {
+    "name": "discovery/classify_language/javascript",
+    "mean_ns": 33.115394912619514,
+    "std_ns": 0.22600341409513613,
+    "ci_low": 32.72389919217516,
+    "ci_high": 33.60204215169953,
+    "base_mean": 33.115394912619514,
+    "change_pct": 0.0
+  },
+  {
+    "name": "discovery/classify_language/python",
+    "mean_ns": 33.171509245798276,
+    "std_ns": 0.1343789014350748,
+    "ci_low": 32.930206086152765,
+    "ci_high": 33.45444146703806,
+    "base_mean": 33.171509245798276,
+    "change_pct": 0.0
+  },
+  {
+    "name": "discovery/classify_language/rust",
+    "mean_ns": 33.23048311049928,
+    "std_ns": 0.3473495017463351,
+    "ci_low": 32.70174269839859,
+    "ci_high": 34.022307028543814,
+    "base_mean": 33.23048311049928,
+    "change_pct": 0.0
+  },
+  {
+    "name": "discovery/classify_language/tsx",
+    "mean_ns": 35.220511066430035,
+    "std_ns": 0.2425321928068018,
+    "ci_low": 34.79165650664859,
+    "ci_high": 35.73815963331289,
+    "base_mean": 35.220511066430035,
+    "change_pct": 0.0
+  },
+  {
+    "name": "discovery/classify_language/typescript",
+    "mean_ns": 32.596634267014615,
+    "std_ns": 0.1507920827428835,
+    "ci_low": 32.327279415239644,
+    "ci_high": 32.91752595090411,
+    "base_mean": 32.596634267014615,
+    "change_pct": 0.0
+  },
+  {
+    "name": "discovery/classify_language/unknown",
+    "mean_ns": 35.139629273346046,
+    "std_ns": 0.5688579008459834,
+    "ci_low": 34.36813236262852,
+    "ci_high": 36.42828615486101,
+    "base_mean": 35.139629273346046,
+    "change_pct": 0.0
+  },
+  {
+    "name": "discovery/count_lines_10k",
+    "mean_ns": 38916.822665653,
+    "std_ns": 173.21581313735686,
+    "ci_low": 38610.08230491119,
+    "ci_high": 39285.43416597196,
+    "base_mean": 38916.822665653,
+    "change_pct": 0.0
+  },
+  {
+    "name": "discovery/sha256_hash/1KB",
+    "mean_ns": 563.2826348079552,
+    "std_ns": 1.2815820018158137,
+    "ci_low": 560.8663796190813,
+    "ci_high": 565.8859913982517,
+    "base_mean": 563.2826348079552,
+    "change_pct": 0.0
+  },
+  {
+    "name": "discovery/sha256_hash/1MB",
+    "mean_ns": 500173.26175928616,
+    "std_ns": 5387.476655166137,
+    "ci_low": 492305.24698819744,
+    "ci_high": 512503.0738009155,
+    "base_mean": 500173.26175928616,
+    "change_pct": 0.0
+  },
+  {
+    "name": "discovery/sha256_hash/64KB",
+    "mean_ns": 30656.716205189256,
+    "std_ns": 111.56771306260629,
+    "ci_low": 30468.125227181823,
+    "ci_high": 30901.919682014523,
+    "base_mean": 30656.716205189256,
+    "change_pct": 0.0
+  },
+  {
+    "name": "end_to_end/parse_extract_store/go",
+    "mean_ns": 5079302.491111113,
+    "std_ns": 39474.24030487335,
+    "ci_low": 5012103.551222225,
+    "ci_high": 5165626.225555554,
+    "base_mean": 5079302.491111113,
+    "change_pct": 0.0
+  },
+  {
+    "name": "end_to_end/parse_extract_store/python",
+    "mean_ns": 8749389.213333333,
+    "std_ns": 40765.94867694799,
+    "ci_low": 8679097.004749998,
+    "ci_high": 8837727.614666669,
+    "base_mean": 8749389.213333333,
+    "change_pct": 0.0
+  },
+  {
+    "name": "end_to_end/parse_extract_store/rust",
+    "mean_ns": 9042027.369999997,
+    "std_ns": 38654.11641370956,
+    "ci_low": 8973072.045458334,
+    "ci_high": 9123920.168541664,
+    "base_mean": 9042027.369999997,
+    "change_pct": 0.0
+  },
+  {
+    "name": "end_to_end/parse_extract_store/typescript",
+    "mean_ns": 12688255.674000002,
+    "std_ns": 140310.77849968438,
+    "ci_low": 12433028.408199998,
+    "ci_high": 12982890.4136,
+    "base_mean": 12688255.674000002,
+    "change_pct": 0.0
+  },
+  {
+    "name": "extraction/extract/go",
+    "mean_ns": 651707.1087361758,
+    "std_ns": 5114.095613159538,
+    "ci_low": 642654.5627994415,
+    "ci_high": 662661.4450549928,
+    "base_mean": 651707.1087361758,
+    "change_pct": 0.0
+  },
+  {
+    "name": "extraction/extract/python",
+    "mean_ns": 1040293.1144665709,
+    "std_ns": 7041.330261258917,
+    "ci_low": 1028154.263545265,
+    "ci_high": 1055450.7715934026,
+    "base_mean": 1040293.1144665709,
+    "change_pct": 0.0
+  },
+  {
+    "name": "extraction/extract/rust",
+    "mean_ns": 1113417.7290938203,
+    "std_ns": 9689.095274264706,
+    "ci_low": 1096574.5338898492,
+    "ci_high": 1134198.5988627782,
+    "base_mean": 1113417.7290938203,
+    "change_pct": 0.0
+  },
+  {
+    "name": "extraction/extract/typescript",
+    "mean_ns": 1967990.6104342905,
+    "std_ns": 25740.38161637455,
+    "ci_low": 1924713.4570599229,
+    "ci_high": 2024794.5803031612,
+    "base_mean": 1967990.6104342905,
+    "change_pct": 0.0
+  },
+  {
+    "name": "extraction/full_pipeline/go",
+    "mean_ns": 2810481.9841176476,
+    "std_ns": 7668.805343879117,
+    "ci_low": 2795646.185632353,
+    "ci_high": 2825722.0328235286,
+    "base_mean": 2810481.9841176476,
+    "change_pct": 0.0
+  },
+  {
+    "name": "extraction/full_pipeline/python",
+    "mean_ns": 5048104.225000001,
+    "std_ns": 36262.35104968067,
+    "ci_low": 4989117.209050001,
+    "ci_high": 5129373.5088,
+    "base_mean": 5048104.225000001,
+    "change_pct": 0.0
+  },
+  {
+    "name": "extraction/full_pipeline/rust",
+    "mean_ns": 4367045.097499998,
+    "std_ns": 31609.57881425468,
+    "ci_low": 4315958.255291669,
+    "ci_high": 4437876.40175,
+    "base_mean": 4367045.097499998,
+    "change_pct": 0.0
+  },
+  {
+    "name": "extraction/full_pipeline/typescript",
+    "mean_ns": 7021702.68125,
+    "std_ns": 50350.72183247751,
+    "ci_low": 6938021.09315625,
+    "ci_high": 7133046.2675,
+    "base_mean": 7021702.68125,
+    "change_pct": 0.0
+  },
+  {
+    "name": "impact_analysis/critical_path/100",
+    "mean_ns": 123138.3240952386,
+    "std_ns": 822.8320213932199,
+    "ci_low": 121750.02911325892,
+    "ci_high": 124944.93908351693,
+    "base_mean": 123138.3240952386,
+    "change_pct": 0.0
+  },
+  {
+    "name": "impact_analysis/critical_path/1000",
+    "mean_ns": 13229119.855,
+    "std_ns": 100996.92791719147,
+    "ci_low": 13050893.8810625,
+    "ci_high": 13443687.3875,
+    "base_mean": 13229119.855,
+    "change_pct": 0.0
+  },
+  {
+    "name": "impact_analysis/critical_path/500",
+    "mean_ns": 3109923.2147058826,
+    "std_ns": 13293.612880176566,
+    "ci_low": 3085683.092058825,
+    "ci_high": 3137709.4813676486,
+    "base_mean": 3109923.2147058826,
+    "change_pct": 0.0
+  },
+  {
+    "name": "impact_analysis/critical_path/5000",
+    "mean_ns": 473859777.66,
+    "std_ns": 1255822.4513127797,
+    "ci_low": 471504243.98875,
+    "ci_high": 476444199.8725,
+    "base_mean": 473859777.66,
+    "change_pct": 0.0
+  },
+  {
+    "name": "impact_analysis/forward_impact/100",
+    "mean_ns": 24124.44524850623,
+    "std_ns": 211.99849830927616,
+    "ci_low": 23744.94212286806,
+    "ci_high": 24571.520432932568,
+    "base_mean": 24124.44524850623,
+    "change_pct": 0.0
+  },
+  {
+    "name": "impact_analysis/forward_impact/1000",
+    "mean_ns": 24501.705721518556,
+    "std_ns": 177.13676029813166,
+    "ci_low": 24162.63979467229,
+    "ci_high": 24860.107409556047,
+    "base_mean": 24501.705721518556,
+    "change_pct": 0.0
+  },
+  {
+    "name": "impact_analysis/forward_impact/500",
+    "mean_ns": 23692.268057736605,
+    "std_ns": 67.15751192596352,
+    "ci_low": 23561.36168768002,
+    "ci_high": 23825.13503571454,
+    "base_mean": 23692.268057736605,
+    "change_pct": 0.0
+  },
+  {
+    "name": "impact_analysis/forward_impact/5000",
+    "mean_ns": 23892.952224559107,
+    "std_ns": 71.66513286861529,
+    "ci_low": 23756.441697742135,
+    "ci_high": 24037.92520130848,
+    "base_mean": 23892.952224559107,
+    "change_pct": 0.0
+  },
+  {
+    "name": "impact_analysis/impact_depth_3/100",
+    "mean_ns": 2991.236039419411,
+    "std_ns": 22.202402402678516,
+    "ci_low": 2952.0755001542843,
+    "ci_high": 3038.4962939699417,
+    "base_mean": 2991.236039419411,
+    "change_pct": 0.0
+  },
+  {
+    "name": "impact_analysis/impact_depth_3/1000",
+    "mean_ns": 2996.200867128618,
+    "std_ns": 29.731254388912745,
+    "ci_low": 2946.5884362639417,
+    "ci_high": 3061.8886493228383,
+    "base_mean": 2996.200867128618,
+    "change_pct": 0.0
+  },
+  {
+    "name": "impact_analysis/impact_depth_3/500",
+    "mean_ns": 2919.3716698728676,
+    "std_ns": 19.571077949869437,
+    "ci_low": 2886.821328663219,
+    "ci_high": 2962.432875153904,
+    "base_mean": 2919.3716698728676,
+    "change_pct": 0.0
+  },
+  {
+    "name": "impact_analysis/impact_depth_3/5000",
+    "mean_ns": 2924.5274773963133,
+    "std_ns": 22.318635907067083,
+    "ci_low": 2890.4216368600482,
+    "ci_high": 2975.475366416337,
+    "base_mean": 2924.5274773963133,
+    "change_pct": 0.0
+  },
+  {
+    "name": "impact_analysis/reverse_impact/100",
+    "mean_ns": 24781.598431989965,
+    "std_ns": 108.76604709988207,
+    "ci_low": 24589.20847886445,
+    "ci_high": 25013.167904440827,
+    "base_mean": 24781.598431989965,
+    "change_pct": 0.0
+  },
+  {
+    "name": "impact_analysis/reverse_impact/1000",
+    "mean_ns": 26420.322341585837,
+    "std_ns": 90.98950380994893,
+    "ci_low": 26249.662713503898,
+    "ci_high": 26607.394384571682,
+    "base_mean": 26420.322341585837,
+    "change_pct": 0.0
+  },
+  {
+    "name": "impact_analysis/reverse_impact/500",
+    "mean_ns": 26174.096442926628,
+    "std_ns": 145.82305839533907,
+    "ci_low": 25922.897271506154,
+    "ci_high": 26490.00723446564,
+    "base_mean": 26174.096442926628,
+    "change_pct": 0.0
+  },
+  {
+    "name": "impact_analysis/reverse_impact/5000",
+    "mean_ns": 23443.394264859893,
+    "std_ns": 295.76245413855787,
+    "ci_low": 23004.31731946473,
+    "ci_high": 24118.462643619972,
+    "base_mean": 23443.394264859893,
+    "change_pct": 0.0
+  },
+  {
+    "name": "metrics/compute_importance/100",
+    "mean_ns": 12608.99239827053,
+    "std_ns": 98.89530228350387,
+    "ci_low": 12442.326066346344,
+    "ci_high": 12825.271247799661,
+    "base_mean": 12608.99239827053,
+    "change_pct": 0.0
+  },
+  {
+    "name": "metrics/compute_importance/1000",
+    "mean_ns": 142374.02353453162,
+    "std_ns": 1129.2291240812895,
+    "ci_low": 140432.7861275773,
+    "ci_high": 144829.20906895856,
+    "base_mean": 142374.02353453162,
+    "change_pct": 0.0
+  },
+  {
+    "name": "metrics/compute_importance/500",
+    "mean_ns": 69982.59138266614,
+    "std_ns": 210.98019941261563,
+    "ci_low": 69579.95120361239,
+    "ci_high": 70407.17063039487,
+    "base_mean": 69982.59138266614,
+    "change_pct": 0.0
+  },
+  {
+    "name": "metrics/compute_importance/5000",
+    "mean_ns": 705103.9567329305,
+    "std_ns": 4073.8983503464797,
+    "ci_low": 697832.2223016208,
+    "ci_high": 713761.9096038984,
+    "base_mean": 705103.9567329305,
+    "change_pct": 0.0
+  },
+  {
+    "name": "metrics/compute_metrics/100",
+    "mean_ns": 38782.28507067189,
+    "std_ns": 284.5513801861929,
+    "ci_low": 38269.188585499614,
+    "ci_high": 39382.02270631085,
+    "base_mean": 38782.28507067189,
+    "change_pct": 0.0
+  },
+  {
+    "name": "metrics/compute_metrics/1000",
+    "mean_ns": 2204127.514347827,
+    "std_ns": 22333.957974769994,
+    "ci_low": 2168129.9634239124,
+    "ci_high": 2253557.669826087,
+    "base_mean": 2204127.514347827,
+    "change_pct": 0.0
+  },
+  {
+    "name": "metrics/compute_metrics/500",
+    "mean_ns": 603440.7287952772,
+    "std_ns": 7333.202127407054,
+    "ci_low": 591241.4743312399,
+    "ci_high": 619675.3920913822,
+    "base_mean": 603440.7287952772,
+    "change_pct": 0.0
+  },
+  {
+    "name": "metrics/compute_metrics/5000",
+    "mean_ns": 80297942.17,
+    "std_ns": 497083.6642906159,
+    "ci_low": 79366083.35,
+    "ci_high": 81309274.467,
+    "base_mean": 80297942.17,
+    "change_pct": 0.0
+  },
+  {
+    "name": "parse_edge_cases/deeply_nested",
+    "mean_ns": 404603.8502912563,
+    "std_ns": 1007.4602976582366,
+    "ci_low": 402711.0194015112,
+    "ci_high": 406663.2500356046,
+    "base_mean": 404603.8502912563,
+    "change_pct": 0.0
+  },
+  {
+    "name": "parse_edge_cases/empty_file",
+    "mean_ns": 624.1870458024364,
+    "std_ns": 2.5141749783811655,
+    "ci_low": 619.5729463648624,
+    "ci_high": 629.3844253049579,
+    "base_mean": 624.1870458024364,
+    "change_pct": 0.0
+  },
+  {
+    "name": "parse_edge_cases/malformed_ts",
+    "mean_ns": 52407.85619234192,
+    "std_ns": 139.96131680284657,
+    "ci_low": 52149.62562418428,
+    "ci_high": 52698.39328264601,
+    "base_mean": 52407.85619234192,
+    "change_pct": 0.0
+  },
+  {
+    "name": "parse_edge_cases/minimal_ts",
+    "mean_ns": 1620.6293234881105,
+    "std_ns": 3.393042224950639,
+    "ci_low": 1614.2622585724846,
+    "ci_high": 1627.5901002344674,
+    "base_mean": 1620.6293234881105,
+    "change_pct": 0.0
+  },
+  {
+    "name": "parse_edge_cases/unicode_source",
+    "mean_ns": 6852.185757981758,
+    "std_ns": 21.098694981271716,
+    "ci_low": 6813.161658855549,
+    "ci_high": 6895.754087659493,
+    "base_mean": 6852.185757981758,
+    "change_pct": 0.0
+  },
+  {
+    "name": "parse_edge_cases/very_long_line",
+    "mean_ns": 4254230.125000002,
+    "std_ns": 7269.794297638973,
+    "ci_low": 4239868.739958332,
+    "ci_high": 4268356.953041666,
+    "base_mean": 4254230.125000002,
+    "change_pct": 0.0
+  },
+  {
+    "name": "parse_throughput/go_medium",
+    "mean_ns": 2131830.533913044,
+    "std_ns": 5020.6240974988,
+    "ci_low": 2122237.693097827,
+    "ci_high": 2141863.7910217396,
+    "base_mean": 2131830.533913044,
+    "change_pct": 0.0
+  },
+  {
+    "name": "parse_throughput/python_medium",
+    "mean_ns": 4035132.915384616,
+    "std_ns": 35185.06401645949,
+    "ci_low": 3975340.1785192303,
+    "ci_high": 4111815.2124999994,
+    "base_mean": 4035132.915384616,
+    "change_pct": 0.0
+  },
+  {
+    "name": "parse_throughput/python_small",
+    "mean_ns": 106212.33674866924,
+    "std_ns": 862.6451017858595,
+    "ci_low": 104799.32173996799,
+    "ci_high": 108127.38109244207,
+    "base_mean": 106212.33674866924,
+    "change_pct": 0.0
+  },
+  {
+    "name": "parse_throughput/rust_medium",
+    "mean_ns": 3187439.838125,
+    "std_ns": 10550.293192030897,
+    "ci_low": 3167181.13125,
+    "ci_high": 3208307.3625,
+    "base_mean": 3187439.838125,
+    "change_pct": 0.0
+  },
+  {
+    "name": "parse_throughput/typescript_large",
+    "mean_ns": 80438683.77,
+    "std_ns": 1150414.1261735733,
+    "ci_low": 78345972.03,
+    "ci_high": 82849727.69,
+    "base_mean": 80438683.77,
+    "change_pct": 0.0
+  },
+  {
+    "name": "parse_throughput/typescript_medium",
+    "mean_ns": 4887522.899,
+    "std_ns": 10908.501211988338,
+    "ci_low": 4866616.5597,
+    "ci_high": 4909518.198000001,
+    "base_mean": 4887522.899,
+    "change_pct": 0.0
+  },
+  {
+    "name": "parse_throughput/typescript_small",
+    "mean_ns": 109798.04926222427,
+    "std_ns": 776.4616036437386,
+    "ci_low": 108635.87482601017,
+    "ci_high": 111557.74270424845,
+    "base_mean": 109798.04926222427,
+    "change_pct": 0.0
+  },
+  {
+    "name": "scalability/impact_forward/1000",
+    "mean_ns": 9704.319839242,
+    "std_ns": 30.187513649058804,
+    "ci_low": 9650.107092911985,
+    "ci_high": 9767.930183454682,
+    "base_mean": 9704.319839242,
+    "change_pct": 0.0
+  },
+  {
+    "name": "scalability/impact_forward/10000",
+    "mean_ns": 13326.457098684372,
+    "std_ns": 49.57747327729735,
+    "ci_low": 13237.897639186813,
+    "ci_high": 13431.55995394164,
+    "base_mean": 13326.457098684372,
+    "change_pct": 0.0
+  },
+  {
+    "name": "scalability/impact_forward/200",
+    "mean_ns": 12575.437356460741,
+    "std_ns": 58.26678958014901,
+    "ci_low": 12475.744592279398,
+    "ci_high": 12702.77014482643,
+    "base_mean": 12575.437356460741,
+    "change_pct": 0.0
+  },
+  {
+    "name": "scalability/impact_forward/50",
+    "mean_ns": 12438.26220865072,
+    "std_ns": 97.07676298037178,
+    "ci_low": 12269.495873622434,
+    "ci_high": 12645.504147506088,
+    "base_mean": 12438.26220865072,
+    "change_pct": 0.0
+  },
+  {
+    "name": "scalability/impact_forward/5000",
+    "mean_ns": 13250.821326529607,
+    "std_ns": 71.83977876957468,
+    "ci_low": 13135.809336864117,
+    "ci_high": 13412.156133307226,
+    "base_mean": 13250.821326529607,
+    "change_pct": 0.0
+  },
+  {
+    "name": "scalability/importance/1000",
+    "mean_ns": 123836.18855533091,
+    "std_ns": 543.3408259060651,
+    "ci_low": 122885.22757762166,
+    "ci_high": 125001.09329236724,
+    "base_mean": 123836.18855533091,
+    "change_pct": 0.0
+  },
+  {
+    "name": "scalability/importance/10000",
+    "mean_ns": 1265708.9317703596,
+    "std_ns": 4150.227947064295,
+    "ci_low": 1257876.0711315656,
+    "ci_high": 1274107.1631789922,
+    "base_mean": 1265708.9317703596,
+    "change_pct": 0.0
+  },
+  {
+    "name": "scalability/importance/200",
+    "mean_ns": 21718.50868553917,
+    "std_ns": 213.68200595990865,
+    "ci_low": 21351.811986804423,
+    "ci_high": 22183.38889757517,
+    "base_mean": 21718.50868553917,
+    "change_pct": 0.0
+  },
+  {
+    "name": "scalability/importance/50",
+    "mean_ns": 5333.519583174098,
+    "std_ns": 13.701375119026483,
+    "ci_low": 5307.549667855601,
+    "ci_high": 5361.179255326076,
+    "base_mean": 5333.519583174098,
+    "change_pct": 0.0
+  },
+  {
+    "name": "scalability/importance/5000",
+    "mean_ns": 607845.9109138304,
+    "std_ns": 7270.75189882597,
+    "ci_low": 595464.4306110141,
+    "ci_high": 623827.7943131079,
+    "base_mean": 607845.9109138304,
+    "change_pct": 0.0
+  },
+  {
+    "name": "scalability/metrics_full/1000",
+    "mean_ns": 1531716.0180268572,
+    "std_ns": 6344.334398891372,
+    "ci_low": 1520653.618985925,
+    "ci_high": 1545387.6901719451,
+    "base_mean": 1531716.0180268572,
+    "change_pct": 0.0
+  },
+  {
+    "name": "scalability/metrics_full/10000",
+    "mean_ns": 229134103.19,
+    "std_ns": 871975.5807095577,
+    "ci_low": 227387598.52699998,
+    "ci_high": 230816104.84074998,
+    "base_mean": 229134103.19,
+    "change_pct": 0.0
+  },
+  {
+    "name": "scalability/metrics_full/200",
+    "mean_ns": 84808.52586094165,
+    "std_ns": 666.471091969163,
+    "ci_low": 83607.77242689586,
+    "ci_high": 86208.91013991508,
+    "base_mean": 84808.52586094165,
+    "change_pct": 0.0
+  },
+  {
+    "name": "scalability/metrics_full/50",
+    "mean_ns": 9543.815718267804,
+    "std_ns": 30.89769686850842,
+    "ci_low": 9488.181115037478,
+    "ci_high": 9608.926196820425,
+    "base_mean": 9543.815718267804,
+    "change_pct": 0.0
+  },
+  {
+    "name": "scalability/metrics_full/5000",
+    "mean_ns": 55034206.5,
+    "std_ns": 168864.36183823677,
+    "ci_low": 54721838.8165,
+    "ci_high": 55383302.8975,
+    "base_mean": 55034206.5,
+    "change_pct": 0.0
+  },
+  {
+    "name": "storage/edge_count",
+    "mean_ns": 1061.9122753252134,
+    "std_ns": 6.297069336976314,
+    "ci_low": 1051.60745053287,
+    "ci_high": 1076.0005335715396,
+    "base_mean": 1061.9122753252134,
+    "change_pct": 0.0
+  },
+  {
+    "name": "storage/get_children_of",
+    "mean_ns": 2216.9043369220813,
+    "std_ns": 8.88638593038496,
+    "ci_low": 2201.2422128128455,
+    "ci_high": 2235.9965531710363,
+    "base_mean": 2216.9043369220813,
+    "change_pct": 0.0
+  },
+  {
+    "name": "storage/insert_2000_edges",
+    "mean_ns": 7625481.01,
+    "std_ns": 66328.76752517153,
+    "ci_low": 7529929.4650625,
+    "ci_high": 7776971.5371875,
+    "base_mean": 7625481.01,
+    "change_pct": 0.0
+  },
+  {
+    "name": "storage/insert_nodes/100",
+    "mean_ns": 1082202.2209778342,
+    "std_ns": 9473.829435235823,
+    "ci_low": 1065260.5629360166,
+    "ci_high": 1102209.1609918347,
+    "base_mean": 1082202.2209778342,
+    "change_pct": 0.0
+  },
+  {
+    "name": "storage/insert_nodes/1000",
+    "mean_ns": 13095482.195,
+    "std_ns": 80653.39951133303,
+    "ci_low": 12960538.4875,
+    "ci_high": 13273728.336749999,
+    "base_mean": 13095482.195,
+    "change_pct": 0.0
+  },
+  {
+    "name": "storage/insert_nodes/500",
+    "mean_ns": 5946905.575,
+    "std_ns": 51105.263267208895,
+    "ci_low": 5862574.581125,
+    "ci_high": 6059912.51071875,
+    "base_mean": 5946905.575,
+    "change_pct": 0.0
+  },
+  {
+    "name": "storage/insert_nodes/5000",
+    "mean_ns": 70534309.92,
+    "std_ns": 355045.8950332912,
+    "ci_low": 69889007.7765,
+    "ci_high": 71277257.09799999,
+    "base_mean": 70534309.92,
+    "change_pct": 0.0
+  },
+  {
+    "name": "storage/list_files",
+    "mean_ns": 3844.736994256635,
+    "std_ns": 23.092635610874787,
+    "ci_low": 3803.165392277597,
+    "ci_high": 3892.997261016916,
+    "base_mean": 3844.736994256635,
+    "change_pct": 0.0
+  },
+  {
+    "name": "storage/query_all_2000",
+    "mean_ns": 837694.5831374818,
+    "std_ns": 6183.58151389891,
+    "ci_low": 826448.7781622964,
+    "ci_high": 850587.5982567286,
+    "base_mean": 837694.5831374818,
+    "change_pct": 0.0
+  },
+  {
+    "name": "storage/query_by_kind_function",
+    "mean_ns": 253199.50973169346,
+    "std_ns": 1236.319881538275,
+    "ci_low": 250846.9421197849,
+    "ci_high": 255698.44255875886,
+    "base_mean": 253199.50973169346,
+    "change_pct": 0.0
+  },
+  {
+    "name": "storage/search_fts5_symbol_42",
+    "mean_ns": 16157.256680251963,
+    "std_ns": 84.26142106360476,
+    "ci_low": 16004.903660746613,
+    "ci_high": 16335.192620072437,
+    "base_mean": 16157.256680251963,
+    "change_pct": 0.0
+  },
+  {
+    "name": "storage/symbol_count",
+    "mean_ns": 1151.8083750655956,
+    "std_ns": 10.124923171402335,
+    "ci_low": 1134.165608540984,
+    "ci_high": 1173.728885130455,
+    "base_mean": 1151.8083750655956,
+    "change_pct": 0.0
+  }
+]

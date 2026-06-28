@@ -96,7 +96,7 @@ impl FileWatcher {
         Ok(())
     }
 
-    /// Re-index only the changed files
+    /// Re-index only the changed files, and detect deletions
     fn reindex_changed(&self, changed: &[PathBuf]) -> Result<UpdateResult> {
         let start = Instant::now();
         let db = Database::open(&self.db_path)?;
@@ -104,7 +104,32 @@ impl FileWatcher {
         let walker = FileWalker::new(self.root.to_str().unwrap());
         let all_files = walker.discover_with_content();
 
-        // Filter to only changed files (match by absolute path)
+        // Build set of currently-existing relative paths
+        let existing_paths: std::collections::HashSet<String> = all_files
+            .iter()
+            .map(|(rel_path, _, _, _)| rel_path.clone())
+            .collect();
+
+        // --- DETECT DELETED FILES ---
+        // Any file in DB but NOT on disk was deleted
+        let mut total_nodes_removed = 0;
+        let db_files = db.list_files().unwrap_or_default();
+        for db_file in &db_files {
+            if !existing_paths.contains(&db_file.relative_path) {
+                // This file was deleted from disk
+                if let Some(fid) = db_file.id {
+                    let old_nodes = db.query_nodes(None, None, Some(fid)).unwrap_or_default();
+                    total_nodes_removed += old_nodes.len();
+                    if let Err(e) = db.delete_file(fid) {
+                        warn!("Failed to delete file {}: {}", db_file.relative_path, e);
+                    } else {
+                        info!("Removed deleted file from index: {}", db_file.relative_path);
+                    }
+                }
+            }
+        }
+
+        // --- RE-INDEX CHANGED FILES ---
         let changed_set: std::collections::HashSet<PathBuf> = changed.iter().cloned().collect();
         let relevant: Vec<(String, String, Vec<u8>, String)> = all_files
             .into_iter()
@@ -117,11 +142,10 @@ impl FileWatcher {
         let mut files_changed = 0;
         let mut total_nodes_added = 0;
         let mut total_edges_added = 0;
-        let mut total_nodes_removed = 0;
 
         for (rel_path, language, content, hash) in &relevant {
             // Check if hash changed
-            let needs_update = match db.file_has_changed(rel_path, hash) {
+            let needs_update = match db.file_has_changed(&rel_path, hash) {
                 Ok(true) | Err(_) => true,
                 Ok(false) => false,
             };
@@ -131,7 +155,7 @@ impl FileWatcher {
             }
 
             // Delete old data for this file (CASCADE handles nodes/edges)
-            if let Ok(Some(old_fid)) = db.file_exists(rel_path) {
+            if let Ok(Some(old_fid)) = db.file_exists(&rel_path) {
                 let old_nodes = db
                     .query_nodes(None, None, Some(old_fid))
                     .unwrap_or_default();
@@ -155,7 +179,7 @@ impl FileWatcher {
             let file_id = db.insert_file(&file_info)?;
 
             // Parse and extract
-            let output = match parse(content, language) {
+            let output = match parse(&content, &language) {
                 Ok(parsed) => Extractor::extract(&parsed),
                 Err(e) => {
                     warn!("Parse failed for {}: {}", rel_path, e);
@@ -209,8 +233,9 @@ impl FileWatcher {
         }
 
         let elapsed = start.elapsed();
+        let total_changes = files_changed + if total_nodes_removed > 0 { 1 } else { 0 };
         info!(
-            "Re-index complete: {} files, +{} nodes, -{} nodes, +{} edges in {}ms",
+            "Re-index complete: {} files changed, +{} nodes, -{} nodes, +{} edges in {}ms",
             files_changed,
             total_nodes_added,
             total_nodes_removed,
@@ -219,7 +244,7 @@ impl FileWatcher {
         );
 
         Ok(UpdateResult {
-            files_changed,
+            files_changed: total_changes,
             nodes_added: total_nodes_added,
             edges_added: total_edges_added,
             nodes_removed: total_nodes_removed,
