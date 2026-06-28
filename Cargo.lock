@@ -142,6 +142,7 @@ dependencies = [
  "astera-impact",
  "astera-metrics",
  "astera-parser",
+ "astera-resolver",
  "astera-storage",
  "astera-watcher",
  "chrono",

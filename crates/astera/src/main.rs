@@ -1074,6 +1074,33 @@ fn index_command(path: &str) -> Result<(), anyhow::Error> {
         indexed_files += 1;
     }
 
+    // Phase 4: Detect broken/unresolved references
+    use astera_resolver::Resolver;
+    let (all_nodes, all_edges) = db.get_all_graph().unwrap_or((vec![], vec![]));
+    let mut resolver = Resolver::new();
+
+    // Register imports from all Import nodes
+    for node in &all_nodes {
+        if node.kind == astera_core::NodeKind::Import {
+            let entries = resolver.resolve_file_imports(
+                node.file_id,
+                "",
+                &all_nodes,
+                &all_edges,
+            );
+            for entry in entries {
+                resolver.add_import(entry);
+            }
+        }
+    }
+
+    let unresolved = resolver.find_unresolved_refs(&all_nodes, &all_edges);
+    let broken_count = unresolved.len();
+    if broken_count > 0 {
+        let _ = db.clear_broken_refs();
+        let _ = db.insert_broken_refs(&unresolved);
+    }
+
     let elapsed = start.elapsed();
     let report = IndexReport {
         repo_root: root.to_string_lossy().to_string(),
@@ -1094,6 +1121,9 @@ fn index_command(path: &str) -> Result<(), anyhow::Error> {
     );
     println!("  Symbols:      {}", report.total_symbols);
     println!("  Edges:        {}", report.total_edges);
+    if broken_count > 0 {
+        println!("  Broken refs:  {}", broken_count);
+    }
     println!("  Time:         {}ms", report.elapsed_ms);
 
     // Auto-save snapshot for evolution tracking

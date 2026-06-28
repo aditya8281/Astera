@@ -4,7 +4,7 @@ import { useUIStore } from '../../store'
 import { NODE_COLORS, COLORS } from '../../constants'
 import type { PanelId } from '../../types'
 import { TreeView } from './TreeView'
-import { HomeIcon, GraphIcon, SearchIcon, FunctionIcon, FilesIcon, MetricsIcon, ImpactIcon, SettingsIcon, ChevronDownIcon, ChevronRightIcon } from '../Common/Icons'
+import { HomeIcon, GraphIcon, SearchIcon, FunctionIcon, FilesIcon, MetricsIcon, ImpactIcon, AlertIcon, SettingsIcon, ChevronDownIcon, ChevronRightIcon } from '../Common/Icons'
 
 interface NavItem {
   id: PanelId
@@ -22,6 +22,7 @@ const NAV_ITEMS: NavItem[] = [
   { id: 'files', icon: <FilesIcon size={16} />, label: 'Files', shortcut: '3' },
   { id: 'metrics', icon: <MetricsIcon size={16} />, label: 'Metrics', shortcut: '4' },
   { id: 'impact', icon: <ImpactIcon size={16} />, label: 'Impact', shortcut: '5' },
+  { id: 'broken-refs', icon: <AlertIcon size={16} />, label: 'Broken Refs', shortcut: '6' },
   { id: 'settings', icon: <SettingsIcon size={16} />, label: 'Settings', shortcut: ',' },
 ]
 

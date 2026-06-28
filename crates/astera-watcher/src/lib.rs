@@ -57,11 +57,10 @@ impl FileWatcher {
                 notify::Error,
             >| {
                 if let Ok(events) = res {
-                    let paths: Vec<PathBuf> = events
-                        .into_iter()
-                        .map(|e| e.path)
-                        .filter(|p| is_watchable(p))
-                        .collect();
+                    // Pass ALL events to reindex_changed — it runs a full filesystem
+                    // walk and detects deletions even for files we don't parse.
+                    // This ensures deleted files with any extension trigger cleanup.
+                    let paths: Vec<PathBuf> = events.into_iter().map(|e| e.path).collect();
                     if !paths.is_empty() {
                         let _ = tx.send(paths);
                     }
@@ -253,7 +252,10 @@ impl FileWatcher {
     }
 }
 
-/// Check if a file path should trigger re-indexing
+/// Check if a file path matches a known language extension.
+/// Currently only used by tests; the debouncer passes all events through
+/// and lets the full filesystem walk in reindex_changed handle filtering.
+#[allow(dead_code)]
 fn is_watchable(path: &Path) -> bool {
     let name = path.file_name().and_then(|n| n.to_str()).unwrap_or("");
 
@@ -276,10 +278,10 @@ fn is_watchable(path: &Path) -> bool {
         }
     }
 
-    // Only watch known language extensions
+    // Only watch known language extensions (includes all 8 supported languages + config)
     matches!(
         path.extension().and_then(|e| e.to_str()),
-        Some("ts" | "tsx" | "js" | "jsx" | "py" | "rs" | "go" | "toml" | "json")
+        Some("ts" | "tsx" | "js" | "jsx" | "py" | "rs" | "go" | "c" | "cpp" | "java" | "toml" | "json")
     )
 }
 
@@ -292,6 +294,10 @@ mod tests {
         assert!(is_watchable(Path::new("src/main.rs")));
         assert!(is_watchable(Path::new("lib/utils.ts")));
         assert!(is_watchable(Path::new("app.py")));
+        assert!(is_watchable(Path::new("lib/utils.c")));
+        assert!(is_watchable(Path::new("src/main.cpp")));
+        assert!(is_watchable(Path::new("App.java")));
+        assert!(is_watchable(Path::new("lib/utils.go")));
         assert!(!is_watchable(Path::new("node_modules/foo.js")));
         assert!(!is_watchable(Path::new("target/debug/astera")));
         assert!(!is_watchable(Path::new(".git/config")));

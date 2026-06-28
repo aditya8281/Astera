@@ -1,4 +1,4 @@
-import type { GraphResponse, StatsResponse, ApiResponse, SymbolNode, FileEntry, MetricsResponse, ImpactResponse, ModuleSummary } from './types'
+import type { GraphResponse, StatsResponse, ApiResponse, SymbolNode, FileEntry, MetricsResponse, ImpactResponse, ModuleSummary, BrokenRef } from './types'
 
 const BASE = '/api'
 const MAX_RETRIES = 3
@@ -46,6 +46,12 @@ export const api = {
   search: (q: string) => get<ApiResponse<SymbolNode[]>>(`/search?q=${encodeURIComponent(q)}`),
   modules: () => get<ApiResponse<ModuleSummary[]>>('/graph/modules'),
   children: (nodeId: number) => get<GraphResponse>(`/graph/children/${nodeId}`),
+  subtree: (nodeId: number, maxDepth?: number) => {
+    const q = new URLSearchParams()
+    if (maxDepth) q.set('max_depth', String(maxDepth))
+    const qs = q.toString()
+    return get<GraphResponse>(`/graph/subtree/${nodeId}${qs ? `?${qs}` : ''}`)
+  },
   dependencyGraph: () => get<GraphResponse>('/graph/dependency'),
   metrics: () => get<ApiResponse<MetricsResponse>>('/metrics'),
   impact: (rootId: number, maxDepth?: number, direction?: string) => {
@@ -53,6 +59,12 @@ export const api = {
     if (maxDepth) q.set('max_depth', String(maxDepth))
     if (direction) q.set('direction', direction)
     return get<ApiResponse<ImpactResponse>>(`/impact?${q}`)
+  },
+  brokenRefs: (kind?: string) => {
+    const q = new URLSearchParams()
+    if (kind) q.set('kind', kind)
+    const qs = q.toString()
+    return get<ApiResponse<BrokenRef[]>>(`/broken-refs${qs ? `?${qs}` : ''}`)
   },
 }
 

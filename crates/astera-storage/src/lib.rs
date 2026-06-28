@@ -2,7 +2,7 @@ use rusqlite::{params, Connection, Result as SqlResult};
 use std::cell::{Cell, RefCell};
 use std::path::Path;
 
-use astera_core::{Edge, EdgeKind, FileInfo, Node, NodeKind, SourceSpan};
+use astera_core::{Edge, EdgeKind, FileInfo, Node, NodeKind, SourceSpan, UnresolvedRef};
 
 /// In-memory cache for graph data that changes rarely but is expensive to compute.
 /// Wrapped in RefCell — safe because Database is behind Arc<Mutex> in AppState.
@@ -136,6 +136,20 @@ impl Database {
             );
 
             CREATE INDEX IF NOT EXISTS idx_metric_history_snapshot ON metric_history(snapshot_id);
+
+            -- Broken/unresolved references detected during analysis
+            CREATE TABLE IF NOT EXISTS broken_refs (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                source_node_id INTEGER NOT NULL REFERENCES nodes(id) ON DELETE CASCADE,
+                ref_name TEXT NOT NULL,
+                file_id INTEGER NOT NULL REFERENCES files(id) ON DELETE CASCADE,
+                line INTEGER NOT NULL,
+                kind TEXT NOT NULL,
+                target_name TEXT
+            );
+
+            CREATE INDEX IF NOT EXISTS idx_broken_refs_kind ON broken_refs(kind);
+            CREATE INDEX IF NOT EXISTS idx_broken_refs_file ON broken_refs(file_id);
 
             -- FTS5 full-text search (best-effort, may fail if sqlite lacks FTS5)
             ",
@@ -666,6 +680,84 @@ impl Database {
             Err(rusqlite::Error::QueryReturnedNoRows) => Ok(None),
             Err(e) => Err(e),
         }
+    }
+
+    // ─── Broken References ───
+
+    /// Clear all broken refs (called before re-index)
+    pub fn clear_broken_refs(&self) -> SqlResult<()> {
+        self.conn.execute("DELETE FROM broken_refs", [])?;
+        Ok(())
+    }
+
+    /// Bulk insert broken/unresolved references
+    pub fn insert_broken_refs(&self, refs: &[UnresolvedRef]) -> SqlResult<Vec<i64>> {
+        if refs.is_empty() {
+            return Ok(Vec::new());
+        }
+
+        let mut stmt = self.conn.prepare(
+            "INSERT INTO broken_refs (source_node_id, ref_name, file_id, line, kind, target_name)
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
+        )?;
+
+        let mut ids = Vec::with_capacity(refs.len());
+        for r in refs {
+            stmt.execute(params![
+                r.source_node_id,
+                r.ref_name,
+                r.file_id,
+                r.line,
+                r.kind.as_str(),
+                r.target_name,
+            ])?;
+            ids.push(self.conn.last_insert_rowid());
+        }
+        Ok(ids)
+    }
+
+    /// Query all broken refs, optionally filtered by kind
+    pub fn query_broken_refs(&self, kind: Option<&str>) -> SqlResult<Vec<UnresolvedRef>> {
+        let sql = match kind {
+            Some(_) => {
+                "SELECT id, source_node_id, ref_name, file_id, line, kind, target_name
+                 FROM broken_refs WHERE kind = ?1 ORDER BY file_id, line"
+            }
+            None => {
+                "SELECT id, source_node_id, ref_name, file_id, line, kind, target_name
+                 FROM broken_refs ORDER BY file_id, line"
+            }
+        };
+
+        let mut stmt = self.conn.prepare(sql)?;
+
+        let rows = if let Some(k) = kind {
+            stmt.query_map(params![k], Self::map_broken_ref)?
+        } else {
+            stmt.query_map([], Self::map_broken_ref)?
+        };
+
+        rows.collect()
+    }
+
+    fn map_broken_ref(row: &rusqlite::Row) -> rusqlite::Result<UnresolvedRef> {
+        use astera_core::BrokenRefKind;
+        let kind_str: String = row.get(5)?;
+        let kind = match kind_str.as_str() {
+            "UnresolvedCall" => BrokenRefKind::UnresolvedCall,
+            "DeadImport" => BrokenRefKind::DeadImport,
+            "UnresolvedRef" => BrokenRefKind::UnresolvedRef,
+            _ => BrokenRefKind::UnresolvedRef,
+        };
+        Ok(UnresolvedRef {
+            id: Some(row.get(0)?),
+            source_node_id: row.get(1)?,
+            ref_name: row.get(2)?,
+            file_id: row.get(3)?,
+            line: row.get(4)?,
+            kind,
+            target_name: row.get(6)?,
+        })
     }
 
     // ─── Migration helpers ───

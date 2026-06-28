@@ -1,4 +1,4 @@
-use astera_core::{Edge, EdgeKind, Node, NodeKind};
+use astera_core::{Edge, EdgeKind, Node, NodeKind, UnresolvedRef, BrokenRefKind};
 use std::collections::HashMap;
 
 /// Kind of lexical scope
@@ -348,6 +348,155 @@ impl Resolver {
         }
 
         resolved
+    }
+
+    /// Find references that could NOT be resolved — broken imports, calls to
+    /// nonexistent functions, dangling identifiers.
+    pub fn find_unresolved_refs(&self, nodes: &[Node], edges: &[Edge]) -> Vec<UnresolvedRef> {
+        let mut unresolved = Vec::new();
+
+        // Build a quick lookup: name → node id for all define-kind nodes
+        let mut def_map: HashMap<String, Vec<i64>> = HashMap::new();
+        for node in nodes {
+            if matches!(
+                node.kind,
+                NodeKind::Function
+                    | NodeKind::Class
+                    | NodeKind::Method
+                    | NodeKind::Interface
+                    | NodeKind::Enum
+                    | NodeKind::Variable
+                    | NodeKind::TypeAlias
+                    | NodeKind::Field
+            ) {
+                def_map
+                    .entry(node.name.clone())
+                    .or_default()
+                    .push(node.id.unwrap_or(-1));
+            }
+        }
+
+        // Check References edges — find ones that didn't resolve
+        for edge in edges {
+            if edge.kind != EdgeKind::References {
+                continue;
+            }
+
+            let ref_name = match nodes.iter().find(|n| n.id == Some(edge.source_node_id)) {
+                Some(n) => n.name.clone(),
+                None => continue,
+            };
+
+            // Skip builtins
+            if is_builtin(&ref_name) {
+                continue;
+            }
+
+            // Check if definition exists
+            if def_map.contains_key(&ref_name) {
+                continue;
+            }
+
+            // Check if it's covered by an import
+            let source_file_id = nodes
+                .iter()
+                .find(|n| n.id == Some(edge.source_node_id))
+                .map(|n| n.file_id)
+                .unwrap_or(-1);
+
+            let imported = self.imports.iter().any(|imp| {
+                imp.source_file_id == source_file_id && imp.imported_names.contains(&ref_name)
+            });
+
+            if imported {
+                continue;
+            }
+
+            let line = nodes
+                .iter()
+                .find(|n| n.id == Some(edge.source_node_id))
+                .map(|n| n.span.start_line)
+                .unwrap_or(0);
+
+            unresolved.push(UnresolvedRef {
+                id: None,
+                source_node_id: edge.source_node_id,
+                ref_name,
+                file_id: source_file_id,
+                line,
+                kind: BrokenRefKind::UnresolvedRef,
+                target_name: None,
+            });
+        }
+
+        // Check Calls edges — find calls to nonexistent functions
+        for edge in edges {
+            if edge.kind != EdgeKind::Calls {
+                continue;
+            }
+
+            let call_name = match nodes.iter().find(|n| n.id == Some(edge.target_node_id)) {
+                Some(n) => n.name.clone(),
+                None => continue,
+            };
+
+            // Skip builtins
+            if is_builtin(&call_name) {
+                continue;
+            }
+
+            // Check if the callee is defined somewhere
+            if def_map.contains_key(&call_name) {
+                continue;
+            }
+
+            let caller = nodes.iter().find(|n| n.id == Some(edge.source_node_id));
+            let file_id = caller.map(|n| n.file_id).unwrap_or(0);
+            let line = caller.map(|n| n.span.start_line).unwrap_or(0);
+
+            unresolved.push(UnresolvedRef {
+                id: None,
+                source_node_id: edge.source_node_id,
+                ref_name: call_name,
+                file_id,
+                line,
+                kind: BrokenRefKind::UnresolvedCall,
+                target_name: Some(
+                    nodes
+                        .iter()
+                        .find(|n| n.id == Some(edge.target_node_id))
+                        .map(|n| n.name.clone())
+                        .unwrap_or_default(),
+                ),
+            });
+        }
+
+        // Check Import nodes — find imports that don't resolve to any known file/module
+        for node in nodes {
+            if node.kind != NodeKind::Import {
+                continue;
+            }
+
+            let import_text = &node.name;
+            let (_, module_path, imported_names) = parse_import_text(import_text);
+
+            // Check if any imported name exists as a definition
+            for name in &imported_names {
+                if !def_map.contains_key(name) {
+                    unresolved.push(UnresolvedRef {
+                        id: None,
+                        source_node_id: node.id.unwrap_or(0),
+                        ref_name: name.clone(),
+                        file_id: node.file_id,
+                        line: node.span.start_line,
+                        kind: BrokenRefKind::DeadImport,
+                        target_name: Some(module_path.clone()),
+                    });
+                }
+            }
+        }
+
+        unresolved
     }
 }
 

@@ -98,6 +98,18 @@ export interface ImpactResponse {
   affected: ImpactNode[]
 }
 
+// ─── Broken references (dead imports, unresolved calls) ───
+
+export interface BrokenRef {
+  id: number | null
+  source_node_id: number
+  ref_name: string
+  file_id: number
+  line: number
+  kind: 'UnresolvedCall' | 'DeadImport' | 'UnresolvedRef'
+  target_name: string | null
+}
+
 // ─── Module summary (progressive loading) ───
 
 export interface ModuleSummary {
@@ -144,6 +156,7 @@ export type PanelId =
   | 'files'
   | 'metrics'
   | 'impact'
+  | 'broken-refs'
   | 'settings'
   | 'search'
   | null

@@ -231,6 +231,51 @@ pub struct ParseResult {
     pub edges: Vec<Edge>,
 }
 
+/// Kind of broken reference
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub enum BrokenRefKind {
+    /// Function/method called but never defined in the codebase
+    UnresolvedCall,
+    /// Import referencing a file or symbol that doesn't exist
+    DeadImport,
+    /// Variable/identifier referenced but no definition found
+    UnresolvedRef,
+}
+
+impl BrokenRefKind {
+    pub fn as_str(&self) -> &'static str {
+        match self {
+            BrokenRefKind::UnresolvedCall => "UnresolvedCall",
+            BrokenRefKind::DeadImport => "DeadImport",
+            BrokenRefKind::UnresolvedRef => "UnresolvedRef",
+        }
+    }
+}
+
+impl fmt::Display for BrokenRefKind {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", self.as_str())
+    }
+}
+
+/// A broken/unresolved reference detected during analysis
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct UnresolvedRef {
+    pub id: Option<i64>,
+    /// Node ID of the reference site (the caller/importer)
+    pub source_node_id: i64,
+    /// Name that was referenced but not resolved
+    pub ref_name: String,
+    /// File where the broken reference lives
+    pub file_id: i64,
+    /// Line number of the reference
+    pub line: u32,
+    /// Kind of broken reference
+    pub kind: BrokenRefKind,
+    /// Optional: the target name from the import/call (may differ from ref_name)
+    pub target_name: Option<String>,
+}
+
 /// Report from a successful index operation
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct IndexReport {

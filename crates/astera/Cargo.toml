@@ -20,6 +20,7 @@ astera-core = { path = "../astera-core" }
 astera-discovery = { path = "../astera-discovery" }
 astera-parser = { path = "../astera-parser" }
 astera-storage = { path = "../astera-storage" }
+astera-resolver = { path = "../astera-resolver" }
 astera-metrics = { path = "../astera-metrics" }
 astera-export = { path = "../astera-export" }
 astera-watcher = { path = "../astera-watcher" }

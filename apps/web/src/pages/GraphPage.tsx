@@ -8,6 +8,7 @@ import { SymbolsPanel } from './panels/SymbolsPanel'
 import { FilesPanel } from './panels/FilesPanel'
 import { MetricsPanel } from './panels/MetricsPanel'
 import { ImpactPanel } from './panels/ImpactPanel'
+import { BrokenRefsPanel } from './panels/BrokenRefsPanel'
 import { SettingsPanel } from './panels/SettingsPanel'
 import { useUIStore } from '../store'
 import { COLORS, NODE_COLORS } from '../constants'
@@ -64,9 +65,13 @@ export function GraphPage() {
   const childrenMutation = useMutation({
     mutationFn: (nodeId: number) => api.children(nodeId),
     onSuccess: () => {
-      // Invalidate children cache after drill-down so re-visits get fresh data
       queryClient.invalidateQueries({ queryKey: ['children'] })
     },
+  })
+
+  // Dependency subtree mutation: BFS through all edges for a leaf node
+  const subtreeMutation = useMutation({
+    mutationFn: (nodeId: number) => api.subtree(nodeId, 5),
   })
 
   // Track last processed mutation to avoid re-processing
@@ -113,6 +118,42 @@ export function GraphPage() {
     }
   }, [childrenMutation.data, childrenMutation.variables, setGraphState, pushBreadcrumb])
 
+  // Process subtree mutation result
+  const lastProcessedSubtreeRef = useRef<string | undefined>(undefined)
+  useEffect(() => {
+    const mutationKey = subtreeMutation.data
+      ? `${subtreeMutation.variables}-${subtreeMutation.data.nodes.length}`
+      : undefined
+    if (subtreeMutation.data && mutationKey !== lastProcessedSubtreeRef.current) {
+      lastProcessedSubtreeRef.current = mutationKey
+      const data = subtreeMutation.data
+      const nodeId = subtreeMutation.variables as number
+      const clickedNode = nodesRef.current.find(n => n.id === nodeId)
+      if (!clickedNode) return
+
+      // Merge subtree into visible set (deduplicate by id)
+      const existingIds = new Set(nodesRef.current.map(n => n.id))
+      const newNodes = data.nodes.filter(n => !existingIds.has(n.id))
+      const existingEdgeKeys = new Set(
+        edgesRef.current.map(e => `${e.source}-${e.target}-${e.kind}`)
+      )
+      const newEdges = data.edges.filter(
+        e => !existingEdgeKeys.has(`${e.source}-${e.target}-${e.kind}`)
+      )
+
+      setVisibleNodes(prev => [...prev, ...newNodes])
+      setVisibleEdges(prev => [...prev, ...newEdges])
+
+      // Update state machine
+      setGraphState({ phase: 'moduleFocused', moduleId: nodeId, moduleName: clickedNode.name })
+      pushBreadcrumb(clickedNode.name + ' (subtree)', {
+        phase: 'moduleFocused',
+        moduleId: nodeId,
+        moduleName: clickedNode.name,
+      })
+    }
+  }, [subtreeMutation.data, subtreeMutation.variables, setGraphState, pushBreadcrumb])
+
   const handleNodeDoubleClick = useCallback((id: number) => {
     const node = visibleNodes.find(n => n.id === id)
     if (!node) return
@@ -120,8 +161,12 @@ export function GraphPage() {
       // Drill down into container
       childrenMutation.mutate(id)
       setDrillStack(prev => [...prev, { id, name: node.name, kind: node.kind, nodes: [...visibleNodes], edges: [...visibleEdges] }])
+    } else {
+      // For leaf nodes: fetch full dependency subtree (callers + callees recursively)
+      subtreeMutation.mutate(id)
+      setDrillStack(prev => [...prev, { id, name: node.name, kind: node.kind, nodes: [...visibleNodes], edges: [...visibleEdges] }])
     }
-  }, [visibleNodes, childrenMutation])
+  }, [visibleNodes, childrenMutation, subtreeMutation])
 
   // Filter by kind and search
   const filteredNodes = visibleNodes.filter(n =>
@@ -313,6 +358,7 @@ export function GraphPage() {
       <OverlayPanel id="files" title="Files"><FilesPanel /></OverlayPanel>
       <OverlayPanel id="metrics" title="Metrics"><MetricsPanel /></OverlayPanel>
       <OverlayPanel id="impact" title="Impact Analysis"><ImpactPanel /></OverlayPanel>
+      <OverlayPanel id="broken-refs" title="Broken References"><BrokenRefsPanel /></OverlayPanel>
       <OverlayPanel id="settings" title="Settings"><SettingsPanel /></OverlayPanel>
     </div>
   )
