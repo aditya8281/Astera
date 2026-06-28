@@ -327,14 +327,16 @@ Every component is engineered — clean geometry, consistent spacing, crisp bord
 - **Font:** Body (12px) for labels, Mono Small (10px) for kind badges
 - **Entrance:** fadeIn 150ms
 
-### Graph Canvas
+### Graph Canvas (2D Canvas)
 
-- **Background:** Deep Space (#1F2128) with radial gradient vignette (top: #23252D → bottom: #1B1D23)
-- **Nodes:** Geometry per NODE_SHAPES mapping (spheres, cubes, capsules, diamonds), muted Node Kind Colors at 92% opacity
-- **Edges:** 1px stroke, Edge Default at 22% opacity, cyan on hover/selection
-- **Labels:** Mono Data (11px), Label color (#AEB8C7) at 75% opacity
-- **Selection glow:** 4px cyan ring around selected node
-- **Hover highlight:** Edge color shift to cyan, node opacity increase
+- **Background:** Deep Space (#1F2128) with particle constellation field (~200 tiny white dots at 6% opacity, connected by faint lines when within 120px)
+- **Nodes:** Colored circles, radius by kind: File/Module=8px, Class/Interface/Enum=6px, Function/Method=5px, other=4px. Muted Node Kind Colors.
+- **Edges:** 0.5px stroke, Edge Default at 25% opacity. Highlighted edges on selection: 1.5px, cyan.
+- **Labels:** Mono Data (10px), center-aligned below node. Visible at zoom ≥1.2x.
+- **Selection ring:** 1px cyan ring at 30% opacity, 5px outside node radius
+- **Reticle pulse:** Expanding ring (0→20px beyond selection ring) that fades out over 600ms on node select. Precision instrument "acquiring target" feel.
+- **Hover glow:** Faint 1px cyan ring at 15% opacity when cursor is near a node (not selected).
+- **Interaction:** Click to select, double-click to drill into containers, scroll to zoom toward cursor, drag to pan.
 
 ## 6. Do's and Don'ts
 

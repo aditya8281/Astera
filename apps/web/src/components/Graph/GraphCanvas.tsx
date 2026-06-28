@@ -89,6 +89,9 @@ export function GraphCanvas({ nodes, edges, isLoading, error, onNodeDoubleClick 
   const beamsRef = useRef<{ id: number; startTime: number; neighbors: number[] } | null>(null)
   const prevBeamsIdRef = useRef<number | null>(null)
 
+  // --- Ambient breathing (perpetual subtle drift, graph never feels dead) ---
+  const breathPhaseRef = useRef<Map<number, { phaseX: number; phaseY: number; speed: number; amp: number }>>(new Map())
+
   // --- Animation state ---
   // Node entrance: birth timestamp per node (staggered by distance from center)
   const nodeBirthRef = useRef<Map<number, number>>(new Map())
@@ -213,6 +216,18 @@ export function GraphCanvas({ nodes, edges, isLoading, error, onNodeDoubleClick 
       for (const id of positions.keys()) birthMap.set(id, now)
       nodeBirthRef.current = birthMap
     }
+
+    // Initialize ambient breathing: each node gets unique phase + amplitude
+    const breathMap = new Map<number, { phaseX: number; phaseY: number; speed: number; amp: number }>()
+    for (const [id] of positions) {
+      breathMap.set(id, {
+        phaseX: Math.random() * Math.PI * 2,
+        phaseY: Math.random() * Math.PI * 2,
+        speed: 0.3 + Math.random() * 0.4,  // radians per second
+        amp: 0.8 + Math.random() * 1.2,     // pixels of drift
+      })
+    }
+    breathPhaseRef.current = breathMap
   }, [positions])
 
   // Reset auto-fit + entrance when nodes change (drill-down)
@@ -364,15 +379,24 @@ export function GraphCanvas({ nodes, edges, isLoading, error, onNodeDoubleClick 
       }
 
       // --- Draw edges ---
+      const timeSec = time / 1000
       for (const edge of currentEdges) {
         const from = currentPositions.get(edge.source)
         const to = currentPositions.get(edge.target)
         if (!from || !to) continue
 
-        const fx = from.x * scale + tx
-        const fy = from.y * scale + ty
-        const tox = to.x * scale + tx
-        const toy = to.y * scale + ty
+        // Apply breathing offset to edge endpoints too
+        const bFrom = breathPhaseRef.current.get(edge.source)
+        const bTo = breathPhaseRef.current.get(edge.target)
+        const bfx = bFrom && !reducedMotionRef.current ? Math.sin(timeSec * bFrom.speed + bFrom.phaseX) * bFrom.amp : 0
+        const bfy = bFrom && !reducedMotionRef.current ? Math.cos(timeSec * bFrom.speed * 0.7 + bFrom.phaseY) * bFrom.amp : 0
+        const btx = bTo && !reducedMotionRef.current ? Math.sin(timeSec * bTo.speed + bTo.phaseX) * bTo.amp : 0
+        const bty = bTo && !reducedMotionRef.current ? Math.cos(timeSec * bTo.speed * 0.7 + bTo.phaseY) * bTo.amp : 0
+
+        const fx = from.x * scale + tx + bfx
+        const fy = from.y * scale + ty + bfy
+        const tox = to.x * scale + tx + btx
+        const toy = to.y * scale + ty + bty
 
         // Skip off-screen
         if ((fx < -50 && tox < -50) || (fy < -50 && toy < -50)) continue
@@ -410,16 +434,16 @@ export function GraphCanvas({ nodes, edges, isLoading, error, onNodeDoubleClick 
         if (isDirectHighlight) {
           ctx.strokeStyle = COLORS.selection
           ctx.globalAlpha = edgeAlpha
-          ctx.lineWidth = 1.5
+          ctx.lineWidth = 2.0
         } else if (cascadeStrength > 0.05) {
           // Delight: cascade glow — cyan at decreasing intensity
           ctx.strokeStyle = COLORS.selection
-          ctx.globalAlpha = cascadeStrength * 0.6 * edgeAlpha
-          ctx.lineWidth = 1.0
+          ctx.globalAlpha = cascadeStrength * 0.7 * edgeAlpha
+          ctx.lineWidth = 1.5
         } else {
           ctx.strokeStyle = COLORS.edgeDefault
-          ctx.globalAlpha = edgeAlpha
-          ctx.lineWidth = 0.8
+          ctx.globalAlpha = edgeAlpha * 0.85
+          ctx.lineWidth = 1.2
         }
 
         ctx.stroke()
@@ -431,8 +455,16 @@ export function GraphCanvas({ nodes, edges, isLoading, error, onNodeDoubleClick 
         const pos = currentPositions.get(node.id)
         if (!pos) continue
 
-        const nx = pos.x * scale + tx
-        const ny = pos.y * scale + ty
+        // Ambient breathing: perpetual subtle sine drift
+        const breath = breathPhaseRef.current.get(node.id)
+        let bx = 0, by = 0
+        if (breath && !reducedMotionRef.current) {
+          bx = Math.sin(timeSec * breath.speed + breath.phaseX) * breath.amp
+          by = Math.cos(timeSec * breath.speed * 0.7 + breath.phaseY) * breath.amp
+        }
+
+        const nx = pos.x * scale + tx + bx
+        const ny = pos.y * scale + ty + by
 
         if (nx < -30 || nx > w + 30 || ny < -30 || ny > h + 30) continue
 

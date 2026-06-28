@@ -36,8 +36,8 @@ export const COLORS = {
   nodeHover: '#F1F5F9',
   nodeSelected: '#59F6FF',
 
-  // Graph edges — bright on OLED
-  edgeDefault: 'rgba(120,160,210,0.55)',
+  // Graph edges — visible on OLED black
+  edgeDefault: '#3A506B',
   edgeHover: '#59F6FF',
 
   // Labels
