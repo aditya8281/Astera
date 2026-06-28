@@ -3,13 +3,12 @@ import type { GraphNode, GraphEdge } from '../types'
 
 /**
  * 2D force-directed layout simulation.
- * Returns x/y positions — no z-axis.
  *
- * Layout philosophy: NO center gravity. NO cluster gravity.
- * Just repulsion (constant) + link springs (threshold-based).
- * auto-fit camera handles centering the view.
- * Nodes spread naturally from repulsion; links pull connected
- * nodes to a threshold distance. That's it.
+ * Zero gravity — pure repulsion + link springs.
+ * Nodes orbit and settle organically, never collapsing to center.
+ * Constant repulsion (no decay) keeps nodes spread.
+ * Link springs: pull if too far, push if too close.
+ * Moderate damping lets nodes oscillate visibly before settling.
  */
 
 export interface Vec2 { x: number; y: number }
@@ -68,25 +67,22 @@ interface Link { source: number; target: number }
 class ForceSimulation2D {
   positions: Particle2D[]
   links: Link[]
-  cancelled = false
   settled = false
+  cancelled = false
   private nodeMap: Map<number, Particle2D>
-  private connectedMap: Map<number, Set<number>>
-  private n: number
 
-  // Tuning — these are constants, not multiplied by alpha
-  private readonly REPULSION = 600       // constant repulsion strength
-  private readonly LINK_DISTANCE = 150   // target distance between linked nodes
-  private readonly LINK_SPRING = 0.03    // spring constant
-  private readonly DAMPING = 0.5         // velocity damping per tick
-  private readonly MAX_TICKS = 300       // hard stop
-  private readonly MIN_VELOCITY = 0.05   // velocity threshold for settling
+  // --- Tuning constants ---
+  private readonly REPULSION = 800
+  private readonly REPULSION_FLOOR = 200     // prevent singularity at d=0
+  private readonly LINK_DISTANCE = 80
+  private readonly LINK_SPRING = 0.04
+  private readonly DAMPING = 0.7
+  private readonly MIN_VELOCITY = 0.02
+  private readonly MAX_TICKS = 500
   private tickCount = 0
 
   constructor(nodes: GraphNode[], edges: GraphEdge[]) {
-    this.n = nodes.length
-    // Wide initial spread — spread out, not clustered
-    const spread = Math.max(15, Math.sqrt(this.n) * 5)
+    const spread = Math.max(15, Math.sqrt(nodes.length) * 5)
     this.positions = nodes.map(n => ({
       id: n.id,
       x: (Math.random() - 0.5) * spread,
@@ -97,70 +93,45 @@ class ForceSimulation2D {
     this.links = edges
       .filter(e => this.nodeMap.has(e.source) && this.nodeMap.has(e.target))
       .map(e => ({ source: e.source, target: e.target }))
-
-    this.connectedMap = new Map()
-    for (const p of this.positions) this.connectedMap.set(p.id, new Set())
-    for (const link of this.links) {
-      this.connectedMap.get(link.source)?.add(link.target)
-      this.connectedMap.get(link.target)?.add(link.source)
-    }
   }
 
   step() {
     if (this.settled || this.cancelled) return
-    this.tickCount++
-    if (this.tickCount > this.MAX_TICKS) { this.settled = true; return }
 
-    const n = this.n
+    const n = this.positions.length
     if (n === 0) { this.settled = true; return }
 
-    // Reset velocities
-    for (const p of this.positions) { p.vx = 0; p.vy = 0 }
-
-    // 1. REPULSION — constant, NOT decaying with alpha
-    //    Every pair of nodes pushes apart
-    if (n <= 400) {
-      for (let i = 0; i < n; i++) {
-        for (let j = i + 1; j < n; j++) {
-          const a = this.positions[i], b = this.positions[j]
-          let dx = b.x - a.x, dy = b.y - a.y
-          let dist = Math.sqrt(dx * dx + dy * dy)
-          if (dist < 1) dist = 1
-          // Inverse-square repulsion with floor
-          const force = this.REPULSION / (dist * dist + 100)
-          const fx = (dx / dist) * force, fy = (dy / dist) * force
-          a.vx -= fx; a.vy -= fy
-          b.vx += fx; b.vy += fy
+    // 1. REPULSION — every pair pushes apart (constant, no gravity)
+    for (let i = 0; i < n; i++) {
+      for (let j = i + 1; j < n; j++) {
+        const a = this.positions[i], b = this.positions[j]
+        let dx = b.x - a.x, dy = b.y - a.y
+        const distSq = dx * dx + dy * dy
+        if (distSq < 0.01) {
+          // Jitter overlapping nodes apart
+          const angle = Math.random() * Math.PI * 2
+          a.vx -= Math.cos(angle) * 0.5
+          a.vy -= Math.sin(angle) * 0.5
+          b.vx += Math.cos(angle) * 0.5
+          b.vy += Math.sin(angle) * 0.5
+          continue
         }
-      }
-    } else {
-      // Large graph: sample-based repulsion for perf
-      const step = Math.max(1, Math.floor(n / 200))
-      for (let i = 0; i < n; i += step) {
-        const a = this.positions[i]
-        for (let j = 0; j < n; j++) {
-          if (i === j) continue
-          const b = this.positions[j]
-          let dx = b.x - a.x, dy = b.y - a.y
-          let dist = Math.sqrt(dx * dx + dy * dy)
-          if (dist < 1) dist = 1
-          const force = this.REPULSION * 0.4 / (dist * dist + 100)
-          a.vx -= (dx / dist) * force
-          a.vy -= (dy / dist) * force
-        }
+        const dist = Math.sqrt(distSq)
+        const force = this.REPULSION / (distSq + this.REPULSION_FLOOR)
+        const fx = (dx / dist) * force
+        const fy = (dy / dist) * force
+        a.vx -= fx; a.vy -= fy
+        b.vx += fx; b.vy += fy
       }
     }
 
-    // 2. LINK SPRINGS — threshold-based, constant
-    //    If distance > LINK_DISTANCE: pull together
-    //    If distance < LINK_DISTANCE: push apart
+    // 2. LINK SPRINGS — threshold-based attraction/repulsion
     for (const link of this.links) {
       const a = this.nodeMap.get(link.source), b = this.nodeMap.get(link.target)
       if (!a || !b) continue
       let dx = b.x - a.x, dy = b.y - a.y
       let dist = Math.sqrt(dx * dx + dy * dy)
       if (dist < 0.5) dist = 0.5
-      // Spring: rest at LINK_DISTANCE, push if too close, pull if too far
       const displacement = dist - this.LINK_DISTANCE
       const force = displacement * this.LINK_SPRING
       const fx = (dx / dist) * force, fy = (dy / dist) * force
@@ -168,18 +139,39 @@ class ForceSimulation2D {
       b.vx -= fx; b.vy -= fy
     }
 
-    // 3. Integrate with strong damping
-    for (const p of this.positions) {
-      p.vx *= this.DAMPING; p.vy *= this.DAMPING
-      p.x += p.vx; p.y += p.vy
+    // 3. Gentle radial energy: slight outward push to prevent collapse
+    if (n > 5) {
+      for (const p of this.positions) {
+        const distFromCenter = Math.sqrt(p.x * p.x + p.y * p.y)
+        if (distFromCenter < 10) {
+          const angle = Math.atan2(p.y, p.x) || Math.random() * Math.PI * 2
+          p.vx += Math.cos(angle) * 2
+          p.vy += Math.sin(angle) * 2
+        }
+      }
     }
 
-    // Check if settled: all velocities below threshold
-    let totalVelocity = 0
+    // 4. Integrate with moderate damping
     for (const p of this.positions) {
-      totalVelocity += Math.abs(p.vx) + Math.abs(p.vy)
+      p.vx *= this.DAMPING
+      p.vy *= this.DAMPING
+      p.x += p.vx
+      p.y += p.vy
     }
-    if (totalVelocity / n < this.MIN_VELOCITY && this.tickCount > 30) {
+
+    // 5. Check settlement
+    this.tickCount++
+    if (this.tickCount > 50) {
+      let totalVel = 0
+      for (const p of this.positions) {
+        totalVel += Math.abs(p.vx) + Math.abs(p.vy)
+      }
+      const avgVel = totalVel / n
+      if (avgVel < this.MIN_VELOCITY) {
+        this.settled = true
+      }
+    }
+    if (this.tickCount >= this.MAX_TICKS) {
       this.settled = true
     }
   }
