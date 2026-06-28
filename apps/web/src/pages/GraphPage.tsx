@@ -156,21 +156,21 @@ export function GraphPage() {
         onNodeDoubleClick={handleNodeDoubleClick}
       />
 
-      {/* Stats badges */}
+      {/* Stats badges — staggered entrance */}
       {visibleNodes.length > 0 && (
         <div className="absolute top-3 right-3 flex gap-2" style={{ zIndex: 'var(--z-minimap)' }}>
-          <StatBadge label="Nodes" value={filteredNodes.length} />
-          <StatBadge label="Edges" value={filteredEdges.length} />
+          <StatBadge label="Nodes" value={filteredNodes.length} delay={0} />
+          <StatBadge label="Edges" value={filteredEdges.length} delay={1} />
           {drillStack.length > 0 && (
-            <StatBadge label="Level" value={drillStack.length} />
+            <StatBadge label="Level" value={drillStack.length} delay={2} />
           )}
         </div>
       )}
 
-      {/* Drill-down indicator */}
+      {/* Drill-down indicator — slide up entrance */}
       {drillStack.length > 0 && (
         <div
-          className="absolute top-3 left-1/2 -translate-x-1/2 px-3 py-1 rounded-full font-mono text-[11px]"
+          className="absolute top-3 left-1/2 -translate-x-1/2 px-3 py-1 rounded-full font-mono text-[11px] animate-slide-up-panel"
           style={{
             background: `${COLORS.surface}E0`,
             border: `1px solid ${COLORS.selection}40`,
@@ -182,14 +182,15 @@ export function GraphPage() {
         </div>
       )}
 
-      {/* Selected node detail panel */}
+      {/* Selected node detail panel — scale-in from origin */}
       {selectedNode && (
         <div
-          className="absolute bottom-16 left-3 rounded-lg p-3 w-64 animate-fade-in"
+          className="absolute bottom-16 left-3 rounded-lg p-3 w-64 animate-scale-in"
           style={{
             background: `${COLORS.surface}E8`,
             border: `1px solid ${COLORS.border}`,
             zIndex: 'var(--z-minimap)',
+            transformOrigin: 'bottom left',
           }}
         >
           <div className="flex items-center gap-2 mb-1">
@@ -249,7 +250,7 @@ export function GraphPage() {
   )
 }
 
-function StatBadge({ label, value }: { label: string; value: number }) {
+function StatBadge({ label, value, delay = 0 }: { label: string; value: number; delay?: number }) {
   const [display, setDisplay] = useState(0)
 
   useEffect(() => {
@@ -270,11 +271,13 @@ function StatBadge({ label, value }: { label: string; value: number }) {
 
   return (
     <div
-      className="px-2.5 py-1 rounded font-mono text-xs"
+      className="px-2.5 py-1 rounded font-mono text-xs animate-fade-in"
       style={{
         background: `${COLORS.surface}D0`,
         border: `1px solid ${COLORS.border}`,
         color: COLORS.textMuted,
+        animationDelay: `${delay * 50}ms`,
+        animationFillMode: 'backwards',
       }}
     >
       <span style={{ color: COLORS.text }}>{display.toLocaleString()}</span>

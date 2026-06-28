@@ -8,29 +8,29 @@
 @tailwind components;
 @tailwind utilities;
 
-/* ─── CSS Custom Properties (Warm Charcoal + Electric Cyan) ─── */
+/* ─── CSS Custom Properties (OLED Black + Electric Cyan) ─── */
 
 :root {
-  --color-bg: #1F2128;
-  --color-bg-gradient-top: #23252D;
-  --color-bg-gradient-bottom: #1B1D23;
-  --color-surface: #2A2D35;
-  --color-surface-dim: #252830;
-  --color-surface-hover: #32353D;
-  --color-border: #3A3D45;
-  --color-border-light: #454850;
+  --color-bg: #000000;
+  --color-bg-gradient-top: #050507;
+  --color-bg-gradient-bottom: #000000;
+  --color-surface: #0E0F12;
+  --color-surface-dim: #0A0B0E;
+  --color-surface-hover: #16171C;
+  --color-border: #1E1F25;
+  --color-border-light: #26272E;
   --color-text: #E0E4EC;
   --color-text-muted: #8B91A0;
-  --color-text-dim: #6B7080;
+  --color-text-dim: #5A6070;
 
   --color-accent: #59F6FF;
   --color-accent-dim: #3AA8B0;
 
-  --color-node-default: #A7B5C9;
+  --color-node-default: #B0BECC;
   --color-node-hover: #DCE8FF;
   --color-node-selected: #59F6FF;
 
-  --color-edge-default: rgba(180,190,210,0.22);
+  --color-edge-default: rgba(160,175,200,0.30);
   --color-edge-hover: #59F6FF;
 
   --color-label: #AEB8C7;
@@ -142,6 +142,16 @@ code, pre, .mono {
 @keyframes fadeInUp {
   from { transform: translateX(-50%) translateY(8px); opacity: 0; }
   to { transform: translateX(-50%) translateY(0); opacity: 1; }
+}
+
+@keyframes scaleIn {
+  from { transform: scale(0.97); opacity: 0; }
+  to { transform: scale(1); opacity: 1; }
+}
+
+@keyframes slideUpPanel {
+  from { transform: translateY(6px); opacity: 0; }
+  to { transform: translateY(0); opacity: 1; }
 }
 
 @keyframes slideInRight {
