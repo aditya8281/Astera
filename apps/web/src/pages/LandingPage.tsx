@@ -42,7 +42,7 @@ const STEPS = [
   { cmd: 'astera serve', label: 'Explore in browser' },
 ]
 
-// ─── Mini 3D graph for hero ───
+// ─── Mini force graph for hero ───
 
 function MiniGraph() {
   const canvasRef = useRef<HTMLCanvasElement>(null)
