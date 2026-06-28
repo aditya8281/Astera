@@ -761,8 +761,8 @@ pub async fn dependency_subtree(
         // Follow outgoing edges (callee direction)
         if let Some(targets) = outgoing.get(&current) {
             for &(target, ref kind) in targets {
-                if !visited.contains_key(&target) {
-                    visited.insert(target, depth + 1);
+                if let std::collections::hash_map::Entry::Vacant(e) = visited.entry(target) {
+                    e.insert(depth + 1);
                     queue.push_back((target, depth + 1));
                 }
                 result_edges.push((current, target, kind.clone()));
@@ -772,8 +772,8 @@ pub async fn dependency_subtree(
         // Follow incoming edges (caller direction)
         if let Some(sources) = incoming.get(&current) {
             for &(source, ref kind) in sources {
-                if !visited.contains_key(&source) {
-                    visited.insert(source, depth + 1);
+                if let std::collections::hash_map::Entry::Vacant(e) = visited.entry(source) {
+                    e.insert(depth + 1);
                     queue.push_back((source, depth + 1));
                 }
                 result_edges.push((source, current, kind.clone()));
