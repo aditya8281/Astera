@@ -27,7 +27,7 @@ const FEATURES: Array<{ icon: ReactNode; title: string; desc: string }> = [
   {
     icon: <ImpactIcon size={20} color={COLORS.textMuted} />,
     title: 'Explore',
-    desc: 'Interactive 3D knowledge graph. Drill down into modules, trace call paths, find clusters.',
+    desc: 'Interactive force-directed graph. Drill down into modules, trace call paths, find clusters.',
   },
   {
     icon: <MetricsIcon size={20} color={COLORS.textMuted} />,
@@ -211,7 +211,7 @@ export function LandingPage() {
             style={{ color: COLORS.textMuted, lineHeight: 1.7, textWrap: 'pretty' }}
           >
             Local-first static analysis engine. Parses your codebase into a queryable
-            code property graph and lets you explore it in 3D.
+            code property graph and lets you explore it visually.
           </p>
 
           {/* Install command */}

@@ -2,16 +2,14 @@ import { useState, useEffect, useRef } from 'react'
 import type { GraphNode, GraphEdge } from '../types'
 
 /**
- * 2D force-directed layout simulation.
+ * 2D force-directed layout with Barnes-Hut quadtree for O(n log n) performance.
  *
  * Physics:
- * - Repulsion: inverse-square with floor (prevents singularity)
- * - Link springs: threshold-based — pull if > target, push if < target/2
- * - Connection attraction: connected nodes attract gently (draws clusters together)
- * - Radial containment: prevents unbounded outward drift
- * - Moderate damping with velocity floor
- *
- * Adaptive: spread and forces scale with node count so small and large repos both look good.
+ * - Repulsion: Barnes-Hut approximate (O(n log n) vs O(n²))
+ * - Link springs: threshold-based attraction/repulsion
+ * - Connection attraction: connected nodes pull together
+ * - Radial containment: prevents unbounded drift
+ * - Adaptive tuning: forces scale with node count
  */
 
 export interface Vec2 { x: number; y: number }
@@ -66,6 +64,133 @@ interface Particle2D {
   id: number; x: number; y: number; vx: number; vy: number
 }
 interface Link { source: number; target: number }
+
+// ─── Barnes-Hut Quadtree ───
+
+interface QuadNode {
+  x: number; y: number; mass: number; totalX: number; totalY: number
+  childNW: QuadNode | null; childNE: QuadNode | null
+  childSW: QuadNode | null; childSE: QuadNode | null
+}
+
+const THETA = 0.8 // Accuracy threshold for Barnes-Hut
+
+function buildQuadtree(particles: Particle2D[]): QuadNode {
+  let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity
+  for (const p of particles) {
+    if (p.x < minX) minX = p.x
+    if (p.y < minY) minY = p.y
+    if (p.x > maxX) maxX = p.x
+    if (p.y > maxY) maxY = p.y
+  }
+  // Expand bounds slightly to avoid edge cases
+  const dx = (maxX - minX) || 1
+  const dy = (maxY - minY) || 1
+  const pad = Math.max(dx, dy) * 0.1
+  minX -= pad; minY -= pad; maxX += pad; maxY += pad
+
+  const root: QuadNode = { x: 0, y: 0, mass: 0, totalX: 0, totalY: 0, childNW: null, childNE: null, childSW: null, childSE: null }
+
+  for (const p of particles) {
+    insertParticle(root, p, minX, minY, maxX, maxY)
+  }
+
+  return root
+}
+
+function insertParticle(node: QuadNode, p: Particle2D, minX: number, minY: number, maxX: number, maxY: number) {
+  // Update center of mass
+  const newMass = node.mass + 1
+  node.totalX += p.x
+  node.totalY += p.y
+  node.x = node.totalX / newMass
+  node.y = node.totalY / newMass
+  node.mass = newMass
+
+  const midX = (minX + maxX) / 2
+  const midY = (minY + maxY) / 2
+
+  // Leaf node with existing particle — split
+  if (node.mass === 2 && !node.childNW) {
+    // Re-insert the existing particle into a quadrant
+    const existingX = node.x
+    const existingY = node.y
+    const exId = -1 // Virtual — just for position
+    const exP: Particle2D = { id: exId, x: existingX, y: existingY, vx: 0, vy: 0 }
+    insertIntoChild(node, exP, minX, minY, maxX, maxY, midX, midY)
+  }
+
+  // Insert new particle
+  if (node.mass > 1 || node.childNW) {
+    insertIntoChild(node, p, minX, minY, maxX, maxY, midX, midY)
+  }
+}
+
+function insertIntoChild(node: QuadNode, p: Particle2D, minX: number, minY: number, maxX: number, maxY: number, midX: number, midY: number) {
+  const childMinX = p.x < midX ? minX : midX
+  const childMaxX = p.x < midX ? midX : maxX
+  const childMinY = p.y < midY ? minY : midY
+  const childMaxY = p.y < midY ? midY : maxY
+
+  if (p.x < midX) {
+    if (p.y < midY) {
+      if (!node.childNW) node.childNW = { x: 0, y: 0, mass: 0, totalX: 0, totalY: 0, childNW: null, childNE: null, childSW: null, childSE: null }
+      insertParticle(node.childNW, p, childMinX, childMinY, childMaxX, childMaxY)
+    } else {
+      if (!node.childSW) node.childSW = { x: 0, y: 0, mass: 0, totalX: 0, totalY: 0, childNW: null, childNE: null, childSW: null, childSE: null }
+      insertParticle(node.childSW, p, childMinX, childMinY, childMaxX, childMaxY)
+    }
+  } else {
+    if (p.y < midY) {
+      if (!node.childNE) node.childNE = { x: 0, y: 0, mass: 0, totalX: 0, totalY: 0, childNW: null, childNE: null, childSW: null, childSE: null }
+      insertParticle(node.childNE, p, childMinX, childMinY, childMaxX, childMaxY)
+    } else {
+      if (!node.childSE) node.childSE = { x: 0, y: 0, mass: 0, totalX: 0, totalY: 0, childNW: null, childNE: null, childSW: null, childSE: null }
+      insertParticle(node.childSE, p, childMinX, childMinY, childMaxX, childMaxY)
+    }
+  }
+}
+
+function applyBarnesHut(node: QuadNode, p: Particle2D, repulsion: number, floor: number) {
+  if (node.mass === 0) return
+
+  const dx = p.x - node.x
+  const dy = p.y - node.y
+  const distSq = dx * dx + dy * dy
+
+  // Leaf node or far enough — treat as point mass
+  if (node.mass === 1 || !node.childNW) {
+    if (distSq < 0.01) return // Skip self
+    const dist = Math.sqrt(distSq)
+    const force = repulsion / (distSq + floor)
+    const fx = (dx / dist) * force
+    const fy = (dy / dist) * force
+    p.vx += fx
+    p.vy += fy
+    return
+  }
+
+  // Internal node — check if far enough to approximate
+  const nodeSize = Math.sqrt((node.totalX / node.mass - node.x) ** 2 + (node.totalY / node.mass - node.y) ** 2) || 1
+  const width = Math.max(1, nodeSize * 2)
+
+  if (width * width / (distSq + 0.01) < THETA * THETA) {
+    // Approximate as point mass
+    if (distSq < 0.01) return
+    const dist = Math.sqrt(distSq)
+    const force = repulsion / (distSq + floor)
+    const fx = (dx / dist) * force
+    const fy = (dy / dist) * force
+    p.vx += fx
+    p.vy += fy
+  } else {
+    // Recurse into children
+    if (node.childNW) applyBarnesHut(node.childNW, p, repulsion, floor)
+    if (node.childNE) applyBarnesHut(node.childNE, p, repulsion, floor)
+    if (node.childSW) applyBarnesHut(node.childSW, p, repulsion, floor)
+    if (node.childSE) applyBarnesHut(node.childSE, p, repulsion, floor)
+  }
+}
 
 class ForceSimulation2D {
   positions: Particle2D[]
@@ -127,27 +252,10 @@ class ForceSimulation2D {
     const n = this.positions.length
     if (n === 0) { this.settled = true; return }
 
-    // 1. REPULSION — every pair pushes apart
-    for (let i = 0; i < n; i++) {
-      for (let j = i + 1; j < n; j++) {
-        const a = this.positions[i], b = this.positions[j]
-        let dx = b.x - a.x, dy = b.y - a.y
-        const distSq = dx * dx + dy * dy
-        if (distSq < 0.01) {
-          const angle = Math.random() * Math.PI * 2
-          a.vx -= Math.cos(angle) * 0.5
-          a.vy -= Math.sin(angle) * 0.5
-          b.vx += Math.cos(angle) * 0.5
-          b.vy += Math.sin(angle) * 0.5
-          continue
-        }
-        const dist = Math.sqrt(distSq)
-        const force = this.repulsion / (distSq + this.REPULSION_FLOOR)
-        const fx = (dx / dist) * force
-        const fy = (dy / dist) * force
-        a.vx -= fx; a.vy -= fy
-        b.vx += fx; b.vy += fy
-      }
+    // 1. REPULSION — Barnes-Hut quadtree for O(n log n)
+    const tree = buildQuadtree(this.positions)
+    for (const p of this.positions) {
+      applyBarnesHut(tree, p, this.repulsion, this.REPULSION_FLOOR)
     }
 
     // 2. LINK SPRINGS — threshold-based attraction/repulsion
@@ -165,14 +273,12 @@ class ForceSimulation2D {
     }
 
     // 3. CONNECTION ATTRACTION — connected nodes pull gently toward each other
-    // This is the key addition: makes clusters of connected nodes visually coherent
     for (const link of this.links) {
       const a = this.nodeMap.get(link.source), b = this.nodeMap.get(link.target)
       if (!a || !b) continue
       const dx = b.x - a.x, dy = b.y - a.y
       const dist = Math.sqrt(dx * dx + dy * dy)
       if (dist < 1) continue
-      // Attract toward average position of connected neighbors
       const force = this.CONNECTION_ATTRACTION * Math.min(dist, this.linkDistance * 2)
       const fx = (dx / dist) * force, fy = (dy / dist) * force
       a.vx += fx; a.vy += fy

@@ -3,7 +3,7 @@ import { Routes, Route } from 'react-router-dom'
 import { Layout } from './components/Layout'
 import { COLORS } from './constants'
 
-// Lazy-load pages — GraphPage pulls in Three.js (~1MB), keep it out of initial chunk
+// Lazy-load pages — keep GraphPage out of initial chunk
 const LandingPage = lazy(() => import('./pages/LandingPage').then(m => ({ default: m.LandingPage })))
 const GraphPage = lazy(() => import('./pages/GraphPage').then(m => ({ default: m.GraphPage })))
 const SymbolsPage = lazy(() => import('./pages/SymbolsPage').then(m => ({ default: m.SymbolsPage })))
