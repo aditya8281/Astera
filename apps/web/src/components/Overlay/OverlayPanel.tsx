@@ -1,4 +1,4 @@
-import { useEffect, useCallback } from 'react'
+import { useEffect, useCallback, useRef } from 'react'
 import { useUIStore } from '../../store'
 import { COLORS } from '../../constants'
 import type { PanelId } from '../../types'
@@ -15,6 +15,8 @@ export function OverlayPanel({ id, title, children, width = 380 }: OverlayPanelP
   const activePanel = useUIStore((s) => s.activePanel)
   const setActivePanel = useUIStore((s) => s.setActivePanel)
   const isOpen = activePanel === id
+  const panelRef = useRef<HTMLDivElement>(null)
+  const closeBtnRef = useRef<HTMLButtonElement>(null)
 
   const handleClose = useCallback(() => {
     setActivePanel(null)
@@ -33,6 +35,36 @@ export function OverlayPanel({ id, title, children, width = 380 }: OverlayPanelP
     return () => window.removeEventListener('keydown', handler)
   }, [isOpen, handleClose])
 
+  // Auto-focus close button on open
+  useEffect(() => {
+    if (isOpen) {
+      setTimeout(() => closeBtnRef.current?.focus(), 100)
+    }
+  }, [isOpen])
+
+  // Focus trap: keep Tab inside the panel
+  useEffect(() => {
+    if (!isOpen) return
+    const handler = (e: KeyboardEvent) => {
+      if (e.key !== 'Tab' || !panelRef.current) return
+      const focusable = panelRef.current.querySelectorAll<HTMLElement>(
+        'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
+      )
+      if (focusable.length === 0) return
+      const first = focusable[0]
+      const last = focusable[focusable.length - 1]
+      if (e.shiftKey && document.activeElement === first) {
+        e.preventDefault()
+        last.focus()
+      } else if (!e.shiftKey && document.activeElement === last) {
+        e.preventDefault()
+        first.focus()
+      }
+    }
+    window.addEventListener('keydown', handler)
+    return () => window.removeEventListener('keydown', handler)
+  }, [isOpen])
+
   if (!isOpen) return null
 
   return (
@@ -42,10 +74,12 @@ export function OverlayPanel({ id, title, children, width = 380 }: OverlayPanelP
         className="fixed inset-0 animate-fade-in"
         style={{ background: 'rgba(0,0,0,0.4)', zIndex: 'var(--z-panel)' }}
         onClick={handleClose}
+        aria-hidden="true"
       />
 
       {/* Panel */}
       <div
+        ref={panelRef}
         className="fixed top-0 right-0 h-full flex flex-col animate-slide-in-right overflow-hidden"
         style={{
           width: window.innerWidth <= 768 ? '100vw' : width,
@@ -55,6 +89,7 @@ export function OverlayPanel({ id, title, children, width = 380 }: OverlayPanelP
         }}
         role="dialog"
         aria-label={title}
+        aria-modal="true"
       >
         {/* Header */}
         <div
@@ -68,8 +103,9 @@ export function OverlayPanel({ id, title, children, width = 380 }: OverlayPanelP
             {title}
           </h2>
           <button
+            ref={closeBtnRef}
             onClick={handleClose}
-            className="w-6 h-6 flex items-center justify-center rounded text-xs transition-colors"
+            className="w-6 h-6 flex items-center justify-center rounded text-xs transition-colors cursor-pointer"
             style={{ color: COLORS.textMuted }}
             onMouseEnter={(e) => (e.currentTarget.style.color = COLORS.text)}
             onMouseLeave={(e) => (e.currentTarget.style.color = COLORS.textMuted)}

@@ -989,7 +989,7 @@ export function GraphCanvas({ nodes, edges, isLoading, error, onNodeDoubleClick 
 
   if (isLoading) {
     return (
-      <div className="h-full flex items-center justify-center" style={{ color: COLORS.textMuted }}>
+      <div className="h-full flex items-center justify-center" style={{ color: COLORS.textMuted }} role="status" aria-live="polite">
         <div className="text-center space-y-4">
           {/* Animated dot cluster */}
           <div className="flex items-center justify-center gap-2">
@@ -1030,6 +1030,8 @@ export function GraphCanvas({ nodes, edges, isLoading, error, onNodeDoubleClick 
         onTouchStart={handleTouchStart}
         onTouchMove={handleTouchMove}
         onTouchEnd={handleTouchEnd}
+        role="img"
+        aria-label={`Force-directed graph with ${nodes.length} nodes and ${edges.length} edges`}
         style={{ touchAction: 'none' }}
       />
     </div>

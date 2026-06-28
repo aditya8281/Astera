@@ -163,7 +163,7 @@ export function GraphPage() {
 
       {/* Stats badges — staggered entrance */}
       {visibleNodes.length > 0 && (
-        <div className="absolute top-3 right-3 flex gap-2" style={{ zIndex: 'var(--z-minimap)' }}>
+        <div className="absolute top-3 right-3 flex gap-2" style={{ zIndex: 'var(--z-minimap)' }} role="status" aria-live="polite">
           <StatBadge label="Nodes" value={filteredNodes.length} delay={0} />
           <StatBadge label="Edges" value={filteredEdges.length} delay={1} />
           {drillStack.length > 0 && (
@@ -181,6 +181,8 @@ export function GraphPage() {
             border: `1px solid ${COLORS.selection}40`,
             zIndex: 'var(--z-minimap)',
           }}
+          role="navigation"
+          aria-label="Drill-down breadcrumb"
         >
           <button
             onClick={() => {
@@ -231,6 +233,8 @@ export function GraphPage() {
             zIndex: 'var(--z-minimap)',
             transformOrigin: 'bottom left',
           }}
+          role="region"
+          aria-label={`Details for ${selectedNode.name}`}
         >
           <div className="flex items-center gap-2 mb-1">
             <span
