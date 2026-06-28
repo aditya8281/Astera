@@ -867,16 +867,6 @@ fn init_command(path: &str) -> Result<(), anyhow::Error> {
     Ok(())
 }
 
-/// Find a free port, starting from `preferred` and scanning up.
-fn find_free_port(preferred: u16) -> u16 {
-    for port in preferred..preferred + 100 {
-        if std::net::TcpListener::bind(("0.0.0.0", port)).is_ok() {
-            return port;
-        }
-    }
-    preferred
-}
-
 fn index_command(path: &str) -> Result<(), anyhow::Error> {
     let start = Instant::now();
     let root = std::fs::canonicalize(path)?;
@@ -903,22 +893,6 @@ fn index_command(path: &str) -> Result<(), anyhow::Error> {
         return Ok(());
     }
 
-    // Phase 0: Detect files deleted from disk but still in DB
-    let existing_paths: std::collections::HashSet<String> = files.iter().map(|(p, _, _, _)| p.clone()).collect();
-    let db_files = db.list_files().unwrap_or_default();
-    let mut removed_count = 0u64;
-    for db_file in &db_files {
-        if !existing_paths.contains(&db_file.relative_path) {
-            if let Some(fid) = db_file.id {
-                let _ = db.delete_file(fid);
-                removed_count += 1;
-            }
-        }
-    }
-    if removed_count > 0 {
-        println!("Removed {} deleted files from index", removed_count);
-    }
-
     // Phase 1: Insert files into DB and build file_id map
     let mut file_ids = Vec::with_capacity(total_files);
     let mut parse_tasks = Vec::with_capacity(total_files);
@@ -932,11 +906,6 @@ fn index_command(path: &str) -> Result<(), anyhow::Error> {
 
         if !needs_index {
             continue;
-        }
-
-        // Delete old data for this file before re-inserting (CASCADE handles nodes/edges)
-        if let Ok(Some(old_fid)) = db.file_exists(rel_path) {
-            let _ = db.delete_file(old_fid);
         }
 
         let file_info = astera_core::FileInfo {
@@ -1398,8 +1367,6 @@ async fn main() -> Result<(), anyhow::Error> {
                 return Ok(());
             }
 
-            let port = find_free_port(port);
-
             // Find the web UI build directory
             let static_dir = web_dir.map(std::path::PathBuf::from).or_else(|| {
                 // Auto-detect: check common locations
@@ -1460,8 +1427,6 @@ async fn main() -> Result<(), anyhow::Error> {
                 println!("No .astera directory found. Run 'astera init' first.");
                 return Ok(());
             }
-
-            let port = find_free_port(port);
 
             println!("Starting watcher on: {}", root.display());
             println!("API server on port {}", port);
