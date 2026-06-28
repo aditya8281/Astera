@@ -182,9 +182,15 @@ export function GraphCanvas({ nodes, edges, isLoading, error, onNodeDoubleClick 
 
     // Orbital reveal: start camera zoomed in tight, let lerp spiral it out
     if (!orbitalRevealRef.current) {
-      const revealScale = Math.max(fitScale * 3, 3.5)
-      transformRef.current = { x: w / 2, y: h / 2, scale: revealScale }
-      cameraTargetRef.current = { x: tx, y: ty, scale: fitScale }
+      if (reducedMotionRef.current) {
+        // Skip reveal animation — snap directly to fit
+        transformRef.current = { x: tx, y: ty, scale: fitScale }
+        cameraTargetRef.current = { x: tx, y: ty, scale: fitScale }
+      } else {
+        const revealScale = Math.max(fitScale * 3, 3.5)
+        transformRef.current = { x: w / 2, y: h / 2, scale: revealScale }
+        cameraTargetRef.current = { x: tx, y: ty, scale: fitScale }
+      }
       orbitalRevealRef.current = true
     } else {
       // Drill-down: snap directly
@@ -576,7 +582,7 @@ export function GraphCanvas({ nodes, edges, isLoading, error, onNodeDoubleClick 
 
       // --- Delight: Constellation beams — radial lines to 1-hop neighbors ---
       const beam = beamsRef.current
-      if (beam) {
+      if (beam && !reducedMotionRef.current) {
         const beamAge = time - beam.startTime
         const BEAM_IN = 300      // ms: fade in
         const BEAM_LINGER = 600  // ms: stay visible
