@@ -4,14 +4,15 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project
 
-Astera — local-first static analysis engine. Parses repos into a queryable Code Property Graph (CPG) of symbols, calls, dependencies, and metrics. CLI + 3D Web UI. Single binary with embedded frontend.
+Astera — local-first static analysis engine. Parses repos into a queryable Code Property Graph (CPG) of symbols, calls, dependencies, and metrics. CLI + 2D Web UI. Single binary with embedded frontend.
 
-- **Languages**: Rust (backend), TypeScript/React + Three.js (frontend)
+- **Languages**: Rust (backend), TypeScript/React + Canvas 2D (frontend)
 - **Supported code languages**: TypeScript, JavaScript, Python, Rust, Go, C, C++, Java (8 total)
 - **Build**: Cargo workspace
 - **MSRV**: 1.80+
-- **Tests**: 153 passing
+- **Tests**: 154 passing
 - **Design docs**: `.agents/plans/` — read before implementing anything
+- **Status docs**: `STATUS.md` — full implementation status of every component
 
 ## Commands
 
@@ -19,7 +20,7 @@ Astera — local-first static analysis engine. Parses repos into a queryable Cod
 # Build
 cargo build
 
-# Run all tests (153 total)
+# Run all tests (154 total)
 cargo test
 
 # Test specific crate
@@ -69,34 +70,41 @@ Backend organized as Cargo workspace crates under `crates/`:
 
 | Crate | Responsibility |
 |---|---|
-| `astera-core` | NodeKind, EdgeKind, config, WorkspaceConfig, ArchitectureRule |
+| `astera-core` | NodeKind, EdgeKind, UnresolvedRef, config, WorkspaceConfig, ArchitectureRule |
 | `astera-discovery` | Filesystem walk, gitignore, language classification (8 langs) |
 | `astera-parser` | Tree-sitter 0.25 integration, symbol extraction per language |
-| `astera-resolver` | Reference resolution, import resolution |
-| `astera-storage` | SQLite + FTS5 via rusqlite |
-| `astera-metrics` | Complexity, coupling, importance scoring |
+| `astera-resolver` | Reference resolution, import resolution, broken reference detection |
+| `astera-storage` | SQLite + FTS5 via rusqlite + broken_refs table |
+| `astera-metrics` | Complexity, coupling, importance scoring, Tarjan's SCC |
 | `astera-impact` | BFS impact analysis, critical path, cycle detection, architecture rule validation |
-| `astera-api` | Axum HTTP server (12 REST endpoints + WebSocket) + embedded frontend serving |
+| `astera-api` | Axum HTTP server (17 REST endpoints + WebSocket) + embedded frontend serving |
 | `astera-plugins` | Plugin system: trait, registry, native/WASM loading, built-in pattern checker & metrics |
 | `astera-export` | JSON, CSV, DOT export + git diff analysis |
-| `astera-watcher` | File watching via notify crate |
+| `astera-watcher` | File watching via notify crate, deletion detection for all file types |
 | `astera` | CLAP entry point (binary crate) with workspace, bench, watch commands |
 
 Key libs: tree-sitter 0.25 (parsing), rusqlite (storage), axum/tokio (HTTP + WebSocket), serde (JSON), rayon (parallel), tracing (logging), clap (CLI), rust-embed (frontend embedding).
 
-Frontend: `apps/web/` — React + TypeScript + Vite + React Three Fiber (3D). Components:
-- `Graph/` — 3D graph scene, node/edge instances, temporal animation, mini-map
+Frontend: `apps/web/` — React + TypeScript + Vite + Canvas 2D. Components:
+- `Graph/` — 2D force-directed graph, node/edge rendering, particle field, edge glow
 - `Plugins/` — Plugin registry UI
-- `AI/` — AI layer reservation for future LLM integration
+- `AI/` — AI layer reservation for future LLM integration (stub)
 - `Sidebar/`, `CommandPalette/`, `Overlay/` — Navigation and panels
+- `pages/panels/` — SymbolsPanel, FilesPanel, MetricsPanel, ImpactPanel, BrokenRefsPanel, SettingsPanel
 
 ## Key Files
 
 - `Cargo.toml` — workspace membership + shared dependencies
+- `STATUS.md` — full implementation status of every component
 - `.agents/plans/` — architecture and phase plans
 - `crates/astera/src/benchmarks.rs` — benchmark regression tracking
 - `crates/astera/src/main.rs` — CLI entry point (all commands)
+- `crates/astera-api/src/routes.rs` — all REST endpoint handlers
 - `crates/astera-api/src/ws.rs` — WebSocket live event broadcasting
+- `crates/astera-resolver/src/lib.rs` — reference resolution + broken ref detection
+- `crates/astera-storage/src/lib.rs` — SQLite schema + CRUD for all tables
+- `apps/web/src/pages/GraphPage.tsx` — main graph visualization page
+- `apps/web/src/constants.ts` — design tokens and color system
 - `.github/actions/astera-index/` — Reusable GitHub Action for CI
 - `hooks/pre-commit` — Pre-commit hook for impact checking
 

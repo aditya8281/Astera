@@ -36,19 +36,19 @@ npm run dev
 ```
 astera/
 ├── crates/           # Rust backend (workspace crates)
-│   ├── astera-core/        # Shared types and config
-│   ├── astera-discovery/   # Filesystem walking
-│   ├── astera-parser/      # Tree-sitter parsing (8 languages)
-│   ├── astera-resolver/    # Reference resolution
-│   ├── astera-storage/     # SQLite + FTS5
-│   ├── astera-metrics/     # Code metrics
-│   ├── astera-impact/      # Change impact analysis + architecture validation
-│   ├── astera-api/         # Axum HTTP server + WebSocket + embedded frontend
-│   ├── astera-plugins/     # Plugin system (trait, registry, native loading)
-│   ├── astera-export/      # Export formats + git diff analysis
-│   ├── astera-watcher/     # File watching
+│   ├── astera-core/        # Shared types and config (NodeKind, EdgeKind, UnresolvedRef)
+│   ├── astera-discovery/   # Filesystem walking, gitignore, language classification
+│   ├── astera-parser/      # Tree-sitter 0.25 parsing (8 languages)
+│   ├── astera-resolver/    # Reference resolution, broken reference detection
+│   ├── astera-storage/     # SQLite + FTS5 + broken_refs table
+│   ├── astera-metrics/     # Complexity, coupling, Tarjan's SCC
+│   ├── astera-impact/      # BFS impact analysis + architecture rule validation
+│   ├── astera-api/         # 17 REST endpoints + WebSocket + embedded frontend
+│   ├── astera-plugins/     # Plugin trait, registry, native loading
+│   ├── astera-export/      # JSON/CSV/DOT export + git diff analysis
+│   ├── astera-watcher/     # File watching with deletion detection
 │   └── astera/             # CLI binary entry point + benchmarks
-└── apps/web/        # React + Three.js frontend
+└── apps/web/        # React + TypeScript + Tailwind + Canvas 2D frontend
 ```
 
 ## Development Workflow
@@ -120,7 +120,7 @@ Follow [Conventional Commits](https://www.conventionalcommits.org/):
 ## Running Tests
 
 ```bash
-# All tests (153 total)
+# All tests (154 total)
 cargo test
 
 # Specific crate
