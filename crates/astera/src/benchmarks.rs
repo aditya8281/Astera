@@ -128,54 +128,80 @@ pub fn detect_regressions(
     regressions
 }
 
-/// Parse criterion JSON output file into BenchmarkResults
+/// Parse criterion directory tree into BenchmarkResults.
+///
+/// Criterion stores results in: `<group>/<bench>/new/estimates.json`
+/// Each estimates.json has mean.point_estimate (ns) and mean.standard_error.
 pub fn parse_criterion_json(path: &Path) -> anyhow::Result<Vec<BenchmarkResult>> {
-    let content = std::fs::read_to_string(path)?;
-    let raw: serde_json::Value = serde_json::from_str(&content)?;
-
     let mut results = Vec::new();
 
-    if let Some(groups) = raw.as_object() {
-        for (group_name, group_val) in groups {
-            if let Some(benchmarks) = group_val.get("benchmarks") {
-                if let Some(arr) = benchmarks.as_array() {
-                    for bench in arr {
-                        let name = bench
-                            .get("name")
-                            .and_then(|v| v.as_str())
-                            .unwrap_or("unknown")
-                            .to_string();
-
-                        let mean_ns = bench
-                            .get("mean")
-                            .and_then(|v| v.get("point_estimate"))
-                            .and_then(|v| v.as_f64())
-                            .unwrap_or(0.0);
-
-                        let std_dev = bench
-                            .get("mean")
-                            .and_then(|v| v.get("standard_deviation"))
-                            .and_then(|v| v.as_f64())
-                            .unwrap_or(0.0);
-
-                        let iters = bench
-                            .get("iterations")
-                            .and_then(|v| v.as_u64())
-                            .unwrap_or(0);
-
-                        results.push(BenchmarkResult {
-                            name: format!("{}:{}", group_name, name),
-                            mean_ns,
-                            std_dev_ns: std_dev,
-                            iterations: iters,
-                        });
-                    }
+    // Walk all estimates.json files under path
+    for entry in walk_directory(path)? {
+        let rel = entry.strip_prefix(path).unwrap_or(&entry);
+        let name = rel
+            .components()
+            .filter(|c| {
+                if let std::path::Component::Normal(n) = c {
+                    let s = n.to_string_lossy();
+                    return s != "new" && s != "base" && s != "estimates.json";
                 }
-            }
-        }
+                true
+            })
+            .collect::<std::path::PathBuf>();
+
+        let name_str = name.to_string_lossy().replace('\\', "/");
+
+        let content = std::fs::read_to_string(&entry)?;
+        let raw: serde_json::Value = serde_json::from_str(&content)?;
+
+        let mean_ns = raw
+            .get("mean")
+            .and_then(|v| v.get("point_estimate"))
+            .and_then(|v| v.as_f64())
+            .unwrap_or(0.0);
+
+        let std_dev = raw
+            .get("mean")
+            .and_then(|v| v.get("standard_error"))
+            .and_then(|v| v.as_f64())
+            .unwrap_or(0.0);
+
+        // Extract iterations from slope or use a default
+        let iters = raw
+            .get("iterations")
+            .and_then(|v| v.as_u64())
+            .unwrap_or(0);
+
+        results.push(BenchmarkResult {
+            name: name_str,
+            mean_ns,
+            std_dev_ns: std_dev,
+            iterations: iters,
+        });
     }
 
     Ok(results)
+}
+
+/// Recursively find all estimates.json files in new/ directories
+fn walk_directory(dir: &Path) -> anyhow::Result<Vec<std::path::PathBuf>> {
+    let mut files = Vec::new();
+    if dir.is_dir() {
+        for entry in std::fs::read_dir(dir)? {
+            let entry = entry?;
+            let path = entry.path();
+            if path.is_dir() {
+                // Check for new/estimates.json pattern
+                let new_est = path.join("new").join("estimates.json");
+                if new_est.exists() {
+                    files.push(new_est);
+                }
+                // Recurse into subdirectories
+                files.extend(walk_directory(&path)?);
+            }
+        }
+    }
+    Ok(files)
 }
 
 /// Pretty-print regression report

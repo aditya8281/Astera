@@ -521,8 +521,17 @@ enum BenchCommands {
         #[arg(long, default_value = "target/criterion")]
         criterion_dir: String,
     },
-    /// Show saved baseline
+    /// Show saved baseline as formatted table
     Show,
+    /// Generate markdown benchmark report from criterion data
+    Report {
+        /// Path to criterion output directory
+        #[arg(long, default_value = "target/criterion")]
+        criterion_dir: String,
+        /// Output path for the markdown report
+        #[arg(long, default_value = "docs/benchmarks-table.md")]
+        output: String,
+    },
 }
 
 fn bench_save(criterion_dir: &str) -> Result<(), anyhow::Error> {
@@ -611,16 +620,224 @@ fn bench_show() -> Result<(), anyhow::Error> {
     println!("Benchmarks: {}", baseline.results.len());
     println!();
 
-    let mut results: Vec<_> = baseline.results.values().collect();
-    results.sort_by(|a, b| a.name.cmp(&b.name));
-
-    println!("{:<55} {:>12} {:>8}", "Benchmark", "Mean", "Iters");
-    println!("{}", "─".repeat(78));
-
-    for r in results {
-        let mean_str = benchmarks::format_ns(r.mean_ns);
-        println!("{:<55} {:>12} {:>8}", r.name, mean_str, r.iterations);
+    // Group by category
+    let mut groups: std::collections::BTreeMap<String, Vec<&benchmarks::BenchmarkResult>> =
+        std::collections::BTreeMap::new();
+    for r in baseline.results.values() {
+        let group = r.name.split('/').next().unwrap_or("other").to_string();
+        groups.entry(group).or_default().push(r);
     }
+
+    for (group, benchs) in &groups {
+        let mut sorted = benchs.clone();
+        sorted.sort_by(|a, b| a.name.cmp(&b.name));
+        println!(
+            "\n{} ({})",
+            group.replace('_', " ").to_uppercase(),
+            sorted.len()
+        );
+        println!(
+            "{:<50} {:>12} {:>12} {:>8}",
+            "Benchmark", "Mean", "Std Error", "Iters"
+        );
+        println!("{}", "─".repeat(84));
+
+        for r in &sorted {
+            let short_name = r.name.splitn(2, '/').nth(1).unwrap_or(&r.name);
+            let mean_str = benchmarks::format_ns(r.mean_ns);
+            let std_str = benchmarks::format_ns(r.std_dev_ns);
+            println!(
+                "{:<50} {:>12} {:>12} {:>8}",
+                short_name, mean_str, std_str, r.iterations
+            );
+        }
+    }
+
+    Ok(())
+}
+
+fn bench_report(criterion_dir: &str, output: &str) -> Result<(), anyhow::Error> {
+    let criterion_path = Path::new(criterion_dir);
+    if !criterion_path.exists() {
+        println!("Criterion output not found at: {}", criterion_dir);
+        println!("Run `cargo bench` first to generate benchmark data.");
+        return Ok(());
+    }
+
+    let results = benchmarks::parse_criterion_json(criterion_path)?;
+    if results.is_empty() {
+        println!("No benchmark results found in {}", criterion_dir);
+        return Ok(());
+    }
+
+    // Group by category
+    let mut groups: std::collections::BTreeMap<String, Vec<benchmarks::BenchmarkResult>> =
+        std::collections::BTreeMap::new();
+    for r in &results {
+        let group = r.name.split('/').next().unwrap_or("other").to_string();
+        groups.entry(group).or_default().push(r.clone());
+    }
+
+    let commit = benchmarks::get_git_commit().unwrap_or_else(|| "unknown".into());
+
+    // Build markdown
+    let mut md = String::new();
+    md.push_str("# Astera Benchmark Results\n\n");
+    md.push_str(&format!(
+        "**Generated**: {} from `{}`  \n",
+        chrono::Utc::now().format("%Y-%m-%d %H:%M UTC"),
+        criterion_dir
+    ));
+    md.push_str(&format!("**Commit**: `{}`  \n", commit));
+    md.push_str(&format!(
+        "**Total**: {} benchmarks across {} groups\n\n",
+        results.len(),
+        groups.len()
+    ));
+    md.push_str("---\n");
+
+    // Summary table
+    md.push_str("\n## Summary\n\n");
+    md.push_str("| Group | Count | Fastest | Slowest | Median |\n");
+    md.push_str("|---|---|---|---|---|\n");
+
+    for (group, benchs) in &groups {
+        let mut means: Vec<f64> = benchs.iter().map(|b| b.mean_ns).collect();
+        means.sort_by(|a, b| a.partial_cmp(b).unwrap());
+        let fastest = means.first().map(|v| benchmarks::format_ns(*v)).unwrap_or_default();
+        let slowest = means.last().map(|v| benchmarks::format_ns(*v)).unwrap_or_default();
+        let median = means
+            .get(means.len() / 2)
+            .map(|v| benchmarks::format_ns(*v))
+            .unwrap_or_default();
+        md.push_str(&format!(
+            "| `{}` | {} | {} | {} | {} |\n",
+            group, benchs.len(), fastest, slowest, median
+        ));
+    }
+
+    md.push_str("\n---\n");
+
+    // Detailed tables per group
+    for (group, benchs) in &groups {
+        let mut sorted = benchs.clone();
+        sorted.sort_by(|a, b| a.mean_ns.partial_cmp(&b.mean_ns).unwrap());
+        md.push_str(&format!(
+            "\n## {}\n\n",
+            group.replace('_', " ").to_uppercase()
+        ));
+        md.push_str("| Benchmark | Mean | Std Error | Iters | Throughput |\n");
+        md.push_str("|---|---|---|---|---|\n");
+
+        for r in &sorted {
+            // Full sub-path after group name: "discovery/classify_language/go"
+            let short_name = r.name.splitn(2, '/').nth(1).unwrap_or(&r.name);
+            let mean = benchmarks::format_ns(r.mean_ns);
+            let std = benchmarks::format_ns(r.std_dev_ns);
+
+            let ops_per_sec = if r.mean_ns > 0.0 {
+                1_000_000_000.0 / r.mean_ns
+            } else {
+                0.0
+            };
+            let throughput = if ops_per_sec >= 1_000_000.0 {
+                format!("{:.1}M ops/s", ops_per_sec / 1_000_000.0)
+            } else if ops_per_sec >= 1_000.0 {
+                format!("{:.1}K ops/s", ops_per_sec / 1_000.0)
+            } else {
+                format!("{:.1} ops/s", ops_per_sec)
+            };
+
+            md.push_str(&format!(
+                "| `{}` | {} | ±{} | {} | {} |\n",
+                short_name, mean, std, r.iterations, throughput
+            ));
+        }
+    }
+
+    // Performance characteristics
+    md.push_str("\n---\n\n");
+    md.push_str("## Performance Characteristics\n\n");
+
+    let parse_benchs: Vec<_> = results.iter().filter(|r| r.name.contains("parse_throughput")).collect();
+    if !parse_benchs.is_empty() {
+        md.push_str("### Parse Throughput\n\n");
+        md.push_str("| Language | File Size | Time | Est. LOC/s |\n");
+        md.push_str("|---|---|---|---|\n");
+        for r in &parse_benchs {
+            let lang = r.name.split('/').nth(1).unwrap_or("unknown");
+            let time = benchmarks::format_ns(r.mean_ns);
+            let loc_est = match lang {
+                "typescript_small" => 100,
+                "typescript_medium" => 500,
+                "typescript_large" => 5000,
+                "python_small" => 80,
+                "python_medium" => 400,
+                "go_medium" => 300,
+                "rust_medium" => 350,
+                _ => 200,
+            };
+            let loc_per_sec = if r.mean_ns > 0.0 {
+                (loc_est as f64 / r.mean_ns) * 1_000_000_000.0
+            } else {
+                0.0
+            };
+            md.push_str(&format!(
+                "| {} | ~{} LOC | {} | {:.0} LOC/s |\n",
+                lang, loc_est, time, loc_per_sec
+            ));
+        }
+    }
+
+    let storage_benchs: Vec<_> = results.iter().filter(|r| r.name.starts_with("storage/")).collect();
+    if !storage_benchs.is_empty() {
+        md.push_str("\n### Storage Latency\n\n");
+        md.push_str("| Operation | Latency | Notes |\n");
+        md.push_str("|---|---|---|\n");
+        for r in &storage_benchs {
+            let op = r.name.split('/').nth(1).unwrap_or("unknown");
+            let lat = benchmarks::format_ns(r.mean_ns);
+            let notes = match op {
+                s if s.contains("insert") => "Write-heavy",
+                s if s.contains("query") => "Read-heavy",
+                s if s.contains("search") => "FTS5 full-text",
+                s if s.contains("count") => "Aggregate",
+                _ => "",
+            };
+            md.push_str(&format!("| `{}` | {} | {} |\n", op, lat, notes));
+        }
+    }
+
+    let scalability_benchs: Vec<_> = results.iter().filter(|r| r.name.starts_with("scalability/")).collect();
+    if !scalability_benchs.is_empty() {
+        md.push_str("\n### Scalability\n\n");
+        md.push_str("| Operation | Input Size | Time | Scaling |\n");
+        md.push_str("|---|---|---|---|\n");
+
+        let mut scale_groups: std::collections::BTreeMap<String, Vec<&benchmarks::BenchmarkResult>> =
+            std::collections::BTreeMap::new();
+        for r in &scalability_benchs {
+            let parts: Vec<_> = r.name.split('/').collect();
+            let op = if parts.len() >= 2 { parts[1] } else { "unknown" };
+            scale_groups.entry(op.to_string()).or_default().push(r);
+        }
+
+        for (op, benchs) in &scale_groups {
+            let mut sorted = benchs.clone();
+            sorted.sort_by(|a, b| a.mean_ns.partial_cmp(&b.mean_ns).unwrap());
+            for r in &sorted {
+                let size = r.name.split('/').nth(2).unwrap_or("?");
+                let time = benchmarks::format_ns(r.mean_ns);
+                md.push_str(&format!("| `{}` | {} nodes | {} | |\n", op, size, time));
+            }
+        }
+    }
+
+    std::fs::create_dir_all(std::path::Path::new(output).parent().unwrap_or(Path::new(".")))?;
+    std::fs::write(output, &md)?;
+
+    println!("✅ Benchmark report written to: {}", output);
+    println!("   {} benchmarks across {} groups", results.len(), groups.len());
 
     Ok(())
 }
@@ -1264,6 +1481,9 @@ async fn main() -> Result<(), anyhow::Error> {
             }
             BenchCommands::Show => {
                 bench_show()?;
+            }
+            BenchCommands::Report { criterion_dir, output } => {
+                bench_report(&criterion_dir, &output)?;
             }
         },
         Commands::Workspace { workspace } => match workspace {
