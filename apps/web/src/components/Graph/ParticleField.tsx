@@ -2,18 +2,20 @@ import { useRef, useEffect, useCallback } from 'react'
 
 /**
  * Particle constellation background for the graph page.
- * ~200 tiny dots drift slowly, connected by faint lines when close.
+ * ~150 tiny dots drift slowly on OLED black, connected by faint lines when close.
  * Subtle mouse parallax. Canvas 2D, 60fps.
  * Respects prefers-reduced-motion: static dots, no drift.
+ *
+ * Tuned for OLED: lower opacity, fewer dots, cyan-tinted lines.
  */
 
-const DOT_COUNT = 200
-const LINE_THRESHOLD = 120
-const DRIFT_SPEED = 0.06
-const PARALLAX_STRENGTH = 15
+const DOT_COUNT = 150
+const LINE_THRESHOLD = 100
+const DRIFT_SPEED = 0.04
+const PARALLAX_STRENGTH = 10
 const DOT_SIZE = 1
-const DOT_OPACITY = 0.06
-const LINE_MAX_OPACITY = 0.04
+const DOT_OPACITY = 0.08
+const LINE_MAX_OPACITY = 0.03
 
 interface Dot {
   x: number
@@ -109,7 +111,7 @@ export function ParticleField() {
         }
       }
 
-      // Draw connections
+      // Draw connections — cyan-tinted for OLED
       ctx.lineWidth = 0.5
       for (let i = 0; i < dots.length; i++) {
         const a = dots[i]
@@ -124,7 +126,8 @@ export function ParticleField() {
           const dist = Math.sqrt(dx * dx + dy * dy)
           if (dist < LINE_THRESHOLD) {
             const alpha = (1 - dist / LINE_THRESHOLD) * LINE_MAX_OPACITY
-            ctx.strokeStyle = `rgba(255,255,255,${alpha})`
+            // Subtle cyan tint instead of pure white
+            ctx.strokeStyle = `rgba(89,246,255,${alpha})`
             ctx.beginPath()
             ctx.moveTo(ax, ay)
             ctx.lineTo(bx, by)
@@ -133,11 +136,11 @@ export function ParticleField() {
         }
       }
 
-      // Draw dots
+      // Draw dots — slightly brighter for OLED visibility
       for (const d of dots) {
         const dx = d.x + px
         const dy = d.y + py
-        ctx.fillStyle = `rgba(255,255,255,${DOT_OPACITY})`
+        ctx.fillStyle = `rgba(180,200,220,${DOT_OPACITY})`
         ctx.fillRect(dx, dy, DOT_SIZE, DOT_SIZE)
       }
 

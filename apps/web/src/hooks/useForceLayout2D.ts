@@ -4,6 +4,12 @@ import type { GraphNode, GraphEdge } from '../types'
 /**
  * 2D force-directed layout simulation.
  * Returns x/y positions — no z-axis.
+ *
+ * Tuned for calm, spacious layout:
+ * - Stronger repulsion (charge) for breathing room
+ * - Wider link distance to prevent clustering
+ * - Slower alpha decay for smoother convergence
+ * - Gentle center gravity to keep graph in view
  */
 
 export interface Vec2 { x: number; y: number }
@@ -63,13 +69,14 @@ class ForceSimulation2D {
   positions: Particle2D[]
   links: Link[]
   alpha = 1.0
-  alphaDecay = 0.02
+  alphaDecay = 0.012 // Slower decay = more settling time = calmer convergence
   cancelled = false
   private nodeMap: Map<number, Particle2D>
   private connectedMap: Map<number, Set<number>>
 
   constructor(nodes: GraphNode[], edges: GraphEdge[]) {
-    const spread = Math.max(8, Math.sqrt(nodes.length) * 3)
+    // Wider initial spread for spacious feel
+    const spread = Math.max(12, Math.sqrt(nodes.length) * 4)
     this.positions = nodes.map(n => ({
       id: n.id,
       x: (Math.random() - 0.5) * spread,
@@ -95,9 +102,10 @@ class ForceSimulation2D {
     const n = this.positions.length
     if (n === 0) return
 
-    const chargeStrength = -150 / Math.sqrt(n || 1)
-    const linkDistance = Math.max(40, 140 / Math.sqrt(n || 1))
-    const centerStrength = 0.01
+    // Tuning: stronger repulsion, wider links, gentle center
+    const chargeStrength = -250 / Math.sqrt(n || 1) // ~67% stronger repulsion
+    const linkDistance = Math.max(80, 200 / Math.sqrt(n || 1)) // ~43% wider spacing
+    const centerStrength = 0.005 // Gentler center pull
 
     for (const p of this.positions) { p.vx = 0; p.vy = 0 }
 
@@ -130,19 +138,19 @@ class ForceSimulation2D {
       }
     }
 
-    // Link attraction
+    // Link attraction — gentler spring
     for (const link of this.links) {
       const a = this.nodeMap.get(link.source), b = this.nodeMap.get(link.target)
       if (!a || !b) continue
       let dx = b.x - a.x, dy = b.y - a.y
       let dist = Math.sqrt(dx * dx + dy * dy)
       if (dist < 0.5) dist = 0.5
-      const force = (dist - linkDistance) * 0.04 * this.alpha
+      const force = (dist - linkDistance) * 0.025 * this.alpha // Softer spring
       const fx = (dx / dist) * force, fy = (dy / dist) * force
       a.vx += fx; a.vy += fy; b.vx -= fx; b.vy -= fy
     }
 
-    // Cluster gravity
+    // Cluster gravity — very gentle grouping
     for (const p of this.positions) {
       const neighbors = this.connectedMap.get(p.id)
       if (!neighbors || neighbors.size === 0) continue
@@ -153,8 +161,8 @@ class ForceSimulation2D {
       }
       if (count > 0) {
         cx /= count; cy /= count
-        p.vx += (cx - p.x) * 0.004 * this.alpha
-        p.vy += (cy - p.y) * 0.004 * this.alpha
+        p.vx += (cx - p.x) * 0.002 * this.alpha // Half the original gravity
+        p.vy += (cy - p.y) * 0.002 * this.alpha
       }
     }
 
@@ -164,8 +172,8 @@ class ForceSimulation2D {
       p.vy -= p.y * centerStrength * this.alpha
     }
 
-    // Integrate
-    const decay = 0.6
+    // Integrate with damping
+    const decay = 0.55 // Slightly more damping for smoother motion
     for (const p of this.positions) {
       p.vx *= decay; p.vy *= decay
       p.x += p.vx; p.y += p.vy

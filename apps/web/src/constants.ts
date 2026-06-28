@@ -8,19 +8,19 @@ export const ALL_KINDS = [
 // ─── Semantic color tokens (warm charcoal + electric cyan identity) ───
 
 export const COLORS = {
-  // Background
-  bg: '#1F2128',
-  bgGradientTop: '#23252D',
-  bgGradientBottom: '#1B1D23',
+  // Background — OLED black
+  bg: '#000000',
+  bgGradientTop: '#050507',
+  bgGradientBottom: '#000000',
 
-  // Surfaces
-  surface: '#2A2D35',
-  surfaceDim: '#252830',
-  surfaceHover: '#32353D',
+  // Surfaces — lifted from true black for layering
+  surface: '#0E0F12',
+  surfaceDim: '#0A0B0E',
+  surfaceHover: '#16171C',
 
   // Borders
-  border: '#3A3D45',
-  borderLight: '#454850',
+  border: '#1E1F25',
+  borderLight: '#26272E',
 
   // Text
   text: '#E0E4EC',
@@ -31,19 +31,19 @@ export const COLORS = {
   accent: '#59F6FF',
   accentDim: '#3AA8B0',
 
-  // Graph nodes
-  nodeDefault: '#A7B5C9',
+  // Graph nodes — slightly brighter for OLED contrast
+  nodeDefault: '#B0BECC',
   nodeHover: '#DCE8FF',
   nodeSelected: '#59F6FF',
 
-  // Graph edges
-  edgeDefault: 'rgba(180,190,210,0.22)',
+  // Graph edges — more visible
+  edgeDefault: 'rgba(160,175,200,0.30)',
   edgeHover: '#59F6FF',
 
   // Labels
   label: '#AEB8C7',
 
-  // Legacy aliases (used by sidebar, panels, etc.)
+  // Legacy aliases
   selection: '#59F6FF',
   selectionDim: '#3AA8B0',
   selectionGlow: '#59F6FF',
