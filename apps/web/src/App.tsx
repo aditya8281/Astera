@@ -2,6 +2,7 @@ import { lazy, Suspense } from 'react'
 import { Routes, Route } from 'react-router-dom'
 import { Layout } from './components/Layout'
 import { COLORS } from './constants'
+import { useLiveUpdates } from './hooks/useLiveUpdates'
 
 // Lazy-load pages — keep GraphPage out of initial chunk
 const LandingPage = lazy(() => import('./pages/LandingPage').then(m => ({ default: m.LandingPage })))
@@ -26,6 +27,8 @@ function PageLoader() {
 }
 
 export default function App() {
+  useLiveUpdates()
+
   return (
     <Routes>
       <Route element={<Layout />}>

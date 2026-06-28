@@ -15,7 +15,7 @@ use tower_http::trace::TraceLayer;
 use astera_storage::Database;
 
 mod routes;
-mod ws;
+pub mod ws;
 
 /// Event broadcast during re-index operations
 #[derive(Debug, Clone, serde::Serialize)]
@@ -61,6 +61,15 @@ pub fn create_router(db: Database) -> Router {
 pub fn create_router_with_static(db: Database, static_dir: Option<PathBuf>) -> Router {
     let has_embedded = FrontendAssets::get("index.html").is_some();
     let (event_tx, _) = broadcast::channel::<String>(64);
+    build_router(db, static_dir, has_embedded, event_tx)
+}
+
+fn build_router(
+    db: Database,
+    static_dir: Option<PathBuf>,
+    has_embedded: bool,
+    event_tx: broadcast::Sender<String>,
+) -> Router {
     let state = AppState {
         db: std::sync::Arc::new(Mutex::new(db)),
         static_dir,
@@ -171,11 +180,56 @@ pub async fn serve_with_static(
     port: u16,
     static_dir: Option<PathBuf>,
 ) -> anyhow::Result<()> {
-    let db = Database::open(db_path)?;
-    let router = create_router_with_static(db, static_dir.clone());
-    let addr = format!("0.0.0.0:{}", port);
+    let (_event_tx, _) = broadcast::channel::<String>(64);
+    serve_with_broadcast(db_path, port, _event_tx, static_dir).await
+}
 
+/// Start API server with an external broadcast sender (for watcher integration).
+pub async fn serve_with_broadcast(
+    db_path: &Path,
+    port: u16,
+    event_tx: broadcast::Sender<String>,
+    static_dir: Option<PathBuf>,
+) -> anyhow::Result<()> {
+    let db = Database::open(db_path)?;
     let has_embedded = FrontendAssets::get("index.html").is_some();
+    let state = AppState {
+        db: std::sync::Arc::new(Mutex::new(db)),
+        static_dir: static_dir.clone(),
+        use_embedded: has_embedded,
+        event_tx,
+        importance_cache: ImportanceCache::default(),
+    };
+
+    let cors = CorsLayer::new()
+        .allow_origin(Any)
+        .allow_methods(Any)
+        .allow_headers(Any);
+
+    let router = Router::new()
+        .route("/api/stats", get(routes::stats))
+        .route("/api/files", get(routes::list_files))
+        .route("/api/symbols", get(routes::list_symbols))
+        .route("/api/symbols/{id}", get(routes::get_symbol))
+        .route("/api/edges", get(routes::list_edges))
+        .route("/api/search", get(routes::search))
+        .route("/api/graph/modules", get(routes::modules))
+        .route("/api/graph/children/{id}", get(routes::children))
+        .route("/api/graph/dependency", get(routes::dependency_graph))
+        .route("/api/metrics", get(routes::metrics))
+        .route("/api/impact", get(routes::impact))
+        .route(
+            "/api/snapshots",
+            get(routes::list_snapshots).post(routes::save_snapshot),
+        )
+        .route("/api/snapshots/{id}", get(routes::get_snapshot))
+        .route("/api/trend", get(routes::get_trend))
+        .route("/api/events", get(ws::ws_handler))
+        .fallback(fallback_handler)
+        .layer(cors)
+        .layer(TraceLayer::new_for_http())
+        .with_state(state);
+
     if let Some(ref dir) = static_dir {
         println!("Web UI:  http://localhost:{}", port);
         println!("API:     http://localhost:{}/api/stats", port);
@@ -186,13 +240,10 @@ pub async fn serve_with_static(
         println!("(serving embedded frontend)");
     } else {
         println!("API server: http://localhost:{}/api/stats", port);
-        println!();
-        println!("Tip: Build the frontend for a web UI:");
-        println!("  cd apps/web && npm install && npm run build");
-        println!("  cargo build (re-embeds the frontend)");
     }
 
-    let listener = tokio::net::TcpListener::bind(&addr).await?;
+    let listener = tokio::net::TcpListener::bind(format!("0.0.0.0:{}", port)).await?;
     axum::serve(listener, router).await?;
     Ok(())
 }
+

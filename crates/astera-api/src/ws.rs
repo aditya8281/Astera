@@ -50,7 +50,6 @@ async fn handle_socket(socket: WebSocket, tx: broadcast::Sender<String>) {
 }
 
 /// Broadcast an index event to all connected WebSocket clients
-#[allow(dead_code)]
 pub fn broadcast_event(tx: &broadcast::Sender<String>, event: &crate::IndexEvent) {
     if let Ok(json) = serde_json::to_string(event) {
         let _ = tx.send(json);

@@ -1431,40 +1431,62 @@ async fn main() -> Result<(), anyhow::Error> {
             println!("Starting watcher on: {}", root.display());
             println!("API server on port {}", port);
 
-            let (update_tx, update_rx) = std::sync::mpsc::channel::<astera_watcher::UpdateResult>();
+            // Shared broadcast channel: watcher → API WebSocket → frontend
+            let (event_tx, _) = tokio::sync::broadcast::channel::<String>(64);
 
             // Start watcher in a background thread
             let watcher_root = root.clone();
             let watcher_db = db_path.clone();
+            let watcher_event_tx = event_tx.clone();
             let watcher_handle = std::thread::spawn(move || {
                 let watcher = astera_watcher::FileWatcher::new(watcher_root, watcher_db);
-                if let Err(e) = watcher.watch(update_tx) {
-                    eprintln!("Watcher error: {}", e);
+                let (update_tx, update_rx) = std::sync::mpsc::channel::<astera_watcher::UpdateResult>();
+                // Start the file watcher in its own thread
+                let watch_handle = std::thread::spawn(move || {
+                    if let Err(e) = watcher.watch(update_tx) {
+                        eprintln!("Watcher error: {}", e);
+                    }
+                });
+                // Relay updates from watcher to broadcast channel
+                while let Ok(result) = update_rx.recv() {
+                    println!(
+                        "Re-indexed: {} files changed, +{} nodes, -{} nodes, +{} edges ({}ms)",
+                        result.files_changed,
+                        result.nodes_added,
+                        result.nodes_removed,
+                        result.edges_added,
+                        result.elapsed_ms
+                    );
+                    let event = astera_api::IndexEvent {
+                        event: "index_updated".to_string(),
+                        files_changed: result.files_changed as u64,
+                        nodes_added: result.nodes_added as u64,
+                        nodes_removed: result.nodes_removed as u64,
+                        edges_added: result.edges_added as u64,
+                        elapsed_ms: result.elapsed_ms as u64,
+                        message: format!(
+                            "Re-indexed: {} files, +{} nodes, -{} nodes, +{} edges",
+                            result.files_changed, result.nodes_added, result.nodes_removed, result.edges_added
+                        ),
+                    };
+                    astera_api::ws::broadcast_event(&watcher_event_tx, &event);
                 }
+                let _ = watch_handle.join();
             });
 
-            // Start API server on the main thread
+            // Start API server on the main thread with the shared broadcast sender
             let api_db_path = db_path.clone();
             let api_handle = tokio::spawn(async move {
-                if let Err(e) = astera_api::serve(&api_db_path, port).await {
+                if let Err(e) = astera_api::serve_with_broadcast(&api_db_path, port, event_tx, None).await {
                     eprintln!("API server error: {}", e);
                 }
             });
 
-            // Print updates as they come in
-            while let Ok(result) = update_rx.recv() {
-                println!(
-                    "Re-indexed: {} files changed, +{} nodes, -{} nodes, +{} edges ({}ms)",
-                    result.files_changed,
-                    result.nodes_added,
-                    result.nodes_removed,
-                    result.edges_added,
-                    result.elapsed_ms
-                );
+            // Wait for watcher or API to finish
+            tokio::select! {
+                _ = api_handle => {},
             }
-
             watcher_handle.join().unwrap();
-            api_handle.abort();
         }
         Commands::Stats => {
             stats_command()?;
