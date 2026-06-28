@@ -83,6 +83,11 @@ export function GraphCanvas({ nodes, edges, isLoading, error, onNodeDoubleClick 
   // --- Delight state ---
   // Adjacency map for connected-edge cascade
   const adjacencyRef = useRef<Map<number, Set<number>>>(new Map())
+  // Orbital reveal: camera starts zoomed in, spirals out to fitted view
+  const orbitalRevealRef = useRef(false)
+  // Constellation beams: radial lines to 1-hop neighbors on selection
+  const beamsRef = useRef<{ id: number; startTime: number; neighbors: number[] } | null>(null)
+  const prevBeamsIdRef = useRef<number | null>(null)
 
   // --- Animation state ---
   // Node entrance: birth timestamp per node (staggered by distance from center)
@@ -172,8 +177,17 @@ export function GraphCanvas({ nodes, edges, isLoading, error, onNodeDoubleClick 
     const tx = w / 2 - cx * fitScale
     const ty = h / 2 - cy * fitScale
 
-    transformRef.current = { x: tx, y: ty, scale: fitScale }
-    cameraTargetRef.current = { x: tx, y: ty, scale: fitScale }
+    // Orbital reveal: start camera zoomed in tight, let lerp spiral it out
+    if (!orbitalRevealRef.current) {
+      const revealScale = Math.max(fitScale * 3, 3.5)
+      transformRef.current = { x: w / 2, y: h / 2, scale: revealScale }
+      cameraTargetRef.current = { x: tx, y: ty, scale: fitScale }
+      orbitalRevealRef.current = true
+    } else {
+      // Drill-down: snap directly
+      transformRef.current = { x: tx, y: ty, scale: fitScale }
+      cameraTargetRef.current = { x: tx, y: ty, scale: fitScale }
+    }
     autoFitAppliedRef.current = true
 
     // Stagger node entrance by distance from graph center
@@ -208,6 +222,8 @@ export function GraphCanvas({ nodes, edges, isLoading, error, onNodeDoubleClick 
     nodeBirthRef.current.clear()
     edgeBirthRef.current.clear()
     hoverStrengthRef.current.clear()
+    beamsRef.current = null
+    prevBeamsIdRef.current = null
   }, [nodes])
 
   // Track edge births
@@ -245,12 +261,19 @@ export function GraphCanvas({ nodes, edges, isLoading, error, onNodeDoubleClick 
     }
   }, [cameraTarget])
 
-  // Trigger reticle pulse + selection ring on selection change
+  // Trigger reticle pulse + selection ring + constellation beams on selection change
   useEffect(() => {
     if (selectedNodeId !== null && selectedNodeId !== prevSelectedRef.current) {
       const now = performance.now()
       selectionPulseRef.current = { id: selectedNodeId, startTime: now }
       selectionRingRef.current = { id: selectedNodeId, startTime: now }
+      // Delight: constellation beams — find 1-hop neighbors
+      const neighbors = adjacencyRef.current.get(selectedNodeId)
+      if (neighbors && neighbors.size > 0) {
+        beamsRef.current = { id: selectedNodeId, startTime: now, neighbors: Array.from(neighbors) }
+      } else {
+        beamsRef.current = null
+      }
     }
     prevSelectedRef.current = selectedNodeId
   }, [selectedNodeId])
@@ -517,6 +540,61 @@ export function GraphCanvas({ nodes, edges, isLoading, error, onNodeDoubleClick 
         }
 
         ctx.globalAlpha = 1
+      }
+
+      // --- Delight: Constellation beams — radial lines to 1-hop neighbors ---
+      const beam = beamsRef.current
+      if (beam) {
+        const beamAge = time - beam.startTime
+        const BEAM_IN = 300      // ms: fade in
+        const BEAM_LINGER = 600  // ms: stay visible
+        const BEAM_OUT = 400     // ms: fade out
+        const BEAM_TOTAL = BEAM_IN + BEAM_LINGER + BEAM_OUT
+
+        if (beamAge < BEAM_TOTAL) {
+          let beamAlpha = 1
+          if (beamAge < BEAM_IN) {
+            beamAlpha = easeOutCubic(beamAge / BEAM_IN)
+          } else if (beamAge > BEAM_IN + BEAM_LINGER) {
+            const outProgress = (beamAge - BEAM_IN - BEAM_LINGER) / BEAM_OUT
+            beamAlpha = 1 - easeOutCubic(outProgress)
+          }
+
+          const centerPos = currentPositions.get(beam.id)
+          if (centerPos) {
+            const cx = centerPos.x * scale + tx
+            const cy = centerPos.y * scale + ty
+
+            for (const neighborId of beam.neighbors) {
+              const nPos = currentPositions.get(neighborId)
+              if (!nPos) continue
+              const nx = nPos.x * scale + tx
+              const ny = nPos.y * scale + ty
+
+              // Skip off-screen beams
+              if ((cx < -50 && nx < -50) || (cy < -50 && ny < -50)) continue
+              if ((cx > w + 50 && nx > w + 50) || (cy > h + 50 && ny > h + 50)) continue
+
+              // Beam: radial line with gradient fade
+              ctx.beginPath()
+              ctx.moveTo(cx, cy)
+              ctx.lineTo(nx, ny)
+              ctx.strokeStyle = COLORS.selection
+              ctx.globalAlpha = beamAlpha * 0.5
+              ctx.lineWidth = 1.5
+              ctx.stroke()
+              ctx.globalAlpha = 1
+            }
+
+            // Center glow during beams
+            ctx.beginPath()
+            ctx.arc(cx, cy, 16, 0, Math.PI * 2)
+            ctx.fillStyle = COLORS.selection
+            ctx.globalAlpha = beamAlpha * 0.15
+            ctx.fill()
+            ctx.globalAlpha = 1
+          }
+        }
       }
 
       animFrameRef.current = requestAnimationFrame(loop)
