@@ -1,5 +1,5 @@
 import { useState, useCallback, useRef, useEffect } from 'react'
-import { useQuery, useMutation } from '@tanstack/react-query'
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { api } from '../api'
 import { GraphCanvas } from '../components/Graph/GraphCanvas'
 import { ParticleField } from '../components/Graph/ParticleField'
@@ -23,6 +23,7 @@ export function GraphPage() {
   const kindFilter = useUIStore((s) => s.kindFilter)
   const setGraphState = useUIStore((s) => s.setGraphState)
   const pushBreadcrumb = useUIStore((s) => s.pushBreadcrumb)
+  const queryClient = useQueryClient()
 
   // Progressive loading state
   const [visibleNodes, setVisibleNodes] = useState<GraphNode[]>([])
@@ -62,6 +63,10 @@ export function GraphPage() {
   // Drill-down mutation: fetch children of a container node
   const childrenMutation = useMutation({
     mutationFn: (nodeId: number) => api.children(nodeId),
+    onSuccess: () => {
+      // Invalidate children cache after drill-down so re-visits get fresh data
+      queryClient.invalidateQueries({ queryKey: ['children'] })
+    },
   })
 
   // Track last processed mutation to avoid re-processing

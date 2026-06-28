@@ -5,8 +5,9 @@ use axum::response::{IntoResponse, Response};
 use axum::routing::get;
 use axum::Router;
 use rust_embed::Embed;
+use std::collections::HashMap;
 use std::path::{Path, PathBuf};
-use std::sync::Mutex;
+use std::sync::{Arc, Mutex, RwLock};
 use tokio::sync::broadcast;
 use tower_http::cors::{Any, CorsLayer};
 use tower_http::trace::TraceLayer;
@@ -37,12 +38,20 @@ mod integration_test;
 #[folder = "frontend"]
 struct FrontendAssets;
 
+/// Cached importance scores to avoid recomputing on every request.
+/// Invalidated on re-index via the event system.
+#[derive(Clone, Default)]
+pub struct ImportanceCache {
+    pub scores: Arc<RwLock<HashMap<i64, f64>>>,
+}
+
 #[derive(Clone)]
 pub struct AppState {
     pub db: std::sync::Arc<Mutex<Database>>,
     pub static_dir: Option<PathBuf>,
     pub use_embedded: bool,
     pub event_tx: broadcast::Sender<String>,
+    pub importance_cache: ImportanceCache,
 }
 
 pub fn create_router(db: Database) -> Router {
@@ -57,6 +66,7 @@ pub fn create_router_with_static(db: Database, static_dir: Option<PathBuf>) -> R
         static_dir,
         use_embedded: has_embedded,
         event_tx,
+        importance_cache: ImportanceCache::default(),
     };
 
     let cors = CorsLayer::new()

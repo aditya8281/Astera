@@ -639,13 +639,30 @@ export function GraphCanvas({ nodes, edges, isLoading, error, onNodeDoubleClick 
     }
   }, []) // Empty deps — never restarts
 
-  // Resize observer
+  // Resize observer — trigger canvas redraw by setting a dirty flag
   useEffect(() => {
     const container = containerRef.current
     if (!container) return
-    const observer = new ResizeObserver(() => {})
+    let rafId: number
+    const observer = new ResizeObserver(() => {
+      // Force a canvas resize on next frame (canvas element will auto-resize via CSS,
+      // but we need to update the internal resolution to match)
+      cancelAnimationFrame(rafId)
+      rafId = requestAnimationFrame(() => {
+        const canvas = canvasRef.current
+        if (!canvas) return
+        const dpr = window.devicePixelRatio || 1
+        const rect = canvas.getBoundingClientRect()
+        if (rect.width > 0 && rect.height > 0) {
+          canvas.width = rect.width * dpr
+          canvas.height = rect.height * dpr
+          const ctx = canvas.getContext('2d')
+          if (ctx) ctx.scale(dpr, dpr)
+        }
+      })
+    })
     observer.observe(container)
-    return () => observer.disconnect()
+    return () => { observer.disconnect(); cancelAnimationFrame(rafId) }
   }, [])
 
   // Mouse handlers
@@ -710,6 +727,19 @@ export function GraphCanvas({ nodes, edges, isLoading, error, onNodeDoubleClick 
     cameraTargetRef.current = { x: newTx, y: newTy, scale: newScale }
   }, [])
 
+  // Pan camera to center on a node position
+  const panToNode = useCallback((nodeId: number) => {
+    const pos = positionsRef.current.get(nodeId)
+    if (!pos || !containerRef.current) return
+    const rect = containerRef.current.getBoundingClientRect()
+    const scale = transformRef.current.scale
+    cameraTargetRef.current = {
+      x: rect.width / 2 - pos.x * scale,
+      y: rect.height / 2 - pos.y * scale,
+      scale,
+    }
+  }, [])
+
   const handleClick = useCallback((e: React.MouseEvent) => {
     if (dragRef.current.dragging) return
     const rect = canvasRef.current?.getBoundingClientRect()
@@ -734,8 +764,10 @@ export function GraphCanvas({ nodes, edges, isLoading, error, onNodeDoubleClick 
       }
     }
 
-    selectNode(closest ? closest.id : null)
-  }, [selectNode])
+    const newId = closest ? closest.id : null
+    selectNode(newId)
+    if (newId !== null) panToNode(newId)
+  }, [selectNode, panToNode])
 
   const handleDoubleClick = useCallback((e: React.MouseEvent) => {
     const rect = canvasRef.current?.getBoundingClientRect()
@@ -758,6 +790,123 @@ export function GraphCanvas({ nodes, edges, isLoading, error, onNodeDoubleClick 
     }
   }, [onNodeDoubleClick])
 
+  // Keyboard navigation: arrow keys traverse nodes, Escape deselects, +/- zoom
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      // Ignore if inside input/textarea
+      if ((e.target as HTMLElement)?.tagName === 'INPUT' || (e.target as HTMLElement)?.tagName === 'TEXTAREA') return
+
+      const currentNodes = nodesRef.current
+      const currentPositions = positionsRef.current
+      const currentSelected = selectedRef.current
+
+      if (e.key === 'Escape') {
+        selectNode(null)
+        return
+      }
+
+      if (e.key === 'Tab') {
+        e.preventDefault()
+        if (currentNodes.length === 0) return
+        // Find next/previous node by index
+        const idx = currentNodes.findIndex(n => n.id === currentSelected)
+        const next = e.shiftKey
+          ? (idx <= 0 ? currentNodes.length - 1 : idx - 1)
+          : (idx < 0 || idx >= currentNodes.length - 1 ? 0 : idx + 1)
+        const nextNode = currentNodes[next]
+        selectNode(nextNode.id)
+        panToNode(nextNode.id)
+        return
+      }
+
+      if (e.key === 'ArrowDown' && currentSelected !== null) {
+        e.preventDefault()
+        // Find nearest node below current
+        const pos = currentPositions.get(currentSelected)
+        if (!pos) return
+        let best: number | null = null
+        let bestDist = Infinity
+        for (const n of currentNodes) {
+          if (n.id === currentSelected) continue
+          const np = currentPositions.get(n.id)
+          if (!np) continue
+          const dy = np.y - pos.y
+          if (dy > 2 && dy < bestDist) { bestDist = dy; best = n.id }
+        }
+        if (best !== null) { selectNode(best); panToNode(best) }
+        return
+      }
+
+      if (e.key === 'ArrowUp' && currentSelected !== null) {
+        e.preventDefault()
+        const pos = currentPositions.get(currentSelected)
+        if (!pos) return
+        let best: number | null = null
+        let bestDist = Infinity
+        for (const n of currentNodes) {
+          if (n.id === currentSelected) continue
+          const np = currentPositions.get(n.id)
+          if (!np) continue
+          const dy = pos.y - np.y
+          if (dy > 2 && dy < bestDist) { bestDist = dy; best = n.id }
+        }
+        if (best !== null) { selectNode(best); panToNode(best) }
+        return
+      }
+
+      if (e.key === 'ArrowLeft' && currentSelected !== null) {
+        e.preventDefault()
+        const pos = currentPositions.get(currentSelected)
+        if (!pos) return
+        let best: number | null = null
+        let bestDist = Infinity
+        for (const n of currentNodes) {
+          if (n.id === currentSelected) continue
+          const np = currentPositions.get(n.id)
+          if (!np) continue
+          const dx = pos.x - np.x
+          if (dx > 2 && dx < bestDist) { bestDist = dx; best = n.id }
+        }
+        if (best !== null) { selectNode(best); panToNode(best) }
+        return
+      }
+
+      if (e.key === 'ArrowRight' && currentSelected !== null) {
+        e.preventDefault()
+        const pos = currentPositions.get(currentSelected)
+        if (!pos) return
+        let best: number | null = null
+        let bestDist = Infinity
+        for (const n of currentNodes) {
+          if (n.id === currentSelected) continue
+          const np = currentPositions.get(n.id)
+          if (!np) continue
+          const dx = np.x - pos.x
+          if (dx > 2 && dx < bestDist) { bestDist = dx; best = n.id }
+        }
+        if (best !== null) { selectNode(best); panToNode(best) }
+        return
+      }
+
+      // Zoom with +/-
+      if (e.key === '=' || e.key === '+') {
+        const t = transformRef.current
+        const newScale = Math.min(4, t.scale * 1.15)
+        cameraTargetRef.current = { x: t.x, y: t.y, scale: newScale }
+        return
+      }
+      if (e.key === '-' || e.key === '_') {
+        const t = transformRef.current
+        const newScale = Math.max(0.15, t.scale * 0.85)
+        cameraTargetRef.current = { x: t.x, y: t.y, scale: newScale }
+        return
+      }
+    }
+
+    window.addEventListener('keydown', handler)
+    return () => window.removeEventListener('keydown', handler)
+  }, [selectNode, panToNode])
+
   if (error) {
     return (
       <div className="h-full flex items-center justify-center" style={{ color: COLORS.error }}>
@@ -772,10 +921,26 @@ export function GraphCanvas({ nodes, edges, isLoading, error, onNodeDoubleClick 
   if (isLoading) {
     return (
       <div className="h-full flex items-center justify-center" style={{ color: COLORS.textMuted }}>
-        <div className="text-center space-y-3">
-          <div className="skeleton w-48 h-4" />
-          <div className="skeleton w-32 h-3" />
-          <p className="text-xs">Loading graph...</p>
+        <div className="text-center space-y-4">
+          {/* Animated dot cluster */}
+          <div className="flex items-center justify-center gap-2">
+            {[0, 1, 2, 3, 4].map(i => (
+              <div
+                key={i}
+                className="w-2 h-2 rounded-full"
+                style={{
+                  background: COLORS.selection,
+                  opacity: 0.3,
+                  animation: `pulse 1.4s ease-in-out ${i * 0.15}s infinite`,
+                }}
+              />
+            ))}
+          </div>
+          <div className="space-y-2">
+            <div className="h-3 rounded" style={{ width: 180, background: COLORS.surface, opacity: 0.6 }} />
+            <div className="h-2.5 rounded" style={{ width: 120, background: COLORS.surfaceDim, opacity: 0.4 }} />
+          </div>
+          <p className="text-[11px] font-mono" style={{ color: COLORS.textDim }}>Building force layout…</p>
         </div>
       </div>
     )

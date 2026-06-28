@@ -553,6 +553,7 @@ impl Database {
     // ─── Snapshots (Repository Evolution) ───
 
     /// Save a snapshot of current index state with aggregate metrics.
+    #[allow(clippy::too_many_arguments)]
     pub fn save_snapshot(
         &self,
         commit_hash: Option<&str>,

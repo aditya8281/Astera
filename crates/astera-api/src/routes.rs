@@ -4,7 +4,7 @@ use axum::Json;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
-use crate::AppState;
+use crate::{AppState, ImportanceCache};
 use astera_core::{Edge, EdgeKind, Node, NodeKind};
 use astera_impact::ImpactAnalyzer;
 use astera_metrics::{compute_importance, compute_metrics};
@@ -301,6 +301,36 @@ pub async fn search(
     }))
 }
 
+// ─── Importance cache helper ───
+
+/// Get importance scores from cache, or compute and store if missing.
+fn get_or_compute_importance(
+    cache: &ImportanceCache,
+    nodes: &[Node],
+    edges: &[Edge],
+) -> std::collections::HashMap<i64, f64> {
+    // Try read lock first (fast path — no recomputation)
+    if let Ok(scores) = cache.scores.read() {
+        if !scores.is_empty() {
+            return scores.clone();
+        }
+    }
+    // Compute and write to cache
+    let scores = compute_importance(nodes, edges);
+    if let Ok(mut writer) = cache.scores.write() {
+        *writer = scores.clone();
+    }
+    scores
+}
+
+/// Invalidate importance cache (called after re-index)
+#[allow(dead_code)]
+pub fn invalidate_importance(cache: &ImportanceCache) {
+    if let Ok(mut writer) = cache.scores.write() {
+        writer.clear();
+    }
+}
+
 // ─── Modules endpoint (for progressive loading) ───
 
 #[derive(Serialize)]
@@ -337,7 +367,8 @@ pub async fn modules(
         )
     })?;
 
-    let importance = compute_importance(&nodes, &edges);
+    // Use cached importance instead of recomputing
+    let importance = get_or_compute_importance(&state.importance_cache, &nodes, &edges);
 
     // Count children per node (Contains edges)
     let mut child_counts: HashMap<i64, u32> = HashMap::new();
@@ -406,7 +437,7 @@ pub async fn dependency_graph(
         )
     })?;
 
-    let importance = compute_importance(&nodes, &edges);
+    let importance = get_or_compute_importance(&state.importance_cache, &nodes, &edges);
 
     let graph_nodes: Vec<GraphNode> = nodes
         .into_iter()
@@ -586,17 +617,18 @@ pub async fn children(
         )
     })?;
 
-    // Use cached graph for importance (avoids full table scan)
-    let (all_nodes, all_edges) = db.get_all_graph().map_err(|e| {
-        (
-            StatusCode::INTERNAL_SERVER_ERROR,
-            Json(ErrorResponse {
-                error: format!("Database error: {}", e),
-            }),
-        )
-    })?;
-
-    let importance = compute_importance(&all_nodes, &all_edges);
+    // Use cached importance instead of recomputing from full graph
+    let importance = {
+        if let Ok(scores) = state.importance_cache.scores.read() {
+            if !scores.is_empty() {
+                scores.clone()
+            } else {
+                compute_importance(&child_nodes, &child_edges)
+            }
+        } else {
+            compute_importance(&child_nodes, &child_edges)
+        }
+    };
 
     // Include the parent node itself
     let parent = db.get_node(node_id).map_err(|e| {
