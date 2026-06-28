@@ -14,16 +14,17 @@ interface GraphCanvasProps {
 
 /**
  * 2D Canvas-based graph visualization.
- * OLED-black background, calm navigation, auto-centered on load.
  *
- * Key architecture:
- * - Animation loop runs once, never restarts
- * - All data (positions, nodes, edges, selection) read from refs
- * - Camera lerp for smooth pan/zoom transitions
- * - Auto-fit on first layout completion
+ * Animation system (Emil Kowalski principles):
+ * - Node entrance: staggered scale 0.6→1.0 + opacity 0→1, 200ms ease-out
+ * - Edge entrance: fade opacity 0→1, 250ms ease-out
+ * - Hover: exponential lerp on glow strength (no binary on/off)
+ * - Selection: reticle pulse with cubic ease-out, ring scale 0.6→1.0
+ * - Camera: linear lerp = exponential ease-out (already correct)
+ * - All entrances respect prefers-reduced-motion
  */
 
-// Node radius by kind (slightly larger for OLED readability)
+// Node radius by kind
 function nodeRadius(kind: string): number {
   if (kind === 'File' || kind === 'Module') return 10
   if (kind === 'Class' || kind === 'Interface' || kind === 'Enum') return 8
@@ -31,19 +32,32 @@ function nodeRadius(kind: string): number {
   return 5
 }
 
-// Smooth interpolation target for camera
+// Easing: cubic ease-out — starts fast, decelerates
+function easeOutCubic(t: number): number {
+  return 1 - Math.pow(1 - t, 3)
+}
+
+// Smooth camera target
 interface CameraTarget {
   x: number
   y: number
   scale: number
 }
 
+// Entrance timing constants
+const NODE_ENTRANCE_DURATION = 200   // ms
+const EDGE_ENTRANCE_DURATION = 250   // ms
+const STAGGER_SPREAD = 120           // ms total stagger across all nodes
+const RETICLE_DURATION = 400         // ms (was 600 — Emil: keep UI under 300ms, decorative under 500ms)
+const SELECTION_RING_DURATION = 180  // ms
+const HOVER_LERP = 0.12              // exponential decay per frame for hover glow
+
 export function GraphCanvas({ nodes, edges, isLoading, error, onNodeDoubleClick }: GraphCanvasProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const containerRef = useRef<HTMLDivElement>(null)
   const positions = useForceLayout2D(nodes, edges)
 
-  // --- All mutable state stored in refs to avoid animation loop restarts ---
+  // --- All mutable state in refs ---
   const positionsRef = useRef<Map<number, Vec2>>(new Map())
   const nodesRef = useRef<GraphNode[]>([])
   const edgesRef = useRef<GraphEdge[]>([])
@@ -61,20 +75,46 @@ export function GraphCanvas({ nodes, edges, isLoading, error, onNodeDoubleClick 
   const selectNode = useUIStore((s) => s.selectNode)
   const cameraTarget = useUIStore((s) => s.cameraTarget)
 
-  // Selection pulse: brief expanding ring on node select
+  // --- Animation state ---
+  // Node entrance: birth timestamp per node (staggered by distance from center)
+  const nodeBirthRef = useRef<Map<number, number>>(new Map())
+  // Node entrance: completion time (when simulation settled)
+  const nodeEntranceStartRef = useRef<number>(0)
+
+  // Edge entrance: birth timestamp per edge key
+  const edgeBirthRef = useRef<Map<string, number>>(new Map())
+  const edgeEntranceStartRef = useRef<number>(0)
+
+  // Hover glow: per-node strength (0-1), lerps smoothly
+  const hoverStrengthRef = useRef<Map<number, number>>(new Map())
+  const hoverNodeIdRef = useRef<number | null>(null)
+
+  // Selection pulse
   const selectionPulseRef = useRef<{ id: number; startTime: number } | null>(null)
   const prevSelectedRef = useRef<number | null>(null)
 
-  // Hover tracking for glow ring
-  const hoverNodeIdRef = useRef<number | null>(null)
+  // Selection ring scale animation
+  const selectionRingRef = useRef<{ id: number; startTime: number } | null>(null)
 
-  // --- Sync React state into refs (reads are free, no render cycle) ---
+  // Reduced motion preference
+  const reducedMotionRef = useRef(false)
+
+  // --- Sync React state into refs ---
   useEffect(() => { positionsRef.current = positions }, [positions])
   useEffect(() => { nodesRef.current = nodes }, [nodes])
   useEffect(() => { edgesRef.current = edges }, [edges])
   useEffect(() => { selectedRef.current = selectedNodeId }, [selectedNodeId])
 
-  // Auto-fit: center all nodes in view when positions first arrive
+  // Check reduced motion on mount
+  useEffect(() => {
+    const mq = window.matchMedia('(prefers-reduced-motion: reduce)')
+    reducedMotionRef.current = mq.matches
+    const handler = (e: MediaQueryListEvent) => { reducedMotionRef.current = e.matches }
+    mq.addEventListener('change', handler)
+    return () => mq.removeEventListener('change', handler)
+  }, [])
+
+  // Auto-fit + stagger entrance when positions first arrive
   useEffect(() => {
     if (positions.size === 0 || autoFitAppliedRef.current) return
     if (!containerRef.current) return
@@ -114,12 +154,62 @@ export function GraphCanvas({ nodes, edges, isLoading, error, onNodeDoubleClick 
     transformRef.current = { x: tx, y: ty, scale: fitScale }
     cameraTargetRef.current = { x: tx, y: ty, scale: fitScale }
     autoFitAppliedRef.current = true
+
+    // Stagger node entrance by distance from graph center
+    const now = performance.now()
+    nodeEntranceStartRef.current = now
+
+    if (!reducedMotionRef.current) {
+      const maxDist = Math.sqrt(graphW * graphW + graphH * graphH) / 2
+      const birthMap = new Map<number, number>()
+      for (const [id, pos] of positions) {
+        const dx = pos.x - cx
+        const dy = pos.y - cy
+        const dist = Math.sqrt(dx * dx + dy * dy)
+        // Normalize 0-1, center nodes appear first
+        const normalizedDist = maxDist > 0 ? dist / maxDist : 0
+        const delay = normalizedDist * STAGGER_SPREAD
+        birthMap.set(id, now + delay)
+      }
+      nodeBirthRef.current = birthMap
+    } else {
+      // Reduced motion: all nodes appear instantly
+      const birthMap = new Map<number, number>()
+      for (const id of positions.keys()) birthMap.set(id, now)
+      nodeBirthRef.current = birthMap
+    }
   }, [positions])
 
-  // Reset auto-fit when nodes change (drill-down)
+  // Reset auto-fit + entrance when nodes change (drill-down)
   useEffect(() => {
     autoFitAppliedRef.current = false
+    // Clear old entrance data
+    nodeBirthRef.current.clear()
+    edgeBirthRef.current.clear()
+    hoverStrengthRef.current.clear()
   }, [nodes])
+
+  // Track edge births
+  useEffect(() => {
+    const now = performance.now()
+    edgeEntranceStartRef.current = now
+    if (reducedMotionRef.current) return
+
+    const newEdgeKeys = new Set(
+      edges.map(e => `${e.source}-${e.target}-${e.kind}`)
+    )
+    // Record birth for edges not yet tracked
+    const map = edgeBirthRef.current
+    for (const key of newEdgeKeys) {
+      if (!map.has(key)) {
+        map.set(key, now + EDGE_ENTRANCE_DURATION * 0.3) // Small initial delay
+      }
+    }
+    // Remove dead edges
+    for (const key of map.keys()) {
+      if (!newEdgeKeys.has(key)) map.delete(key)
+    }
+  }, [edges])
 
   // Camera target follow (when selecting a node)
   useEffect(() => {
@@ -134,17 +224,20 @@ export function GraphCanvas({ nodes, edges, isLoading, error, onNodeDoubleClick 
     }
   }, [cameraTarget])
 
-  // Trigger reticle pulse on selection change
+  // Trigger reticle pulse + selection ring on selection change
   useEffect(() => {
     if (selectedNodeId !== null && selectedNodeId !== prevSelectedRef.current) {
-      selectionPulseRef.current = { id: selectedNodeId, startTime: performance.now() }
+      const now = performance.now()
+      selectionPulseRef.current = { id: selectedNodeId, startTime: now }
+      selectionRingRef.current = { id: selectedNodeId, startTime: now }
     }
     prevSelectedRef.current = selectedNodeId
   }, [selectedNodeId])
 
-  // --- Single stable animation loop — never restarts ---
+  // --- Single stable animation loop ---
   useEffect(() => {
     let running = true
+    const now = () => performance.now()
 
     const loop = () => {
       if (!running) return
@@ -165,7 +258,7 @@ export function GraphCanvas({ nodes, edges, isLoading, error, onNodeDoubleClick 
       const w = rect.width
       const h = rect.height
 
-      // Smooth camera interpolation (lerp)
+      // Smooth camera interpolation (exponential ease-out by nature)
       const LERP_SPEED = 0.1
       const t = transformRef.current
       const target = cameraTargetRef.current
@@ -184,9 +277,26 @@ export function GraphCanvas({ nodes, edges, isLoading, error, onNodeDoubleClick 
       const currentEdges = edgesRef.current
       const currentPositions = positionsRef.current
       const selectedId = selectedRef.current
+      const time = now()
 
-      // Draw edges
-      ctx.lineWidth = 1
+      // --- Update hover strengths (exponential lerp) ---
+      const hoverMap = hoverStrengthRef.current
+      const currentHover = hoverNodeIdRef.current
+      // All nodes that were ever hovered get updated
+      for (const node of currentNodes) {
+        const isHovered = currentHover === node.id
+        const current = hoverMap.get(node.id) || 0
+        const target = isHovered ? 1 : 0
+        const newVal = current + (target - current) * HOVER_LERP
+        // Snap to 0/1 when very close to avoid running forever
+        if (Math.abs(newVal - target) < 0.01) {
+          hoverMap.set(node.id, target)
+        } else {
+          hoverMap.set(node.id, newVal)
+        }
+      }
+
+      // --- Draw edges ---
       for (const edge of currentEdges) {
         const from = currentPositions.get(edge.source)
         const to = currentPositions.get(edge.target)
@@ -197,21 +307,43 @@ export function GraphCanvas({ nodes, edges, isLoading, error, onNodeDoubleClick 
         const tox = to.x * scale + tx
         const toy = to.y * scale + ty
 
-        // Skip edges entirely off-screen
+        // Skip off-screen
         if ((fx < -50 && tox < -50) || (fy < -50 && toy < -50)) continue
         if ((fx > w + 50 && tox > w + 50) || (fy > h + 50 && toy > h + 50)) continue
 
         const isHighlighted = edge.source === selectedId || edge.target === selectedId
 
+        // Edge entrance: fade in
+        let edgeAlpha = 1
+        const edgeKey = `${edge.source}-${edge.target}-${edge.kind}`
+        const edgeBirth = edgeBirthRef.current.get(edgeKey)
+        if (edgeBirth !== undefined) {
+          const age = time - edgeBirth
+          if (age < EDGE_ENTRANCE_DURATION) {
+            edgeAlpha = easeOutCubic(Math.max(0, age / EDGE_ENTRANCE_DURATION))
+          }
+        }
+
         ctx.beginPath()
         ctx.moveTo(fx, fy)
         ctx.lineTo(tox, toy)
-        ctx.strokeStyle = isHighlighted ? COLORS.selection : COLORS.edgeDefault
-        ctx.lineWidth = isHighlighted ? 1.5 : 0.8
+
+        if (isHighlighted) {
+          ctx.strokeStyle = COLORS.selection
+          ctx.globalAlpha = edgeAlpha
+          ctx.lineWidth = 1.5
+        } else {
+          // Parse edgeDefault rgba and apply entrance alpha
+          ctx.strokeStyle = COLORS.edgeDefault
+          ctx.globalAlpha = edgeAlpha
+          ctx.lineWidth = 0.8
+        }
+
         ctx.stroke()
+        ctx.globalAlpha = 1
       }
 
-      // Draw nodes
+      // --- Draw nodes ---
       for (const node of currentNodes) {
         const pos = currentPositions.get(node.id)
         if (!pos) continue
@@ -221,42 +353,72 @@ export function GraphCanvas({ nodes, edges, isLoading, error, onNodeDoubleClick 
 
         if (nx < -30 || nx > w + 30 || ny < -30 || ny > h + 30) continue
 
-        const r = nodeRadius(node.kind)
+        const baseR = nodeRadius(node.kind)
         const isSelected = node.id === selectedId
-        const isHovered = hoverNodeIdRef.current === node.id
+        const hoverStrength = hoverStrengthRef.current.get(node.id) || 0
+
+        // Node entrance: staggered scale + fade
+        let entranceScale = 1
+        let entranceAlpha = 1
+        const birth = nodeBirthRef.current.get(node.id)
+        if (birth !== undefined) {
+          const age = time - birth
+          if (age < NODE_ENTRANCE_DURATION) {
+            const progress = easeOutCubic(Math.max(0, age / NODE_ENTRANCE_DURATION))
+            entranceScale = 0.6 + 0.4 * progress  // 0.6 → 1.0
+            entranceAlpha = progress               // 0 → 1
+          }
+        }
+
+        const r = baseR * entranceScale * (isSelected ? 1.2 : 1)
+        const color = NODE_COLORS[node.kind] || COLORS.nodeDefault
+
+        ctx.globalAlpha = entranceAlpha
 
         // Node dot
         ctx.beginPath()
-        ctx.arc(nx, ny, isSelected ? r + 2 : r, 0, Math.PI * 2)
-        const color = NODE_COLORS[node.kind] || COLORS.nodeDefault
+        ctx.arc(nx, ny, r, 0, Math.PI * 2)
         ctx.fillStyle = isSelected ? COLORS.selection : color
         ctx.fill()
 
-        // Selection ring
+        // Selection ring — scale animation from 0.6 to 1.0
         if (isSelected) {
+          let ringScale = 1
+          const ringAnim = selectionRingRef.current
+          if (ringAnim && ringAnim.id === node.id) {
+            const age = time - ringAnim.startTime
+            if (age < SELECTION_RING_DURATION) {
+              ringScale = 0.6 + 0.4 * easeOutCubic(age / SELECTION_RING_DURATION)
+            }
+          }
+          const ringR = (baseR + 6) * ringScale
           ctx.beginPath()
-          ctx.arc(nx, ny, r + 6, 0, Math.PI * 2)
+          ctx.arc(nx, ny, ringR, 0, Math.PI * 2)
           ctx.strokeStyle = `${COLORS.selection}40`
           ctx.lineWidth = 1
           ctx.stroke()
         }
 
-        // Hover glow
-        if (isHovered && !isSelected) {
+        // Hover glow — smooth lerp, not binary
+        if (hoverStrength > 0.01 && !isSelected) {
+          const glowR = baseR + 4
+          const glowAlpha = Math.round(hoverStrength * 35).toString(16).padStart(2, '0')
           ctx.beginPath()
-          ctx.arc(nx, ny, r + 4, 0, Math.PI * 2)
-          ctx.strokeStyle = `${COLORS.selection}20`
+          ctx.arc(nx, ny, glowR, 0, Math.PI * 2)
+          ctx.strokeStyle = `${COLORS.selection}${glowAlpha}`
           ctx.lineWidth = 1
           ctx.stroke()
         }
 
-        // Reticle pulse
+        // Reticle pulse — ease-out cubic expansion
         const pulse = selectionPulseRef.current
         if (pulse && pulse.id === node.id) {
-          const elapsed = (performance.now() - pulse.startTime) / 600
-          if (elapsed < 1) {
-            const pulseR = r + 6 + elapsed * 25
-            const alpha = Math.round((1 - elapsed) * 50).toString(16).padStart(2, '0')
+          const age = time - pulse.startTime
+          if (age < RETICLE_DURATION) {
+            const progress = age / RETICLE_DURATION
+            const eased = easeOutCubic(progress)
+            const pulseR = (baseR + 6) + eased * 25
+            const alpha = Math.round((1 - eased) * 50).toString(16).padStart(2, '0')
             ctx.beginPath()
             ctx.arc(nx, ny, pulseR, 0, Math.PI * 2)
             ctx.strokeStyle = `${COLORS.selection}${alpha}`
@@ -270,8 +432,10 @@ export function GraphCanvas({ nodes, edges, isLoading, error, onNodeDoubleClick 
           ctx.font = `10px 'IBM Plex Mono', monospace`
           ctx.textAlign = 'center'
           ctx.fillStyle = isSelected ? COLORS.text : COLORS.textMuted
-          ctx.fillText(node.name, nx, ny + r + 14)
+          ctx.fillText(node.name, nx, ny + baseR + 14)
         }
+
+        ctx.globalAlpha = 1
       }
 
       animFrameRef.current = requestAnimationFrame(loop)
@@ -300,7 +464,6 @@ export function GraphCanvas({ nodes, edges, isLoading, error, onNodeDoubleClick 
 
   const handleMouseMove = useCallback((e: React.MouseEvent) => {
     if (!dragRef.current.dragging) {
-      // Hover tracking for glow ring
       const rect = canvasRef.current?.getBoundingClientRect()
       if (rect) {
         const mx = (e.clientX - rect.left - transformRef.current.x) / transformRef.current.scale
