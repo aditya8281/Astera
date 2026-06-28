@@ -1082,12 +1082,7 @@ fn index_command(path: &str) -> Result<(), anyhow::Error> {
     // Register imports from all Import nodes
     for node in &all_nodes {
         if node.kind == astera_core::NodeKind::Import {
-            let entries = resolver.resolve_file_imports(
-                node.file_id,
-                "",
-                &all_nodes,
-                &all_edges,
-            );
+            let entries = resolver.resolve_file_imports(node.file_id, "", &all_nodes, &all_edges);
             for entry in entries {
                 resolver.add_import(entry);
             }

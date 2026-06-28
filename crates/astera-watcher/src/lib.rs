@@ -281,7 +281,19 @@ fn is_watchable(path: &Path) -> bool {
     // Only watch known language extensions (includes all 8 supported languages + config)
     matches!(
         path.extension().and_then(|e| e.to_str()),
-        Some("ts" | "tsx" | "js" | "jsx" | "py" | "rs" | "go" | "c" | "cpp" | "java" | "toml" | "json")
+        Some(
+            "ts" | "tsx"
+                | "js"
+                | "jsx"
+                | "py"
+                | "rs"
+                | "go"
+                | "c"
+                | "cpp"
+                | "java"
+                | "toml"
+                | "json"
+        )
     )
 }
 

@@ -1,4 +1,4 @@
-use astera_core::{Edge, EdgeKind, Node, NodeKind, UnresolvedRef, BrokenRefKind};
+use astera_core::{BrokenRefKind, Edge, EdgeKind, Node, NodeKind, UnresolvedRef};
 use std::collections::HashMap;
 
 /// Kind of lexical scope
