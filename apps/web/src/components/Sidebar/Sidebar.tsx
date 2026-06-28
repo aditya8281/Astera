@@ -109,7 +109,7 @@ export function Sidebar() {
               {/* Active indicator */}
               {active && (
                 <span
-                  className="absolute left-0 top-1/2 -translate-y-1/2 w-px h-5 rounded-r"
+                  className="absolute left-0 top-1/2 -translate-y-1/2 w-0.5 h-5 rounded-r"
                   style={{ background: COLORS.selection }}
                 />
               )}

@@ -44,7 +44,7 @@ export function KeyboardShortcuts() {
   return (
     <div
       className="fixed inset-0 flex items-center justify-center animate-fade-in"
-      style={{ zIndex: 1000 }}
+      style={{ zIndex: 'var(--z-command-palette)' }}
       onClick={() => setOpen(false)}
     >
       {/* Backdrop */}
@@ -52,7 +52,7 @@ export function KeyboardShortcuts() {
 
       {/* Modal */}
       <div
-        className="relative w-full max-w-md rounded-xl overflow-hidden animate-slide-up"
+        className="relative w-full max-w-md rounded-lg overflow-hidden animate-slide-up"
         style={{
           background: COLORS.surface,
           border: `1px solid ${COLORS.border}`,

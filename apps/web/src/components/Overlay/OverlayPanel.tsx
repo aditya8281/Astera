@@ -83,7 +83,7 @@ export function OverlayPanel({ id, title, children, width = 380 }: OverlayPanelP
         className="fixed top-0 right-0 h-full flex flex-col animate-slide-in-right overflow-hidden"
         style={{
           width: window.innerWidth <= 768 ? '100vw' : width,
-          background: COLORS.surfaceDim,
+          background: COLORS.surface,
           borderLeft: `1px solid ${COLORS.border}`,
           zIndex: 'calc(var(--z-panel) + 1)',
         }}
@@ -97,7 +97,7 @@ export function OverlayPanel({ id, title, children, width = 380 }: OverlayPanelP
           style={{ borderColor: COLORS.border }}
         >
           <h2
-            className="text-sm font-heading font-bold tracking-wide uppercase"
+            className="text-sm font-heading font-bold"
             style={{ color: COLORS.text }}
           >
             {title}

@@ -93,13 +93,15 @@ export function CommandPalette() {
 
       {/* Palette */}
       <div
-        className="relative w-full max-w-lg rounded-xl overflow-hidden animate-slide-up"
+        className="relative w-full max-w-lg rounded-lg overflow-hidden animate-slide-up"
         style={{
           background: COLORS.surface,
           border: `1px solid ${COLORS.border}`,
           /* no shadow — tonal depth only */
         }}
         onClick={(e) => e.stopPropagation()}
+        role="dialog"
+        aria-label="Search symbols and files"
       >
         {/* Search input */}
         <div className="flex items-center gap-3 px-4 py-3 border-b" style={{ borderColor: COLORS.border }}>

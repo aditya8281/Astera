@@ -49,7 +49,7 @@ export function PerformanceOverlay() {
     <div
       className="fixed top-3 right-3 rounded-lg px-3 py-2 font-mono text-[11px] leading-relaxed"
       style={{
-        background: `${COLORS.surface}E0`,
+        background: COLORS.surface,
         border: `1px solid ${COLORS.border}`,
         color: COLORS.textMuted,
         zIndex: 'var(--z-telemetry)',

@@ -179,8 +179,8 @@ export function GraphPage() {
         <div
           className="absolute top-3 left-1/2 -translate-x-1/2 flex items-center gap-1 px-3 py-1 rounded-full font-mono text-[11px] animate-slide-up-panel"
           style={{
-            background: `${COLORS.surface}E0`,
-            border: `1px solid ${COLORS.selection}40`,
+            background: COLORS.surface,
+            border: `1px solid ${COLORS.border}`,
             zIndex: 'var(--z-minimap)',
           }}
           role="navigation"
@@ -230,7 +230,7 @@ export function GraphPage() {
         <div
           className="absolute bottom-16 left-3 rounded-lg p-3 w-64 animate-scale-in"
           style={{
-            background: `${COLORS.surface}E8`,
+            background: COLORS.surface,
             border: `1px solid ${COLORS.border}`,
             zIndex: 'var(--z-minimap)',
             transformOrigin: 'bottom left',
@@ -298,7 +298,7 @@ export function GraphPage() {
         <div
           className="absolute bottom-3 right-3 px-2 py-1 rounded text-[10px] font-mono"
           style={{
-            background: `${COLORS.surface}C0`,
+            background: COLORS.surface,
             border: `1px solid ${COLORS.border}`,
             color: COLORS.textDim,
             zIndex: 'var(--z-minimap)',
@@ -341,7 +341,7 @@ function StatBadge({ label, value, delay = 0 }: { label: string; value: number; 
     <div
       className="px-2.5 py-1 rounded font-mono text-xs animate-fade-in"
       style={{
-        background: `${COLORS.surface}D0`,
+        background: COLORS.surface,
         border: `1px solid ${COLORS.border}`,
         color: COLORS.textMuted,
         animationDelay: `${delay * 50}ms`,

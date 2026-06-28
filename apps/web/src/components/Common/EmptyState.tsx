@@ -58,7 +58,7 @@ export function EmptyState({ icon, iconKey, title, description, action }: EmptyS
           margin: 0,
           fontFamily: 'var(--font-body)',
           fontSize: '0.8125rem',
-          color: COLORS.textDim,
+          color: COLORS.textMuted,
           maxWidth: 280,
           lineHeight: 1.5,
         }}
@@ -73,7 +73,7 @@ export function EmptyState({ icon, iconKey, title, description, action }: EmptyS
             marginTop: 4,
             padding: '6px 16px',
             border: `1px solid ${COLORS.borderLight}`,
-            borderRadius: 6,
+            borderRadius: 4,
             background: COLORS.surface,
             color: COLORS.text,
             fontFamily: 'var(--font-body)',
