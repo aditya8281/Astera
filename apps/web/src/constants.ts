@@ -31,13 +31,13 @@ export const COLORS = {
   accent: '#59F6FF',
   accentDim: '#3AA8B0',
 
-  // Graph nodes — slightly brighter for OLED contrast
-  nodeDefault: '#B0BECC',
-  nodeHover: '#DCE8FF',
+  // Graph nodes — vivid on OLED
+  nodeDefault: '#CBD5E1',
+  nodeHover: '#F1F5F9',
   nodeSelected: '#59F6FF',
 
-  // Graph edges — more visible
-  edgeDefault: 'rgba(160,175,200,0.30)',
+  // Graph edges — visible on OLED
+  edgeDefault: 'rgba(100,140,190,0.35)',
   edgeHover: '#59F6FF',
 
   // Labels
@@ -58,22 +58,22 @@ export const COLORS = {
   muted: '#8B91A0',
 } as const
 
-// ─── Node colors by kind (muted, Obsidian-inspired) ───
+// ─── Node colors by kind (vivid, OLED-contrast) ───
 
 export const NODE_COLORS: Record<string, string> = {
-  File: '#6B7280',
-  Module: '#A78BFA',
-  Function: '#A7B5C9',
-  Method: '#B0BAC9',
-  Class: '#7DD3FC',
-  Interface: '#67E8F9',
-  Enum: '#FCD34D',
-  Variable: '#F9A8D4',
-  Field: '#FBBF7A',
-  Parameter: '#C4B5FD',
-  TypeAlias: '#6EE7B7',
-  Import: '#6B7280',
-  Macro: '#F9A8D4',
+  File: '#8B95A5',
+  Module: '#C084FC',
+  Function: '#60A5FA',
+  Method: '#818CF8',
+  Class: '#38BDF8',
+  Interface: '#22D3EE',
+  Enum: '#FBBF24',
+  Variable: '#F472B6',
+  Field: '#FB923C',
+  Parameter: '#A78BFA',
+  TypeAlias: '#34D399',
+  Import: '#8B95A5',
+  Macro: '#F472B6',
   Anonymous: '#94A3B8',
 }
 

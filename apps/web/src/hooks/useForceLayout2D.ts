@@ -5,11 +5,11 @@ import type { GraphNode, GraphEdge } from '../types'
  * 2D force-directed layout simulation.
  * Returns x/y positions — no z-axis.
  *
- * Tuned for calm, spacious layout:
- * - Stronger repulsion (charge) for breathing room
- * - Wider link distance to prevent clustering
- * - Slower alpha decay for smoother convergence
- * - Gentle center gravity to keep graph in view
+ * Layout philosophy: NO center gravity. NO cluster gravity.
+ * Just repulsion (constant) + link springs (threshold-based).
+ * auto-fit camera handles centering the view.
+ * Nodes spread naturally from repulsion; links pull connected
+ * nodes to a threshold distance. That's it.
  */
 
 export interface Vec2 { x: number; y: number }
@@ -44,12 +44,12 @@ export function useForceLayout2D(nodes: GraphNode[], edges: GraphEdge[]): Map<nu
         for (const p of sim.positions) map.set(p.id, { x: p.x, y: p.y })
         setPositions(map)
       }
-      if (sim.alpha > 0.001) {
-        requestAnimationFrame(tick)
-      } else {
+      if (sim.settled) {
         const map = new Map<number, Vec2>()
         for (const p of sim.positions) map.set(p.id, { x: p.x, y: p.y })
         setPositions(map)
+      } else {
+        requestAnimationFrame(tick)
       }
     }
     requestAnimationFrame(tick)
@@ -68,15 +68,25 @@ interface Link { source: number; target: number }
 class ForceSimulation2D {
   positions: Particle2D[]
   links: Link[]
-  alpha = 1.0
-  alphaDecay = 0.012 // Slower decay = more settling time = calmer convergence
   cancelled = false
+  settled = false
   private nodeMap: Map<number, Particle2D>
   private connectedMap: Map<number, Set<number>>
+  private n: number
+
+  // Tuning — these are constants, not multiplied by alpha
+  private readonly REPULSION = 600       // constant repulsion strength
+  private readonly LINK_DISTANCE = 150   // target distance between linked nodes
+  private readonly LINK_SPRING = 0.03    // spring constant
+  private readonly DAMPING = 0.5         // velocity damping per tick
+  private readonly MAX_TICKS = 300       // hard stop
+  private readonly MIN_VELOCITY = 0.05   // velocity threshold for settling
+  private tickCount = 0
 
   constructor(nodes: GraphNode[], edges: GraphEdge[]) {
-    // Wider initial spread for spacious feel
-    const spread = Math.max(12, Math.sqrt(nodes.length) * 4)
+    this.n = nodes.length
+    // Wide initial spread — spread out, not clustered
+    const spread = Math.max(15, Math.sqrt(this.n) * 5)
     this.positions = nodes.map(n => ({
       id: n.id,
       x: (Math.random() - 0.5) * spread,
@@ -97,32 +107,35 @@ class ForceSimulation2D {
   }
 
   step() {
-    this.alpha *= (1 - this.alphaDecay)
-    if (this.alpha < 0.001) return
-    const n = this.positions.length
-    if (n === 0) return
+    if (this.settled || this.cancelled) return
+    this.tickCount++
+    if (this.tickCount > this.MAX_TICKS) { this.settled = true; return }
 
-    // Tuning: wide spread, no center gravity (auto-fit handles centering)
-    const chargeStrength = -400 / Math.sqrt(n || 1) // Strong repulsion for breathing room
-    const linkDistance = Math.max(100, 250 / Math.sqrt(n || 1)) // Wide spacing between linked nodes
+    const n = this.n
+    if (n === 0) { this.settled = true; return }
 
+    // Reset velocities
     for (const p of this.positions) { p.vx = 0; p.vy = 0 }
 
-    // Charge repulsion
-    if (n <= 300) {
+    // 1. REPULSION — constant, NOT decaying with alpha
+    //    Every pair of nodes pushes apart
+    if (n <= 400) {
       for (let i = 0; i < n; i++) {
         for (let j = i + 1; j < n; j++) {
           const a = this.positions[i], b = this.positions[j]
           let dx = b.x - a.x, dy = b.y - a.y
           let dist = Math.sqrt(dx * dx + dy * dy)
-          if (dist < 0.5) dist = 0.5
-          const force = (chargeStrength * this.alpha) / (dist * dist)
+          if (dist < 1) dist = 1
+          // Inverse-square repulsion with floor
+          const force = this.REPULSION / (dist * dist + 100)
           const fx = (dx / dist) * force, fy = (dy / dist) * force
-          a.vx -= fx; a.vy -= fy; b.vx += fx; b.vy += fy
+          a.vx -= fx; a.vy -= fy
+          b.vx += fx; b.vy += fy
         }
       }
     } else {
-      const step = Math.max(1, Math.floor(n / 150))
+      // Large graph: sample-based repulsion for perf
+      const step = Math.max(1, Math.floor(n / 200))
       for (let i = 0; i < n; i += step) {
         const a = this.positions[i]
         for (let j = 0; j < n; j++) {
@@ -130,46 +143,44 @@ class ForceSimulation2D {
           const b = this.positions[j]
           let dx = b.x - a.x, dy = b.y - a.y
           let dist = Math.sqrt(dx * dx + dy * dy)
-          if (dist < 0.5) dist = 0.5
-          const force = (chargeStrength * this.alpha * 0.3) / (dist * dist)
-          a.vx -= (dx / dist) * force; a.vy -= (dy / dist) * force
+          if (dist < 1) dist = 1
+          const force = this.REPULSION * 0.4 / (dist * dist + 100)
+          a.vx -= (dx / dist) * force
+          a.vy -= (dy / dist) * force
         }
       }
     }
 
-    // Link attraction — gentler spring
+    // 2. LINK SPRINGS — threshold-based, constant
+    //    If distance > LINK_DISTANCE: pull together
+    //    If distance < LINK_DISTANCE: push apart
     for (const link of this.links) {
       const a = this.nodeMap.get(link.source), b = this.nodeMap.get(link.target)
       if (!a || !b) continue
       let dx = b.x - a.x, dy = b.y - a.y
       let dist = Math.sqrt(dx * dx + dy * dy)
       if (dist < 0.5) dist = 0.5
-      const force = (dist - linkDistance) * 0.025 * this.alpha // Softer spring
+      // Spring: rest at LINK_DISTANCE, push if too close, pull if too far
+      const displacement = dist - this.LINK_DISTANCE
+      const force = displacement * this.LINK_SPRING
       const fx = (dx / dist) * force, fy = (dy / dist) * force
-      a.vx += fx; a.vy += fy; b.vx -= fx; b.vy -= fy
+      a.vx += fx; a.vy += fy
+      b.vx -= fx; b.vy -= fy
     }
 
-    // Cluster gravity — very gentle grouping
+    // 3. Integrate with strong damping
     for (const p of this.positions) {
-      const neighbors = this.connectedMap.get(p.id)
-      if (!neighbors || neighbors.size === 0) continue
-      let cx = 0, cy = 0, count = 0
-      for (const nid of neighbors) {
-        const nd = this.nodeMap.get(nid)
-        if (nd) { cx += nd.x; cy += nd.y; count++ }
-      }
-      if (count > 0) {
-        cx /= count; cy /= count
-        p.vx += (cx - p.x) * 0.002 * this.alpha // Half the original gravity
-        p.vy += (cy - p.y) * 0.002 * this.alpha
-      }
-    }
-
-    // Integrate with damping
-    const decay = 0.55 // Slightly more damping for smoother motion
-    for (const p of this.positions) {
-      p.vx *= decay; p.vy *= decay
+      p.vx *= this.DAMPING; p.vy *= this.DAMPING
       p.x += p.vx; p.y += p.vy
+    }
+
+    // Check if settled: all velocities below threshold
+    let totalVelocity = 0
+    for (const p of this.positions) {
+      totalVelocity += Math.abs(p.vx) + Math.abs(p.vy)
+    }
+    if (totalVelocity / n < this.MIN_VELOCITY && this.tickCount > 30) {
+      this.settled = true
     }
   }
 }
