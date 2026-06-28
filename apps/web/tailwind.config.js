@@ -14,7 +14,6 @@ export default {
         'border-light': '#26272E',
         'accent': '#59F6FF',
         'accent-dim': '#3AA8B0',
-        'accent-orange': '#59F6FF',
         'success': '#4ADE80',
         'warning': '#FBBF24',
         'error': '#F87171',
