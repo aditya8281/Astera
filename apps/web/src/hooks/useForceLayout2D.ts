@@ -102,10 +102,9 @@ class ForceSimulation2D {
     const n = this.positions.length
     if (n === 0) return
 
-    // Tuning: stronger repulsion, wider links, gentle center
-    const chargeStrength = -250 / Math.sqrt(n || 1) // ~67% stronger repulsion
-    const linkDistance = Math.max(80, 200 / Math.sqrt(n || 1)) // ~43% wider spacing
-    const centerStrength = 0.005 // Gentler center pull
+    // Tuning: wide spread, no center gravity (auto-fit handles centering)
+    const chargeStrength = -400 / Math.sqrt(n || 1) // Strong repulsion for breathing room
+    const linkDistance = Math.max(100, 250 / Math.sqrt(n || 1)) // Wide spacing between linked nodes
 
     for (const p of this.positions) { p.vx = 0; p.vy = 0 }
 
@@ -164,12 +163,6 @@ class ForceSimulation2D {
         p.vx += (cx - p.x) * 0.002 * this.alpha // Half the original gravity
         p.vy += (cy - p.y) * 0.002 * this.alpha
       }
-    }
-
-    // Center gravity
-    for (const p of this.positions) {
-      p.vx -= p.x * centerStrength * this.alpha
-      p.vy -= p.y * centerStrength * this.alpha
     }
 
     // Integrate with damping
